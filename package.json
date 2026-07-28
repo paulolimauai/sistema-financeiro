@@ -1,0 +1,19 @@
+{
+  "name": "PLP-FINANCE",
+  "version": "1.0.0",
+  "description": "Sistema Financeiro Inteligente - PLP FINANCE",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "pg": "^8.11.3"
+  },
+  "engines": {
+    "node": ">=18.x"
+  }
+}

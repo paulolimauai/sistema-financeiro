@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Sistema Financeiro Pessoal</title>
+    <!-- Tailwind CSS CDN para estilização rápida e moderna -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        finance: {
+                            dark: '#0B132B',
+                            card: '#1C2541',
+                            accent: '#06D6A0',
+                            accentHover: '#05b385'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="h-full bg-finance-dark text-gray-100 font-sans antialiased flex flex-col justify-between">
+
+    <div class="flex min-h-screen">
+        
+        <!-- Lado Esquerdo: Área de Autenticação -->
+        <div class="flex flex-col justify-center flex-1 px-4 py-12 sm:px-6 lg:flex-none lg:px-20 xl:px-24 bg-finance-dark/90 w-full lg:w-1/2 z-10 border-r border-gray-800/60">
+            <div class="mx-auto w-full max-w-sm lg:w-96">
+                
+                <!-- Logotipo e Título -->
+                <div>
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-finance-accent/10 border border-finance-accent/30 flex items-center justify-center text-finance-accent">
+                            <!-- Ícone de Gráfico/Finanças -->
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </div>
+                        <span class="text-xl font-bold tracking-tight text-white">Fin<span class="text-finance-accent">Control</span></span>
+                    </div>
+                    <h2 class="mt-8 text-2xl font-bold tracking-tight text-white">Acesse sua conta</h2>
+                    <p class="mt-2 text-sm text-gray-400">
+                        Gerencie seu patrimônio com segurança e clareza.
+                    </p>
+                </div>
+
+                <!-- Formulário de Login -->
+                <div class="mt-8">
+                    <form action="#" method="POST" class="space-y-5">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">E-mail</label>
+                            <div class="mt-1">
+                                <input id="email" name="email" type="email" autocomplete="email" required 
+                                    class="block w-full rounded-lg border border-gray-700 bg-finance-card/50 px-3.5 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-finance-accent focus:outline-none focus:ring-1 focus:ring-finance-accent text-sm"
+                                    placeholder="seu.email@exemplo.com">
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="flex items-center justify-between">
+                                <label class="block text-sm font-medium text-gray-300">Senha</label>
+                                <div class="text-sm">
+                                    <a href="#" class="font-medium text-finance-accent hover:underline">Esqueceu a senha?</a>
+                                </div>
+                            </div>
+                            <div class="mt-1">
+                                <input id="password" name="password" type="password" autocomplete="current-password" required 
+                                    class="block w-full rounded-lg border border-gray-700 bg-finance-card/50 px-3.5 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-finance-accent focus:outline-none focus:ring-1 focus:ring-finance-accent text-sm"
+                                    placeholder="••••••••">
+                            </div>
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <input id="remember-me" name="remember-me" type="checkbox" 
+                                    class="h-4 w-4 rounded border-gray-700 bg-finance-card text-finance-accent focus:ring-finance-accent">
+                                <label for="remember-me" class="ml-2 block text-sm text-gray-400">Lembrar de mim</label>
+                            </div>
+                        </div>
+
+                        <div>
+                            <button type="submit" 
+                                class="flex w-full justify-center rounded-lg bg-finance-accent px-3.5 py-2.5 text-sm font-semibold text-finance-dark shadow-sm hover:bg-finance-accentHover transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finance-accent">
+                                Entrar no Sistema
+                            </button>
+                        </div>
+                    </form>
+
+                    <!-- Divisor -->
+                    <div class="relative mt-8">
+                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                            <div class="w-full border-t border-gray-800"></div>
+                        </div>
+                        <div class="relative flex justify-center text-xs uppercase">
+                            <span class="bg-finance-dark px-2 text-gray-500">Ou continue com</span>
+                        </div>
+                    </div>
+
+                    <!-- Botões de Acesso Rápido / Biometria -->
+                    <div class="mt-6 grid grid-cols-2 gap-3">
+                        <button type="button" class="flex items-center justify-center gap-2 rounded-lg border border-gray-700 bg-finance-card/40 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-finance-card transition-colors">
+                            <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+                            Google
+                        </button>
+                        <button type="button" class="flex items-center justify-center gap-2 rounded-lg border border-gray-700 bg-finance-card/40 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-finance-card transition-colors">
+                            <svg class="w-5 h-5 text-finance-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0115.171 17m3.839-1.132c.645-2.266.99-4.659.99-7.138A8 8 0 000 8c0 1.62.492 3.128 1.342 4.38"></path></svg>
+                            Biometria
+                        </button>
+                    </div>
+
+                    <!-- Aviso de Segurança Rodapé do Formulário -->
+                    <div class="mt-8 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                        <svg class="w-4 h-4 text-finance-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        Ambiente 100% criptografado e seguro
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+        <!-- Lado Direito: Fundo Visual com Gradiente Dinâmico e Cards Abstratos -->
+        <div class="relative hidden lg:flex lg:flex-1 items-center justify-center bg-gradient-to-br from-[#111936] via-[#1C2541] to-[#0B132B] overflow-hidden p-12">
+            
+            <!-- Efeitos de Luz de Fundo (Blur Glows) -->
+            <div class="absolute -top-40 -right-40 w-96 h-96 bg-finance-accent/10 rounded-full blur-3xl pointer-events-none"></div>
+            <div class="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            <div class="relative z-10 max-w-lg text-center">
+                <!-- Mini Card Flutuante Simulando Dashboard -->
+                <div class="bg-finance-card/70 backdrop-blur-md border border-gray-700/60 p-6 rounded-2xl shadow-2xl mb-8 text-left">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-gray-400">Patrimônio Líquido</span>
+                        <span class="inline-flex items-center rounded-full bg-finance-accent/10 px-2.5 py-0.5 text-xs font-medium text-finance-accent">+12.4% este mês</span>
+                    </div>
+                    <div class="text-3xl font-bold text-white mb-2">R$ 84.230,00</div>
+                    <!-- Barra de Progresso Simulado -->
+                    <div class="w-full bg-gray-800 rounded-full h-2">
+                        <div class="bg-finance-accent h-2 rounded-full" style="width: 70%"></div>
+                    </div>
+                </div>
+
+                <h3 class="text-2xl font-bold text-white tracking-tight mb-3">
+                    Construa o seu futuro financeiro com inteligência.
+                </h3>
+                <p class="text-sm text-gray-400 leading-relaxed">
+                    Acompanhe seus gastos, defina metas de economia e visualize relatórios detalhados em um só lugar.
+                </p>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
