@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 const express = require('express');
 const bcrypt = require('bcrypt');
@@ -63,7 +62,7 @@ function isAuthenticated(req, res, next) {
 }
 
 // ==========================================
-// TELA DE LOGIN / CADASTRO (DESIGN EXECUTIVO & ANIMAÇÃO DE LINHAS)
+// TELA DE LOGIN / CADASTRO (DESIGN HIGH-FREQUENCY TRADING TERMINAL)
 // ==========================================
 app.get('/login', (req, res) => {
     res.send(`<!DOCTYPE html>
@@ -71,30 +70,28 @@ app.get('/login', (req, res) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PLP FINANCEIRO - Acesso à Plataforma</title>
+    <title>PLP FINANCEIRO - Acesso ao Terminal</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
 
         :root {
-            --bg-main: #060911;
-            --card-bg: rgba(13, 18, 30, 0.75);
-            --card-border: rgba(255, 255, 255, 0.1);
-            --field-bg: rgba(6, 9, 17, 0.65);
-            --field-border: rgba(255, 255, 255, 0.14);
+            --bg-main: #06111f;
+            --card-bg: rgba(13, 27, 46, 0.75);
+            --card-border: rgba(56, 189, 248, 0.2);
+            --field-bg: #ffffff;
+            --field-text: #0f172a;
             --text-main: #f8fafc;
             --text-muted: #94a3b8;
-            --text-label: #cbd5e1;
-            --accent: #3b82f6;
-            --accent-soft: #60a5fa;
-            --accent-glow: rgba(59, 130, 246, 0.35);
-            --accent-hover: #2563eb;
-            --danger: #f43f5e;
-            --emerald: #10b981;
+            --accent-cyan: #38bdf8;
+            --accent-blue: #2563eb;
+            --neon-green: #10b981;
+            --neon-red: #f43f5e;
+            --glow-cyan: rgba(56, 189, 248, 0.35);
         }
 
-        html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow-x: hidden; }
+        html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
         
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
@@ -102,67 +99,72 @@ app.get('/login', (req, res) => {
             color: var(--text-main);
             min-height: 100vh;
             position: relative;
+            overflow-x: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 24px 16px;
         }
 
-        /* BANNER ANIMADO DE LINHAS E LISTAS NO FUNDO */
+        /* CENÁRIO DE BACKGROUND COM VELAS E SÍMBOLOS FINANANCEIROS */
         .bg-scene {
             position: fixed;
             inset: 0;
             z-index: 0;
             overflow: hidden;
-            background: 
-                radial-gradient(circle at 50% 30%, rgba(37, 99, 235, 0.15), transparent 60%),
-                radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.08), transparent 50%),
-                var(--bg-main);
+            background: radial-gradient(circle at 50% 40%, #0d1e36 0%, #050b14 80%);
         }
-        
-        /* Grade e Linhas Deslizantes */
-        .bg-lines-stream {
+
+        .bg-grid {
             position: absolute;
-            inset: -100px;
+            inset: 0;
             background-image: 
-                linear-gradient(0deg, transparent 95%, rgba(59, 130, 246, 0.15) 100%),
-                linear-gradient(90deg, transparent 95%, rgba(255, 255, 255, 0.03) 100%);
-            background-size: 50px 50px;
-            animation: streamMove 20s linear infinite;
+                linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
+            background-size: 40px 40px;
+            opacity: 0.6;
         }
 
-        @keyframes streamMove {
-            0% { transform: translateY(0) translateX(0); }
-            100% { transform: translateY(50px) translateX(-50px); }
-        }
-
-        /* Feixes iluminados sutis de linhas passando */
-        .bg-glowing-beam {
+        /* GRÁFICO CANDLESTICK DE FUNDO */
+        .chart-bg-line {
             position: absolute;
-            width: 200%;
+            top: 52%;
+            left: 0;
+            right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent);
-            top: 20%;
-            left: -50%;
-            animation: beamPass 8s ease-in-out infinite;
-        }
-        .bg-glowing-beam:nth-child(2) {
-            top: 65%;
-            animation-delay: 4s;
-            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.5), transparent);
+            background: rgba(56, 189, 248, 0.4);
+            box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
+            z-index: 1;
         }
 
-        @keyframes beamPass {
-            0% { transform: translateX(-50%) rotate(-12deg); opacity: 0; }
-            50% { opacity: 1; }
-            100% { transform: translateX(50%) rotate(-12deg); opacity: 0; }
+        .candles-layer {
+            position: absolute;
+            top: 40%;
+            width: 100%;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            z-index: 1;
+            opacity: 0.65;
+            pointer-events: none;
         }
+
+        .candle { position: relative; width: 18px; border-radius: 2px; }
+        .candle::before { content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 2px; background: inherit; }
+        .candle.green { background: var(--neon-green); height: 35px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
+        .candle.green::before { top: -14px; bottom: -14px; }
+        .candle.red { background: var(--neon-red); height: 40px; box-shadow: 0 0 10px rgba(244, 63, 94, 0.4); }
+        .candle.red::before { top: -16px; bottom: -16px; }
+
+        /* MOEDAS EM MARCA D'ÁGUA */
+        .symbol-float { position: absolute; color: rgba(255, 255, 255, 0.07); font-family: 'JetBrains Mono', monospace; font-weight: 700; user-select: none; z-index: 1; }
 
         .login-container { 
             position: relative; 
             z-index: 5; 
             width: 100%; 
-            max-width: 420px; 
+            max-width: 450px; 
             margin: auto; 
             display: flex; 
             flex-direction: column; 
@@ -170,38 +172,43 @@ app.get('/login', (req, res) => {
             justify-content: center; 
         }
 
-        .brand-header-container { text-align: center; margin-bottom: 24px; width: 100%; }
+        .brand-header-container { text-align: center; margin-bottom: 22px; width: 100%; }
 
-        .brand-logo-icon {
-            width: 52px;
-            height: 52px;
-            background: linear-gradient(135deg, var(--accent), #1d4ed8);
-            border-radius: 14px;
+        .brand-pill {
             display: inline-flex;
             align-items: center;
-            justify-content: center;
-            font-size: 24px;
+            gap: 6px;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid var(--neon-green);
+            color: var(--neon-green);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            font-weight: 800;
+            padding: 4px 14px;
+            border-radius: 20px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
             margin-bottom: 12px;
-            box-shadow: 0 10px 25px var(--accent-glow);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
         }
 
         .brand-animated-name {
             font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 24px;
-            font-weight: 800;
-            letter-spacing: 1.5px;
+            font-size: 30px;
+            font-weight: 900;
+            letter-spacing: 2px;
             text-transform: uppercase;
-            color: var(--text-main);
+            color: #ffffff;
             display: block;
+            text-shadow: 0 0 20px var(--glow-cyan);
         }
 
         .brand-subtitle { 
-            font-size: 11.5px; 
+            font-size: 11px; 
             color: var(--text-muted); 
-            letter-spacing: 2px; 
+            letter-spacing: 3px; 
             text-transform: uppercase; 
-            font-weight: 600; 
+            font-weight: 700; 
             margin-top: 4px; 
         }
 
@@ -209,118 +216,112 @@ app.get('/login', (req, res) => {
             width: 100%; 
             background: var(--card-bg); 
             border: 1px solid var(--card-border); 
-            border-radius: 20px; 
-            padding: 32px 28px 28px; 
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05) inset; 
-            backdrop-filter: blur(20px); 
+            border-radius: 18px; 
+            padding: 28px 28px 24px; 
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.08); 
+            backdrop-filter: blur(16px); 
+            -webkit-backdrop-filter: blur(16px);
             animation: cardIn 0.4s ease-out; 
         }
         @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-        .login-card-head { text-align: center; margin-bottom: 22px; }
-        .login-title { font-size: 18px; font-weight: 700; color: var(--text-main); letter-spacing: -0.2px; display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .login-desc { font-size: 13px; color: var(--text-muted); margin-top: 6px; font-weight: 400; }
+        .login-card-head { text-align: left; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+        .login-title { font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: -0.2px; display: flex; align-items: center; gap: 8px; }
 
-        .form-group { margin-bottom: 16px; position: relative; text-align: left; }
-        label { font-size: 11px; color: var(--text-label); display: block; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .input-icon-wrap { position: relative; display: flex; align-items: center; width: 100%; }
-        .input-icon-wrap .input-icon { position: absolute; left: 14px; color: var(--text-muted); width: 17px; height: 17px; pointer-events: none; transition: all 0.2s; }
+        .form-group { margin-bottom: 14px; position: relative; text-align: left; }
+        label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #ffffff; display: block; margin-bottom: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
         
         input { 
             width: 100%; 
-            padding: 12px 14px 12px 40px; 
+            padding: 12px 14px; 
             background: var(--field-bg); 
-            border: 1px solid var(--field-border); 
-            color: var(--text-main); 
-            border-radius: 10px; 
+            border: 1px solid #cbd5e1; 
+            color: var(--field-text); 
+            border-radius: 8px; 
             font-size: 13.5px; 
             font-family: 'Plus Jakarta Sans', sans-serif; 
+            font-weight: 600;
             outline: none; 
             transition: all 0.2s ease; 
         }
-        input::placeholder { color: #64748b; }
-        input:focus { border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-glow); background: rgba(13, 18, 30, 0.9); }
-        input:focus + .input-icon, .input-icon-wrap:focus-within .input-icon { color: var(--accent-soft); opacity: 1; }
-        input.field-error { border-color: var(--danger); animation: shake 0.3s ease-in-out; }
+        input::placeholder { color: #94a3b8; }
+        input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3); }
+        input.field-error { border-color: var(--neon-red); animation: shake 0.3s ease-in-out; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
-
-        .pw-toggle { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 6px; color: var(--text-muted); display: flex; align-items: center; border-radius: 6px; transition: color 0.2s; }
-        .pw-toggle:hover { color: var(--text-main); }
-        .pw-toggle svg { width: 17px; height: 17px; }
-
-        .caps-warning { display: none; align-items: center; gap: 6px; font-size: 11px; color: #facc15; font-weight: 500; margin-top: 5px; }
-        .caps-warning.show { display: flex; }
 
         .reg-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
         .hidden { display: none; }
 
-        .bottom-row { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; margin-bottom: 20px; }
-        .remember-check { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; font-size: 12.5px; color: var(--text-muted); font-weight: 500; }
-        .remember-check input[type=checkbox] { appearance: none; padding: 0; width: 16px; height: 16px; margin: 0; border-radius: 4px; border: 1px solid var(--field-border); background: var(--field-bg); cursor: pointer; display: grid; place-content: center; flex-shrink: 0; }
-        .remember-check input[type=checkbox]:checked { background: var(--accent); border-color: var(--accent-soft); }
-        .remember-check input[type=checkbox]::before { content: ''; width: 7px; height: 7px; transform: scale(0); border-radius: 1px; background: #fff; transition: transform 0.15s ease-in-out; }
+        .bottom-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; margin-bottom: 18px; }
+        .remember-check { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
+        .remember-check input[type=checkbox] { appearance: none; padding: 0; width: 14px; height: 14px; margin: 0; border-radius: 3px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); cursor: pointer; display: grid; place-content: center; flex-shrink: 0; transition: all 0.2s; }
+        .remember-check input[type=checkbox]:checked { background: var(--accent-blue); border-color: var(--accent-cyan); }
+        .remember-check input[type=checkbox]::before { content: ''; width: 6px; height: 6px; transform: scale(0); border-radius: 1px; background: #fff; transition: transform 0.15s ease-in-out; }
         .remember-check input[type=checkbox]:checked::before { transform: scale(1); }
         
-        .pill-link { color: var(--accent-soft); font-size: 12.5px; font-weight: 500; text-decoration: none; cursor: pointer; transition: color 0.2s; }
-        .pill-link:hover { color: #93c5fd; text-decoration: underline; }
+        .pill-link { color: var(--accent-cyan); font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; transition: color 0.2s; font-family: 'JetBrains Mono', monospace; }
+        .pill-link:hover { text-decoration: underline; color: #7dd3fc; }
 
         button.btn-submit { 
             width: 100%; 
-            padding: 13px; 
-            background: linear-gradient(135deg, var(--accent), var(--accent-hover)); 
+            padding: 12px; 
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
             color: #ffffff; 
-            border: 1px solid rgba(255, 255, 255, 0.15); 
-            border-radius: 10px; 
+            border: 1px solid rgba(255, 255, 255, 0.2); 
+            border-radius: 8px; 
             cursor: pointer; 
-            font-weight: 700; 
-            font-size: 13.5px; 
-            box-shadow: 0 4px 15px var(--accent-glow); 
+            font-weight: 800; 
+            font-size: 12.5px; 
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             gap: 8px; 
             transition: all 0.2s ease; 
         }
-        button.btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px var(--accent-glow); }
+        button.btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5); border-color: var(--accent-cyan); }
         button.btn-submit:disabled { opacity: 0.65; cursor: wait; }
-        .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; animation: spin 0.7s linear infinite; display: none; }
+        .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; animation: spin 0.7s linear infinite; display: none; }
         button.btn-submit.loading .spinner { display: inline-block; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
-        .error-message { font-size: 12.5px; font-weight: 500; min-height: 18px; margin-bottom: 12px; text-align: center; }
+        .error-message { font-size: 12px; font-weight: 600; min-height: 18px; margin-bottom: 10px; text-align: center; }
 
         .register-section-box {
             width: 100%;
-            margin-top: 16px;
+            margin-top: 14px;
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 14px;
-            padding: 12px 20px;
-            backdrop-filter: blur(20px);
+            border-radius: 12px;
+            padding: 10px 16px;
+            backdrop-filter: blur(16px);
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
         }
-        .register-section-box span { font-size: 12.5px; color: var(--text-muted); font-weight: 500; }
-        .btn-toggle-mode { font-family: 'Plus Jakarta Sans', sans-serif; background: transparent; border: 1px solid var(--field-border); color: var(--text-main); padding: 7px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
-        .btn-toggle-mode:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--accent-soft); color: var(--accent-soft); }
+        .register-section-box span { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+        .btn-toggle-mode { font-family: 'JetBrains Mono', monospace; background: rgba(56, 189, 248, 0.1); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 6px 14px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; transition: all 0.2s; white-space: nowrap; text-transform: uppercase; }
+        .btn-toggle-mode:hover { background: var(--accent-cyan); color: #0b1528; }
 
         .login-footer { 
             text-align: center; 
-            padding-top: 24px; 
+            padding-top: 20px; 
             font-size: 11px; 
-            letter-spacing: 0.5px;
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 1px;
             color: var(--text-muted);
+            text-transform: uppercase;
             width: 100%;
         }
-        .login-footer b { color: var(--text-main); font-weight: 600; }
 
         @media (max-width: 480px) {
-            .login-card { padding: 24px 18px 20px; }
+            .login-card { padding: 22px 18px; }
             .reg-grid-2 { grid-template-columns: 1fr; }
-            .brand-animated-name { font-size: 20px; }
+            .brand-animated-name { font-size: 24px; }
             .register-section-box { flex-direction: column; gap: 8px; text-align: center; }
             .btn-toggle-mode { width: 100%; }
         }
@@ -328,23 +329,45 @@ app.get('/login', (req, res) => {
 </head>
 <body>
 
+    <!-- AMBIENTE DE FUNDO TERMINAL / CANDLESTICKS -->
     <div class="bg-scene">
-        <div class="bg-lines-stream"></div>
-        <div class="bg-glowing-beam"></div>
-        <div class="bg-glowing-beam"></div>
+        <div class="bg-grid"></div>
+        <div class="chart-bg-line"></div>
+        
+        <div class="candles-layer">
+            <div class="candle red"></div>
+            <div class="candle green"></div>
+            <div class="candle green"></div>
+            <div class="candle red"></div>
+            <div class="candle green"></div>
+            <div class="candle green"></div>
+            <div class="candle red"></div>
+            <div class="candle green"></div>
+            <div class="candle green"></div>
+        </div>
+
+        <!-- SIMBOLOS MOEDAS -->
+        <span class="symbol-float" style="top: 25%; left: 15%; font-size: 20px;">฿</span>
+        <span class="symbol-float" style="top: 30%; left: 30%; font-size: 14px;">£</span>
+        <span class="symbol-float" style="top: 35%; left: 20%; font-size: 16px;">¥</span>
+        <span class="symbol-float" style="top: 45%; left: 30%; font-size: 15px;">%</span>
+        <span class="symbol-float" style="top: 52%; left: 18%; font-size: 22px;">฿</span>
+        <span class="symbol-float" style="top: 68%; left: 30%; font-size: 18px;">฿</span>
+        <span class="symbol-float" style="top: 22%; right: 25%; font-size: 14px;">%</span>
+        <span class="symbol-float" style="top: 32%; right: 10%; font-size: 18px;">$</span>
+        <span class="symbol-float" style="top: 62%; right: 12%; font-size: 16px;">£</span>
     </div>
 
     <div class="login-container">
         <div class="brand-header-container">
-            <div class="brand-logo-icon">💼</div>
+            <div class="brand-pill">@ PLATAFORMA HIGH-FREQUENCY</div>
             <span class="brand-animated-name">PLP FINANCEIRO</span>
-            <div class="brand-subtitle">Gestão & Inteligência Financeira</div>
+            <div class="brand-subtitle">Gestão & Inteligência de Mercado</div>
         </div>
 
         <div class="login-card">
             <div class="login-card-head">
-                <div class="login-title" id="form-title">Acesso à Plataforma</div>
-                <div class="login-desc" id="form-desc">Insira suas credenciais para acessar o painel financeiro.</div>
+                <div class="login-title" id="form-title">🔒 Acesso ao Terminal</div>
             </div>
 
             <div class="error-message" id="error-msg"></div>
@@ -353,72 +376,53 @@ app.get('/login', (req, res) => {
                 <div id="register-fields" class="hidden">
                     <div class="form-group">
                         <label for="name">Nome completo</label>
-                        <div class="input-icon-wrap">
-                            <input type="text" id="name" placeholder="Seu nome completo">
-                            <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-                        </div>
+                        <input type="text" id="name" placeholder="Seu nome completo">
                     </div>
                     
                     <div class="reg-grid-2">
                         <div class="form-group">
                             <label for="cpf">CPF</label>
-                            <div class="input-icon-wrap">
-                                <input type="text" id="cpf" placeholder="000.000.000-00">
-                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"></rect><line x1="7" y1="8" x2="17" y2="8"></line><line x1="7" y1="12" x2="13" y2="12"></line></svg>
-                            </div>
+                            <input type="text" id="cpf" placeholder="000.000.000-00">
                         </div>
                         <div class="form-group">
                             <label for="phone">Telefone</label>
-                            <div class="input-icon-wrap">
-                                <input type="text" id="phone" placeholder="(00) 00000-0000">
-                                <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
-                            </div>
+                            <input type="text" id="phone" placeholder="(00) 00000-0000">
                         </div>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label for="email">E-mail corporativo ou pessoal</label>
-                    <div class="input-icon-wrap">
-                        <input type="email" id="email" placeholder="seu@email.com" required>
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
-                    </div>
+                    <label for="email">E-mail Corporativo</label>
+                    <input type="email" id="email" placeholder="paulo@email.com" required>
                 </div>
 
-                <div class="form-group" style="margin-bottom: 6px;">
-                    <label for="password">Senha de acesso</label>
-                    <div class="input-icon-wrap">
-                        <input type="password" id="password" placeholder="••••••••" required>
-                        <svg class="input-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                        <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Mostrar senha">
-                            <svg id="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                        </button>
-                    </div>
-                    <div class="caps-warning" id="caps-warning">⚠️ Caps Lock ativado</div>
+                <div class="form-group">
+                    <label for="password">Senha de Segurança</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
                 </div>
 
                 <div class="bottom-row">
                     <label class="remember-check">
                         <input type="checkbox" id="remember">
-                        <span>Lembrar do acesso</span>
+                        <span>Lembrar Credenciais</span>
                     </label>
-                    <a class="pill-link" onclick="forgotPassword(event)">Esqueceu a senha?</a>
+                    <a class="pill-link" onclick="forgotPassword(event)">Esqueceu a senha? Recuperar</a>
                 </div>
 
                 <button type="submit" class="btn-submit" id="submit-btn">
-                    <span id="submit-btn-text">Entrar no Sistema</span>
+                    <span id="submit-btn-text">Autenticar no Sistema</span>
                     <span class="spinner"></span>
                 </button>
             </form>
         </div>
 
         <div class="register-section-box">
-            <span id="toggle-question">Ainda não possui uma conta?</span>
+            <span id="toggle-question">Ainda não possui credenciais?</span>
             <button type="button" class="btn-toggle-mode" id="toggle-btn" onclick="toggleMode()">Criar Cadastro</button>
         </div>
 
         <footer class="login-footer">
-            Desenvolvido por <b>Paulo Lima</b>
+            Desenvolvido por Paulo Lima • 2026
         </footer>
     </div>
 
@@ -427,10 +431,9 @@ app.get('/login', (req, res) => {
 
         function toggleMode() {
             isLogin = !isLogin;
-            document.getElementById('form-title').innerText = isLogin ? 'Acesso à Plataforma' : 'Criar Nova Conta';
-            document.getElementById('form-desc').innerText = isLogin ? 'Insira suas credenciais para acessar o painel financeiro.' : 'Preencha os dados abaixo para registrar seu perfil.';
-            document.getElementById('submit-btn-text').innerText = isLogin ? 'Entrar no Sistema' : 'Concluir Cadastro';
-            document.getElementById('toggle-question').innerText = isLogin ? 'Ainda não possui uma conta?' : 'Já possui acesso registrado?';
+            document.getElementById('form-title').innerText = isLogin ? '🔒 Acesso ao Terminal' : '📝 Registrar Nova Conta';
+            document.getElementById('submit-btn-text').innerText = isLogin ? 'Autenticar no Sistema' : 'Concluir Cadastro';
+            document.getElementById('toggle-question').innerText = isLogin ? 'Ainda não possui credenciais?' : 'Já possui acesso registrado?';
             document.getElementById('toggle-btn').innerText = isLogin ? 'Criar Cadastro' : 'Fazer Login';
             document.getElementById('register-fields').classList.toggle('hidden', isLogin);
             const nameInput = document.getElementById('name');
@@ -442,30 +445,10 @@ app.get('/login', (req, res) => {
         function forgotPassword(e) {
             e.preventDefault();
             const errorEl = document.getElementById('error-msg');
-            errorEl.style.color = 'var(--text-muted)';
-            errorEl.innerText = 'ℹ️ Para recuperar a senha, entre em contato com o suporte da plataforma.';
+            errorEl.style.color = 'var(--accent-cyan)';
+            errorEl.innerText = 'ℹ️ Entre em contato com o suporte para redefinir sua senha.';
             setTimeout(() => { errorEl.innerText = ''; errorEl.style.color = ''; }, 5000);
         }
-
-        const pwInput = document.getElementById('password');
-        const pwToggle = document.getElementById('pw-toggle');
-        const eyeIcon = document.getElementById('eye-icon');
-        pwToggle.addEventListener('click', () => {
-            const show = pwInput.type === 'password';
-            pwInput.type = show ? 'text' : 'password';
-            pwToggle.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
-            eyeIcon.innerHTML = show
-                ? '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>'
-                : '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
-        });
-
-        const capsWarning = document.getElementById('caps-warning');
-        pwInput.addEventListener('keyup', (e) => {
-            if (typeof e.getModifierState === 'function') {
-                capsWarning.classList.toggle('show', e.getModifierState('CapsLock'));
-            }
-        });
-        pwInput.addEventListener('blur', () => capsWarning.classList.remove('show'));
 
         const cpfInput = document.getElementById('cpf');
         if (cpfInput) {
@@ -507,7 +490,7 @@ app.get('/login', (req, res) => {
             const remember = document.getElementById('remember').checked;
 
             if (!email || !password || (!isLogin && !name)) {
-                errorEl.style.color = 'var(--danger)';
+                errorEl.style.color = 'var(--neon-red)';
                 errorEl.innerText = 'Por favor, preencha todos os campos obrigatórios.';
                 if (!email) document.getElementById('email').classList.add('field-error');
                 if (!password) document.getElementById('password').classList.add('field-error');
@@ -531,17 +514,17 @@ app.get('/login', (req, res) => {
                         window.location.href = '/dashboard';
                         return;
                     } else {
-                        errorEl.style.color = 'var(--emerald)';
+                        errorEl.style.color = 'var(--neon-green)';
                         errorEl.innerText = 'Conta registrada com sucesso! Faça login para continuar.';
                         toggleMode();
                     }
                 } else {
-                    errorEl.style.color = 'var(--danger)';
+                    errorEl.style.color = 'var(--neon-red)';
                     errorEl.innerText = data.error || 'Não foi possível concluir a operação.';
                     document.getElementById('password').classList.add('field-error');
                 }
             } catch (err) {
-                errorEl.style.color = 'var(--danger)';
+                errorEl.style.color = 'var(--neon-red)';
                 errorEl.innerText = 'Erro na comunicação com o servidor.';
             } finally {
                 setLoading(false);
@@ -551,7 +534,6 @@ app.get('/login', (req, res) => {
 </body>
 </html>`);
 });
-
 
 app.get('/api/user', isAuthenticated, (req, res) => {
     const db = getDb();
