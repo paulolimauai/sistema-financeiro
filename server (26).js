@@ -62,7 +62,7 @@ function isAuthenticated(req, res, next) {
 }
 
 // ==========================================
-// TELA DE LOGIN / CADASTRO (DESIGN EXECUTIVO & PROFISSIONAL)
+// TELA DE LOGIN / CADASTRO (DESIGN EXECUTIVO & ANIMAÇÃO DE LINHAS)
 // ==========================================
 app.get('/login', (req, res) => {
     res.send(`<!DOCTYPE html>
@@ -77,23 +77,23 @@ app.get('/login', (req, res) => {
         * { box-sizing: border-box; margin: 0; padding: 0; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
 
         :root {
-            --bg-main: #0b0f17;
-            --card-bg: rgba(17, 24, 39, 0.85);
-            --card-border: rgba(255, 255, 255, 0.08);
-            --field-bg: rgba(11, 15, 23, 0.7);
-            --field-border: rgba(255, 255, 255, 0.12);
-            --text-main: #f9fafb;
-            --text-muted: #9ca3af;
+            --bg-main: #060911;
+            --card-bg: rgba(13, 18, 30, 0.75);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --field-bg: rgba(6, 9, 17, 0.65);
+            --field-border: rgba(255, 255, 255, 0.14);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
             --text-label: #cbd5e1;
-            --accent: #2563eb;
-            --accent-soft: #3b82f6;
-            --accent-glow: rgba(37, 99, 235, 0.25);
-            --accent-hover: #1d4ed8;
+            --accent: #3b82f6;
+            --accent-soft: #60a5fa;
+            --accent-glow: rgba(59, 130, 246, 0.35);
+            --accent-hover: #2563eb;
             --danger: #f43f5e;
             --emerald: #10b981;
         }
 
-        html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
+        html, body { height: 100%; width: 100%; margin: 0; padding: 0; overflow-x: hidden; }
         
         body {
             font-family: 'Plus Jakarta Sans', sans-serif;
@@ -101,31 +101,60 @@ app.get('/login', (req, res) => {
             color: var(--text-main);
             min-height: 100vh;
             position: relative;
-            overflow-x: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 24px 16px;
         }
 
+        /* BANNER ANIMADO DE LINHAS E LISTAS NO FUNDO */
         .bg-scene {
             position: fixed;
             inset: 0;
             z-index: 0;
             overflow: hidden;
             background: 
-                radial-gradient(circle at 50% 0%, rgba(37, 99, 235, 0.12), transparent 50%),
-                radial-gradient(circle at 85% 90%, rgba(16, 185, 129, 0.05), transparent 40%),
+                radial-gradient(circle at 50% 30%, rgba(37, 99, 235, 0.15), transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(16, 185, 129, 0.08), transparent 50%),
                 var(--bg-main);
         }
         
-        .bg-grid {
+        /* Grade e Linhas Deslizantes */
+        .bg-lines-stream {
             position: absolute;
-            inset: 0;
-            background-image: linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
-                              linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
-            background-size: 40px 40px;
-            opacity: 0.6;
+            inset: -100px;
+            background-image: 
+                linear-gradient(0deg, transparent 95%, rgba(59, 130, 246, 0.15) 100%),
+                linear-gradient(90deg, transparent 95%, rgba(255, 255, 255, 0.03) 100%);
+            background-size: 50px 50px;
+            animation: streamMove 20s linear infinite;
+        }
+
+        @keyframes streamMove {
+            0% { transform: translateY(0) translateX(0); }
+            100% { transform: translateY(50px) translateX(-50px); }
+        }
+
+        /* Feixes iluminados sutis de linhas passando */
+        .bg-glowing-beam {
+            position: absolute;
+            width: 200%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.6), transparent);
+            top: 20%;
+            left: -50%;
+            animation: beamPass 8s ease-in-out infinite;
+        }
+        .bg-glowing-beam:nth-child(2) {
+            top: 65%;
+            animation-delay: 4s;
+            background: linear-gradient(90deg, transparent, rgba(16, 185, 129, 0.5), transparent);
+        }
+
+        @keyframes beamPass {
+            0% { transform: translateX(-50%) rotate(-12deg); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateX(50%) rotate(-12deg); opacity: 0; }
         }
 
         .login-container { 
@@ -143,16 +172,16 @@ app.get('/login', (req, res) => {
         .brand-header-container { text-align: center; margin-bottom: 24px; width: 100%; }
 
         .brand-logo-icon {
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, var(--accent), var(--accent-soft));
-            border-radius: 12px;
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, var(--accent), #1d4ed8);
+            border-radius: 14px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            font-size: 22px;
+            font-size: 24px;
             margin-bottom: 12px;
-            box-shadow: 0 8px 20px var(--accent-glow);
+            box-shadow: 0 10px 25px var(--accent-glow);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
 
@@ -179,13 +208,13 @@ app.get('/login', (req, res) => {
             width: 100%; 
             background: var(--card-bg); 
             border: 1px solid var(--card-border); 
-            border-radius: 16px; 
+            border-radius: 20px; 
             padding: 32px 28px 28px; 
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 1px 0 rgba(255, 255, 255, 0.05) inset; 
-            backdrop-filter: blur(16px); 
-            animation: cardIn 0.35s ease-out; 
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.05) inset; 
+            backdrop-filter: blur(20px); 
+            animation: cardIn 0.4s ease-out; 
         }
-        @keyframes cardIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
         .login-card-head { text-align: center; margin-bottom: 22px; }
         .login-title { font-size: 18px; font-weight: 700; color: var(--text-main); letter-spacing: -0.2px; display: flex; align-items: center; justify-content: center; gap: 8px; }
@@ -203,14 +232,14 @@ app.get('/login', (req, res) => {
             background: var(--field-bg); 
             border: 1px solid var(--field-border); 
             color: var(--text-main); 
-            border-radius: 8px; 
+            border-radius: 10px; 
             font-size: 13.5px; 
             font-family: 'Plus Jakarta Sans', sans-serif; 
             outline: none; 
             transition: all 0.2s ease; 
         }
-        input::placeholder { color: #4b5563; }
-        input:focus { border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-glow); background: rgba(17, 24, 39, 0.95); }
+        input::placeholder { color: #64748b; }
+        input:focus { border-color: var(--accent-soft); box-shadow: 0 0 0 3px var(--accent-glow); background: rgba(13, 18, 30, 0.9); }
         input:focus + .input-icon, .input-icon-wrap:focus-within .input-icon { color: var(--accent-soft); opacity: 1; }
         input.field-error { border-color: var(--danger); animation: shake 0.3s ease-in-out; }
         @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
@@ -233,26 +262,26 @@ app.get('/login', (req, res) => {
         .remember-check input[type=checkbox]:checked::before { transform: scale(1); }
         
         .pill-link { color: var(--accent-soft); font-size: 12.5px; font-weight: 500; text-decoration: none; cursor: pointer; transition: color 0.2s; }
-        .pill-link:hover { color: #60a5fa; text-decoration: underline; }
+        .pill-link:hover { color: #93c5fd; text-decoration: underline; }
 
         button.btn-submit { 
             width: 100%; 
-            padding: 12px; 
-            background: var(--accent); 
+            padding: 13px; 
+            background: linear-gradient(135deg, var(--accent), var(--accent-hover)); 
             color: #ffffff; 
-            border: 1px solid rgba(255, 255, 255, 0.1); 
-            border-radius: 8px; 
+            border: 1px solid rgba(255, 255, 255, 0.15); 
+            border-radius: 10px; 
             cursor: pointer; 
-            font-weight: 600; 
+            font-weight: 700; 
             font-size: 13.5px; 
-            box-shadow: 0 4px 14px var(--accent-glow); 
+            box-shadow: 0 4px 15px var(--accent-glow); 
             display: flex; 
             align-items: center; 
             justify-content: center; 
             gap: 8px; 
             transition: all 0.2s ease; 
         }
-        button.btn-submit:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); }
+        button.btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px var(--accent-glow); }
         button.btn-submit:disabled { opacity: 0.65; cursor: wait; }
         .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; animation: spin 0.7s linear infinite; display: none; }
         button.btn-submit.loading .spinner { display: inline-block; }
@@ -265,16 +294,16 @@ app.get('/login', (req, res) => {
             margin-top: 16px;
             background: var(--card-bg);
             border: 1px solid var(--card-border);
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 12px 20px;
-            backdrop-filter: blur(16px);
+            backdrop-filter: blur(20px);
             display: flex;
             align-items: center;
             justify-content: space-between;
             gap: 12px;
         }
         .register-section-box span { font-size: 12.5px; color: var(--text-muted); font-weight: 500; }
-        .btn-toggle-mode { font-family: 'Plus Jakarta Sans', sans-serif; background: transparent; border: 1px solid var(--field-border); color: var(--text-main); padding: 6px 14px; border-radius: 6px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+        .btn-toggle-mode { font-family: 'Plus Jakarta Sans', sans-serif; background: transparent; border: 1px solid var(--field-border); color: var(--text-main); padding: 7px 14px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
         .btn-toggle-mode:hover { background: rgba(255, 255, 255, 0.05); border-color: var(--accent-soft); color: var(--accent-soft); }
 
         .login-footer { 
@@ -299,7 +328,9 @@ app.get('/login', (req, res) => {
 <body>
 
     <div class="bg-scene">
-        <div class="bg-grid"></div>
+        <div class="bg-lines-stream"></div>
+        <div class="bg-glowing-beam"></div>
+        <div class="bg-glowing-beam"></div>
     </div>
 
     <div class="login-container">
