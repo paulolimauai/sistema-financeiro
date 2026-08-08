@@ -1997,14 +1997,6 @@ async function render(){
   const el = document.getElementById('pageContent');
   if (!el) return;
 
-  const isTiAdmin = currentUser && currentUser.role === 'Administrador' && currentUser.email.toLowerCase() === 'paulodelima21@gmail.com';
-
-  if(isTiAdmin) {
-    if(currentPage !== 'usuarios' && currentPage !== 'paineladmin') {
-      currentPage = 'usuarios';
-    }
-  }
-
   let newHTML = '';
   if(currentPage==='usuarios') {
     await fetchAdminGlobalData();
@@ -2048,14 +2040,14 @@ function updateAdminMenuVisibility(){
 
   commonMenuIds.forEach(id => {
     const btn = document.getElementById(id);
-    if(btn) btn.style.display = isTiAdmin ? 'none' : '';
+    if(btn) btn.style.display = '';
   });
 
   const btnUsuarios = document.getElementById('menuUsuariosBtn');
   const btnAdminTotal = document.getElementById('menuAdminTotalBtn');
   
-  if(btnUsuarios) btnUsuarios.style.display = (isTiAdmin && !isViewingOtherUser) ? '' : 'none';
-  if(btnAdminTotal) btnAdminTotal.style.display = (isTiAdmin && !isViewingOtherUser) ? '' : 'none';
+  if(btnUsuarios) btnUsuarios.style.display = isTiAdmin ? '' : 'none';
+  if(btnAdminTotal) btnAdminTotal.style.display = isTiAdmin ? '' : 'none';
 }
 
 function updateViewModeBanner(){
@@ -3589,20 +3581,7 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
     const session = loadFromStorage('nexus_session', {});
     await loadUserData();
 
-    const isTiAdmin = currentUser.role === 'Administrador' && currentUser.email.toLowerCase() === 'paulodelima21@gmail.com';
-    if (isTiAdmin) {
-      if (session.page && (session.page === 'usuarios' || session.page === 'paineladmin')) {
-        currentPage = session.page;
-      } else {
-        currentPage = 'usuarios';
-      }
-    } else {
-      if (session.page && session.page !== 'usuarios' && session.page !== 'paineladmin') {
-        currentPage = session.page;
-      } else {
-        currentPage = 'dashboard';
-      }
-    }
+    currentPage = session.page || 'dashboard';
 
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
