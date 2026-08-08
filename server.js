@@ -1187,15 +1187,15 @@ tr.trow:hover td{background:var(--hover);}
         
         <div id="forgotResultBox" style="display:none; margin-bottom:18px; padding:16px; border-radius:12px; font-size:14px; line-height:1.5;"></div>
 
-        <form id="forgotStep1" onsubmit="event.preventDefault(); window.handleForgotSubmit(event); return false;">
+        <form id="forgotStep1" onsubmit="window.handleForgotSubmit(event); return false;">
           <div class="field" style="margin-bottom:18px;">
             <label>E-mail Cadastrado</label>
             <div class="field-input-wrapper">
               <span class="ic">✉️</span>
-              <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
+              <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required onkeydown="if(event.key==='Enter'){event.preventDefault(); window.handleForgotSubmit(event);}">
             </div>
           </div>
-          <button type="submit" class="btn-auth-premium" id="btnSendPassword">Enviar Senha por E-mail →</button>
+          <button type="button" onclick="window.handleForgotSubmit(event)" class="btn-auth-premium" id="btnSendPassword">Enviar Senha por E-mail →</button>
         </form>
         <div class="auth-toggle">
           Lembrou a senha? <a id="goLoginFromForgot" href="javascript:void(0)" onclick="switchAuthTab('login'); return false;">Fazer Login</a>
@@ -1671,8 +1671,8 @@ window.fillLoginAndSwitch = function(email, password) {
 
 window.handleForgotSubmit = async function(e) {
   if (e) {
-    e.preventDefault();
-    if (e.stopPropagation) e.stopPropagation();
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
   }
   const emailInput = document.getElementById('forgotEmail');
   const email = emailInput ? emailInput.value.trim() : '';
@@ -1680,13 +1680,23 @@ window.handleForgotSubmit = async function(e) {
   const resultBox = document.getElementById('forgotResultBox');
 
   if (!email) {
-    alert('Por favor, informe seu e-mail.');
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
+      resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
+      resultBox.style.color = '#ff8888';
+      resultBox.innerHTML = '⚠️ Por favor, digite o seu e-mail cadastrado.';
+    } else {
+      alert('Por favor, informe seu e-mail.');
+    }
+    if (emailInput) emailInput.focus();
     return false;
   }
 
   if (btn) {
+    if (btn.disabled) return false;
     btn.disabled = true;
-    btn.textContent = 'Processando...';
+    btn.textContent = 'Enviando e-mail...';
   }
 
   if (resultBox) {
