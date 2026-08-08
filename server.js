@@ -1169,8 +1169,8 @@ tr.trow:hover td{background:var(--hover);}
         </div>
         <div class="icon-btn" id="miniThemeBtn">🌙</div>
         <div class="user" id="userMenu" data-nav="config">
-          <div class="avatar" id="headerAvatar">PL</div>
-          <div><div class="uname" id="headerName">Administrador de TI</div><div class="urole" id="headerRole">Administrador</div></div>
+          <div class="avatar" id="headerAvatar">--</div>
+          <div><div class="uname" id="headerName">...</div><div class="urole" id="headerRole">...</div></div>
         </div>
         <button class="btn-ghost" id="logoutBtn">Sair</button>
       </div>
@@ -3604,6 +3604,7 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 
     currentPage = session.page || 'dashboard';
 
+    updateHeaderUser();
     document.documentElement.classList.add('is-logged-in');
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
