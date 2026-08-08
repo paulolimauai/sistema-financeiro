@@ -1673,7 +1673,7 @@ window.handleForgotSubmit = async function(e) {
 
   if (btn) {
     btn.disabled = true;
-    btn.textContent = 'Enviando...';
+    btn.textContent = 'Processando...';
   }
 
   try {
@@ -1685,15 +1685,22 @@ window.handleForgotSubmit = async function(e) {
     const data = await res.json();
 
     if (!data.success) {
-      alert(data.error || 'Não encontramos nenhuma conta com esse e-mail ou falha no envio.');
+      alert(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
       return;
     }
 
-    alert('Sua nova senha temporária foi enviada para o seu e-mail com sucesso!');
-    if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
+    if (data.mode === 'direct' && data.tempPassword) {
+      alert('🔑 Nova senha temporária gerada: ' + data.tempPassword + '\n\n(Aviso: Para enviar e-mails reais diretamente para a caixa de entrada, adicione a chave RESEND_API_KEY no painel do Render).');
+      if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
+      if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = data.tempPassword;
+    } else {
+      alert('📧 Sua nova senha temporária foi enviada para o seu e-mail com sucesso! Verifique sua caixa de entrada.');
+      if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
+    }
+
     window.switchAuthTab('login');
   } catch(err) {
-    alert('Erro ao processar solicitação de e-mail. Verifique a chave RESEND_API_KEY no Render.');
+    alert('Erro ao processar solicitação de recuperação de senha.');
   } finally {
     if (btn) {
       btn.disabled = false;
@@ -4295,7 +4302,7 @@ const server = http.createServer((req, res) => {
     return sendJSON(200, { success: true });
   }
 
-  // Rota POST /api/send-password (Recuperação de Senha Segura)
+  // Rota POST /api/send-password (Recuperação de Senha Segura com Resend API + Fallback)
   if (req.method === 'POST' && parsedUrl.pathname === '/api/send-password') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
@@ -4312,25 +4319,33 @@ const server = http.createServer((req, res) => {
         );
 
         if (result.rows.length === 0) {
-          return sendJSON(404, { success: false, error: 'E-mail não cadastrado.' });
+          return sendJSON(404, { success: false, error: 'Nenhuma conta cadastrada encontrada com este e-mail.' });
         }
 
         const user = result.rows[0];
-        const tempPassword = crypto.randomBytes(4).toString('hex'); // Senha temporária de 8 caracteres
+        // Senha temporária numérica simples de 6 dígitos
+        const tempPassword = Math.floor(100000 + Math.random() * 900000).toString();
         const hashedTemp = hashPassword(tempPassword);
 
+        // Atualiza a nova senha temporária no banco de dados
         await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [hashedTemp, user.id]);
 
+        // Dispara e-mail via Resend API (Dominio nexusfinanceirohub.com.br)
         const emailSent = await sendPasswordEmail(user.email, user.name, tempPassword);
 
-        if (!emailSent) {
-          return sendJSON(500, { success: false, error: 'Falha ao enviar e-mail. Verifique as credenciais SMTP no Render.' });
+        if (emailSent) {
+          return sendJSON(200, { success: true, mode: 'email' });
+        } else {
+          // Se a chave RESEND_API_KEY ainda não tiver sido adicionada no Render, entrega a senha temporária em tela
+          return sendJSON(200, { 
+            success: true, 
+            mode: 'direct',
+            tempPassword: tempPassword
+          });
         }
-
-        return sendJSON(200, { success: true });
       } catch (err) {
         console.error('Erro ao enviar e-mail com senha:', err);
-        return sendJSON(500, { success: false, error: 'Falha ao enviar e-mail.' });
+        return sendJSON(500, { success: false, error: 'Falha ao processar a solicitação de senha.' });
       }
     });
     return;
