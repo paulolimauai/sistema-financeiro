@@ -1171,6 +1171,18 @@ tr.trow:hover td{background:var(--hover);}
         <div class="user" id="userMenu" data-nav="config">
           <div class="avatar" id="headerAvatar">--</div>
           <div><div class="uname" id="headerName">...</div><div class="urole" id="headerRole">...</div></div>
+          <script>
+            (function(){
+              try {
+                var c = JSON.parse(localStorage.getItem('nexus_cached_user') || '{}');
+                if (c && c.name) {
+                  document.getElementById('headerName').textContent = c.name;
+                  document.getElementById('headerRole').textContent = c.role || 'Usuário';
+                  document.getElementById('headerAvatar').textContent = c.initials || 'U';
+                }
+              } catch(e){}
+            })();
+          </script>
         </div>
         <button class="btn-ghost" id="logoutBtn">Sair</button>
       </div>
@@ -1673,6 +1685,7 @@ document.getElementById('logoutBtn').onclick = async () => {
   document.documentElement.classList.remove('is-logged-in');
   localStorage.removeItem('nexus_token');
   localStorage.removeItem('nexus_session');
+  localStorage.removeItem('nexus_cached_user');
   categories = []; accounts = []; transactions = []; budgets = []; goals = []; recurringList = []; alerts = []; attachments = []; notifications = [];
   document.getElementById('appMain').classList.remove('show');
   document.getElementById('authPage').classList.add('show');
@@ -2084,9 +2097,16 @@ function updateHeaderUser(){
   const avatarEl = document.getElementById('headerAvatar');
   const roleEl = document.getElementById('headerRole');
 
+  const initials = currentUser.name.trim().split(/\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
+  const role = currentUser.role || 'Usuário';
+
   if(unameEl) unameEl.textContent = currentUser.name;
-  if(roleEl) roleEl.textContent = currentUser.role || 'Usuário';
-  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
+  if(roleEl) roleEl.textContent = role;
+  if(avatarEl) avatarEl.textContent = initials;
+
+  try {
+    saveToStorage('nexus_cached_user', { name: currentUser.name, role: role, initials: initials });
+  } catch(e){}
 }
 
 function periodPickerHTML(){
