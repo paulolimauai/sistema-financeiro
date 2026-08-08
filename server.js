@@ -222,8 +222,22 @@ const htmlContent = `<!DOCTYPE html>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+(function(){
+  try {
+    var token = localStorage.getItem('nexus_token');
+    if (token) {
+      document.documentElement.classList.add('is-logged-in');
+    }
+  } catch(e){}
+})();
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
+/* Prevenção Absoluta de Flash ao recarregar a página (F5) */
+html.is-logged-in #authPage { display: none !important; }
+html.is-logged-in #appMain { display: flex !important; }
+
 :root{
   --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
   --text:#e9edf3; --text-dim:#8a93a3; --text-faint:#5b6472;
@@ -1425,6 +1439,7 @@ async function apiRequest(endpoint, options = {}) {
 
   const res = await fetch(window.location.origin + endpoint, options);
   if (res.status === 401) {
+    document.documentElement.classList.remove('is-logged-in');
     localStorage.removeItem('nexus_token');
     localStorage.removeItem('nexus_session');
     currentUser = null;
@@ -1573,8 +1588,9 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     }
 
     localStorage.setItem('nexus_token', data.token);
+    document.documentElement.classList.add('is-logged-in');
     currentUser = data.user;
-    const initialPage = (currentUser.role === 'Administrador' && currentUser.email.toLowerCase() === 'paulodelima21@gmail.com') ? 'usuarios' : 'dashboard';
+    const initialPage = 'dashboard';
     saveToStorage('nexus_session', { email: currentUser.email, page: initialPage });
     await loadUserData();
     document.getElementById('authPage').classList.remove('show');
@@ -1654,6 +1670,7 @@ document.getElementById('logoutBtn').onclick = async () => {
   currentUser = null;
   isViewingOtherUser = false;
   adminOriginalUser = null;
+  document.documentElement.classList.remove('is-logged-in');
   localStorage.removeItem('nexus_token');
   localStorage.removeItem('nexus_session');
   categories = []; accounts = []; transactions = []; budgets = []; goals = []; recurringList = []; alerts = []; attachments = []; notifications = [];
@@ -3560,7 +3577,9 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 (async function restoreSession(){
   const token = localStorage.getItem('nexus_token');
   if (!token) {
+    document.documentElement.classList.remove('is-logged-in');
     document.getElementById('authPage').classList.add('show');
+    document.getElementById('appMain').classList.remove('show');
     return;
   }
   try {
@@ -3571,9 +3590,11 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 
     currentUser = data.user;
     if (currentUser.active === false) {
+      document.documentElement.classList.remove('is-logged-in');
       localStorage.removeItem('nexus_token');
       localStorage.removeItem('nexus_session');
       document.getElementById('authPage').classList.add('show');
+      document.getElementById('appMain').classList.remove('show');
       showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
       return;
     }
@@ -3583,13 +3604,16 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 
     currentPage = session.page || 'dashboard';
 
+    document.documentElement.classList.add('is-logged-in');
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
     render();
   } catch(e) {
+    document.documentElement.classList.remove('is-logged-in');
     localStorage.removeItem('nexus_token');
     localStorage.removeItem('nexus_session');
     document.getElementById('authPage').classList.add('show');
+    document.getElementById('appMain').classList.remove('show');
   }
 })();
 </script>
