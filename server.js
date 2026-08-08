@@ -88,52 +88,131 @@ const DEFAULT_ADMIN = {
   active: true
 };
 
-// Disparo real de e-mail via Socket SMTP Nativo (compatível com Gmail sem pacotes externos)
+// Disparo real de e-mail de redefinição de senha via Resend API (Dominio: nexusfinanceirohub.com.br) ou SMTP
 function sendPasswordEmail(toEmail, userName, userPassword) {
   return new Promise((resolve) => {
+    const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
+    const resendFrom = process.env.RESEND_FROM || 'Nexus Financeiro <suporte@nexusfinanceirohub.com.br>';
+
+    // 1. Envio via Resend API (Dominio nexusfinanceirohub.com.br)
+    if (resendApiKey) {
+      console.log(`[Resend] Enviando e-mail de redefinição para ${toEmail} via Resend API (${resendFrom})...`);
+
+      const htmlBody = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0e14; color: #e2e8f0; margin: 0; padding: 40px 20px; }
+          .container { max-width: 560px; margin: 0 auto; background: #131722; border: 1px solid rgba(232,176,75,0.25); border-radius: 16px; padding: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+          .logo { font-size: 24px; font-weight: 800; color: #ffffff; text-align: center; margin-bottom: 24px; letter-spacing: -0.5px; }
+          .logo span { color: #e8b04b; }
+          h2 { font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 12px; text-align: center; }
+          p { font-size: 14.5px; line-height: 1.6; color: #94a3b8; margin-bottom: 20px; }
+          .pass-box { background: rgba(232,176,75,0.12); border: 1px dashed #e8b04b; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
+          .pass-code { font-size: 32px; font-weight: 800; letter-spacing: 4px; color: #e8b04b; font-family: monospace; }
+          .btn-container { text-align: center; margin: 28px 0; }
+          .btn { display: inline-block; background: linear-gradient(135deg, #e8b04b 0%, #c9862a 100%); color: #131722 !important; text-decoration: none; font-weight: 800; font-size: 15px; padding: 14px 32px; border-radius: 10px; box-shadow: 0 4px 15px rgba(232,176,75,0.3); }
+          .footer { font-size: 12px; color: #64748b; text-align: center; margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="logo"><span>NEXUS</span> FINANCEIRO</div>
+          <h2>Sua Nova Senha Temporária</h2>
+          <p>Olá, <strong>${escapeHTML(userName)}</strong>!</p>
+          <p>Recebemos uma solicitação de redefinição de senha para a conta <code>${escapeHTML(toEmail)}</code> cadastrada no <strong>Nexus Financeiro Hub</strong>.</p>
+          
+          <div class="pass-box">
+            <div style="font-size:12px; color:#94a3b8; margin-bottom:6px; text-transform:uppercase; font-weight:700;">Nova Senha Temporária</div>
+            <div class="pass-code">${escapeHTML(userPassword)}</div>
+          </div>
+
+          <div class="btn-container">
+            <a href="https://nexusfinanceirohub.com.br" class="btn" target="_blank">Acessar Meu Painel Agora →</a>
+          </div>
+
+          <p style="font-size:13px; color:#64748b;">Recomendamos alterar sua senha nas <strong>Configurações</strong> assim que fizer login no painel.</p>
+
+          <div class="footer">
+            Nexus Financeiro Hub • nexusfinanceirohub.com.br<br>
+            Domínio Verificado no Resend • Mensagem Automática
+          </div>
+        </div>
+      </body>
+      </html>
+      `;
+
+      const postData = JSON.stringify({
+        from: resendFrom,
+        to: [toEmail],
+        subject: '🔐 Sua Nova Senha Temporária — Nexus Financeiro Hub',
+        html: htmlBody
+      });
+
+      const reqOptions = {
+        hostname: 'api.resend.com',
+        port: 443,
+        path: '/emails',
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(postData)
+        }
+      };
+
+      const req = https.request(reqOptions, (res) => {
+        let respData = '';
+        res.on('data', chunk => respData += chunk);
+        res.on('end', () => {
+          if (res.statusCode >= 200 && res.statusCode < 300) {
+            console.log(`[Resend OK] E-mail enviado com sucesso para ${toEmail}`);
+            resolve(true);
+          } else {
+            console.error(`[Resend Erro ${res.statusCode}]`, respData);
+            resolve(false);
+          }
+        });
+      });
+
+      req.on('error', (e) => {
+        console.error('[Resend Erro de Rede]', e.message);
+        resolve(false);
+      });
+
+      req.write(postData);
+      req.end();
+      return;
+    }
+
+    // 2. Fallback via Socket SMTP Nativo
     const host = process.env.SMTP_HOST || 'smtp.gmail.com';
     const port = parseInt(process.env.SMTP_PORT || '465');
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
 
     if (!user || !pass) {
-      console.log(`[AVISO] Credenciais SMTP ausentes no Render. E-mail não enviado para ${toEmail}`);
+      console.log(`[AVISO] Credenciais RESEND_API_KEY ou SMTP ausentes no Render. E-mail não enviado para ${toEmail}`);
       return resolve(false);
     }
 
     const socket = tls.connect(port, host, { rejectUnauthorized: false }, () => {
       let step = 0;
-
-      const send = (cmd) => {
-        try { socket.write(cmd + '\r\n'); } catch(e){}
-      };
+      const send = (cmd) => { try { socket.write(cmd + '\r\n'); } catch(e){} };
 
       socket.on('data', (data) => {
         try {
           const response = data.toString();
-
-          if (step === 0 && response.startsWith('220')) {
-            step++;
-            send(`EHLO ${host}`);
-          } else if (step === 1 && response.startsWith('250')) {
-            step++;
-            send('AUTH LOGIN');
-          } else if (step === 2 && response.startsWith('334')) {
-            step++;
-            send(Buffer.from(user).toString('base64'));
-          } else if (step === 3 && response.startsWith('334')) {
-            step++;
-            send(Buffer.from(pass).toString('base64'));
-          } else if (step === 4 && response.startsWith('235')) {
-            step++;
-            send(`MAIL FROM:<${user}>`);
-          } else if (step === 5 && response.startsWith('250')) {
-            step++;
-            send(`RCPT TO:<${toEmail}>`);
-          } else if (step === 6 && response.startsWith('250')) {
-            step++;
-            send('DATA');
-          } else if (step === 7 && response.startsWith('354')) {
+          if (step === 0 && response.startsWith('220')) { step++; send(`EHLO ${host}`); }
+          else if (step === 1 && response.startsWith('250')) { step++; send('AUTH LOGIN'); }
+          else if (step === 2 && response.startsWith('334')) { step++; send(Buffer.from(user).toString('base64')); }
+          else if (step === 3 && response.startsWith('334')) { step++; send(Buffer.from(pass).toString('base64')); }
+          else if (step === 4 && response.startsWith('235')) { step++; send(`MAIL FROM:<${user}>`); }
+          else if (step === 5 && response.startsWith('250')) { step++; send(`RCPT TO:<${toEmail}>`); }
+          else if (step === 6 && response.startsWith('250')) { step++; send('DATA'); }
+          else if (step === 7 && response.startsWith('354')) {
             step++;
             const body = [
               `From: "Nexus Financeiro" <${user}>`,
@@ -159,9 +238,7 @@ function sendPasswordEmail(toEmail, userName, userPassword) {
             send('QUIT');
             resolve(true);
           }
-        } catch(err) {
-          resolve(false);
-        }
+        } catch(err) { resolve(false); }
       });
     });
 
