@@ -2128,7 +2128,7 @@ function periodPickerHTML(){
   </div>\`;
 }
 
-/* ==================== Dashboard ==================== */
+/* ==================== Dashboard Fintech Pro ==================== */
 function pageDashboard(){
   const periodTx = transactions.filter(inPeriod);
   const {receitas,despesas,saldo} = computeTotals(periodTx);
@@ -2137,55 +2137,157 @@ function pageDashboard(){
   const recPct = Math.round(receitas/(receitas+despesas||1)*100) || 0;
   const despPct = 100-recPct;
   const lastTx = periodTx.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  
+  // Taxa de economia (% poupada da receita)
+  const economizado = receitas - despesas;
+  const taxaPoupança = receitas > 0 ? Math.round((economizado / receitas) * 100) : 0;
+  
+  // Saudação dinâmica por horário
+  const hr = new Date().getHours();
+  const saudacao = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite';
+  const firstName = currentUser ? currentUser.name.split(' ')[0] : 'Usuário';
+
+  // Pendências a vencer
+  const pendingTx = transactions.filter(t => t.status === 'Pendente');
+
   return \`
-  <div class="page-head">
-    <div><h1>Olá, \${currentUser ? currentUser.name.split(' ')[0] : 'Usuário'} 👋</h1><p>Aqui está o resumo da sua vida financeira</p></div>
-    <div class="head-actions">
+  <div class="page-head" style="margin-bottom:20px;">
+    <div>
+      <h1 style="font-size:24px; font-weight:800; display:flex; align-items:center; gap:8px;">
+        \${saudacao}, \${escapeHTML(firstName)}! 👋
+      </h1>
+      <p style="font-size:13px; color:var(--text-dim);">Acompanhe a evolução do seu patrimônio e controle de contas pessoais</p>
+    </div>
+    <div class="head-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
       \${periodPickerHTML()}
+      <button class="btn-ghost" data-nav="openfinance" style="border:1px solid rgba(232,176,75,0.4); color:var(--green); font-weight:700;">⚡ Open Finance CPF</button>
       <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
     </div>
   </div>
 
-  <div class="kpis">
-    <div class="kpi"><div class="row1">Saldo Total <span>👁</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
-    <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div><div class="val">\${fmt(despesas)}</div><div class="sub">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
+  <!-- KPIs de Alto Nível -->
+  <div class="kpis" style="margin-bottom:24px;">
+    <div class="kpi" style="border-top:3px solid var(--green);">
+      <div class="row1">Saldo Total Consolidado <span class="ic" style="background:var(--green-soft);color:var(--green)">💼</span></div>
+      <div class="val" style="color:var(--green); font-size:24px; font-weight:800;">\${fmt(saldo)}</div>
+      <div class="sub">todas as contas e investimentos</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid #26a69a;">
+      <div class="row1">Receitas do Mês <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div>
+      <div class="val" style="color:#26a69a;">\${fmt(receitas)}</div>
+      <div class="sub up">\${periodLabel()}</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid #ef5350;">
+      <div class="row1">Despesas do Mês <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div>
+      <div class="val" style="color:#ef5350;">\${fmt(despesas)}</div>
+      <div class="sub">\${periodLabel()}</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid \${economizado>=0?'var(--green)':'var(--red)'};">
+      <div class="row1">Resultado do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div>
+      <div class="val" style="color:\${economizado<0?'var(--red)':'var(--green)'}">\${fmt(economizado)}</div>
+      <div class="sub" style="color:\${economizado<0?'var(--red)':'var(--green)'}; font-weight:700;">\${taxaPoupança >= 0 ? '+' + taxaPoupança + '% da receita economizada' : 'Atenção aos gastos'}</div>
+    </div>
+    <div class="kpi" style="border-top:3px solid var(--purple);">
+      <div class="row1">Contas a Vencer / DDA <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">📋</span></div>
+      <div class="val" style="color:var(--purple);">\${pendingTx.length}</div>
+      <div class="sub">pendências em aberto no CPF</div>
+    </div>
   </div>
 
-  <div class="grid3">
+  <!-- Grid de Gráficos e Painéis -->
+  <div class="grid3" style="margin-bottom:24px;">
+    <!-- Resumo de Entrada vs Saída -->
     <div class="panel">
-      <div class="panel-head"><h3>Resumo Financeiro</h3><span class="tag">\${periodLabel()}</span></div>
-      <div class="donut-wrap">
-        <div class="donut-side">Receitas<b style="color:var(--green)">\${fmt(receitas)}</b></div>
-        <div class="donut-canvas"><canvas id="chartResumo"></canvas>
-          <div class="donut-center"><span>Saldo</span><b>\${fmt(saldo)}</b></div>
-        </div>
-        <div class="donut-side r">Despesas<b style="color:var(--red)">\${fmt(despesas)}</b></div>
+      <div class="panel-head">
+        <h3>Resumo Financeiro</h3>
+        <span class="tag">\${periodLabel()}</span>
       </div>
-      <div class="bar-split"><div class="g" style="width:\${recPct}%"></div></div>
-      <div class="split-labels"><span>🟢 \${recPct}% Receitas</span><span>Despesas \${despPct}%</span></div>
+      <div class="donut-wrap">
+        <div class="donut-side">Receitas<b style="color:var(--green); display:block; margin-top:2px;">\${fmt(receitas)}</b></div>
+        <div class="donut-canvas">
+          <canvas id="chartResumo"></canvas>
+          <div class="donut-center">
+            <span style="font-size:10.5px;">Balanço</span>
+            <b style="font-size:13.5px; color:\${economizado<0?'var(--red)':'var(--green)'};">\${fmt(economizado)}</b>
+          </div>
+        </div>
+        <div class="donut-side r">Despesas<b style="color:var(--red); display:block; margin-top:2px;">\${fmt(despesas)}</b></div>
+      </div>
+      <div class="bar-split" style="margin-top:14px;"><div class="g" style="width:\${recPct}%;"></div></div>
+      <div class="split-labels" style="margin-top:6px;"><span>🟢 \${recPct}% Entradas</span><span>Saídas \${despPct}%</span></div>
     </div>
 
+    <!-- Despesas por Categoria -->
     <div class="panel">
-      <div class="panel-head"><h3>Despesas por Categoria</h3><span class="tag">\${periodLabel()}</span></div>
+      <div class="panel-head">
+        <h3>Despesas por Categoria</h3>
+        <span class="tag">\${periodLabel()}</span>
+      </div>
       <div class="cat-wrap">
         <div class="donut-canvas" style="width:130px;height:130px;"><canvas id="chartCategorias"></canvas></div>
         <div class="cat-legend">
-          \${cats.length? cats.map(c=>\`<div class="cat-row"><span class="lbl"><span class="dot" style="background:\${c.color}"></span>\${c.name}</span><span><span class="amt">\${fmt(c.val)}</span><span class="pct">\${Math.round(c.val/totalDesp*100)}%</span></span></div>\`).join('') : \`<p style="color:var(--text-faint);font-size:12px">Sem despesas neste período.</p>\`}
+          \${cats.length ? cats.map(c=>\`
+          <div class="cat-row">
+            <span class="lbl"><span class="dot" style="background:\${c.color}"></span>\${c.name}</span>
+            <span><span class="amt">\${fmt(c.val)}</span><span class="pct">\${Math.round(c.val/totalDesp*100)}%</span></span>
+          </div>\`).join('') : \`<p style="color:var(--text-faint);font-size:12px">Sem despesas registradas neste período.</p>\`}
         </div>
       </div>
     </div>
 
+    <!-- Minhas Contas & Bancos -->
     <div class="panel">
-      <div class="panel-head"><h3>Contas e Cartões</h3><button class="tag" data-nav="cartoes">Editar</button></div>
+      <div class="panel-head">
+        <h3>Minhas Contas & Cartões</h3>
+        <button class="tag" data-nav="cartoes" style="cursor:pointer;">Ver Todas (\${accounts.length})</button>
+      </div>
       <div class="accounts-list">
-        \${accounts.map(a=>\`
-          <div class="acc-row">
-            <div class="acc-ic" style="background:\${a.color}">\${a.name.slice(0,2).toUpperCase()}</div>
-            <div class="acc-info"><div class="n">\${escapeHTML(a.name)}</div><div class="t">\${escapeHTML(a.type)}</div></div>
-            <div class="acc-val \${a.balance<0?'neg':''}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
+        \${accounts.length > 0 ? accounts.slice(0,4).map(a=>\`
+          <div class="acc-row" style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
+            <div class="acc-ic" style="background:\${a.color || 'var(--green)'}; font-weight:800;">\${a.name.slice(0,2).toUpperCase()}</div>
+            <div class="acc-info">
+              <div class="n" style="font-weight:700; color:#fff;">\${escapeHTML(a.name)}</div>
+              <div class="t" style="font-size:11px; color:var(--text-faint);">\${escapeHTML(a.type)}</div>
+            </div>
+            <div class="acc-val \${a.balance<0?'neg':''}" style="font-weight:800; font-size:14px;">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
+          </div>\`).join('') : \`<p style="color:var(--text-faint); font-size:12px; margin-bottom:12px;">Nenhuma conta bancária cadastrada.</p>\`}
+      </div>
+      <button class="btn-ghost" style="width:100%; margin-top:12px; font-weight:700; color:var(--green);" data-nav="cartoes">+ Gerenciar Minhas Contas</button>
+    </div>
+  </div>
+
+  <!-- Minhas Metas Ativas -->
+  \${goals.length > 0 ? \`
+  <div class="panel" style="margin-bottom:24px;">
+    <div class="panel-head">
+      <h3>Progresso de Metas Financeiras</h3>
+      <button class="tag" data-nav="metas" style="cursor:pointer;">Ver Todas</button>
+    </div>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px;">
+      \${goals.slice(0,3).map(g => {
+        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
+        return \`
+        <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <strong style="font-size:13.5px; color:#fff;">\${escapeHTML(g.name)}</strong>
+            <span style="font-size:12px; font-weight:800; color:var(--green);">\${pct}%</span>
+          </div>
+          <div style="font-size:16px; font-weight:800; color:#fff;">\${fmt(g.current)} <span style="font-size:11.5px; color:var(--text-faint); font-weight:400;">/ \${fmt(g.target)}</span></div>
+          <div class="bar-split" style="background:var(--card-border); margin-top:8px;"><div class="g" style="width:\${pct}%;"></div></div>
+        </div>\`;
+      }).join('')}
+    </div>
+  </div>\` : ''}
+
+  <!-- Tabela de Últimas Transações -->
+  <div class="table-panel">
+    <div class="panel-head">
+      <h3>Últimas Movimentações</h3>
+      <span class="tag" data-nav="transacoes" style="cursor:pointer;">Ver Todas (\${transactions.length})</span>
+    </div>
+    \${transactionsTable(lastTx, false)}
+  </div>\`;
+}ance))}</div>
             <button class="acc-edit" data-editacc="\${a.id}">✎</button>
           </div>\`).join('')}
       </div>
