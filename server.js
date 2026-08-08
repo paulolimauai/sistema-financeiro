@@ -371,15 +371,20 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
 .auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; letter-spacing:-0.4px;}
 .auth-box p.sub{font-size:13px; color:var(--text-dim); margin-bottom:22px;}
 
-/* Chrome Autofill & Background Override */
+/* Chrome Autofill & Background Override Absoluto */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
-input:-webkit-autofill:active {
-  -webkit-box-shadow: 0 0 0 1000px #151922 inset !important;
+input:-webkit-autofill:active,
+input:-internal-autofill-selected,
+input:-internal-autofill-previewed {
+  -webkit-box-shadow: 0 0 0 1000px #131722 inset !important;
+  box-shadow: 0 0 0 1000px #131722 inset !important;
   -webkit-text-fill-color: #ffffff !important;
-  caret-color: #ffffff;
-  transition: background-color 5000s ease-in-out 0s;
+  color: #ffffff !important;
+  caret-color: #ffffff !important;
+  border-radius: 8px !important;
+  transition: background-color 50000s ease-in-out 0s !important;
 }
 
 /* Flexbox Input Box sem sobreposição de ícones */
@@ -1040,9 +1045,6 @@ tr.trow:hover td{background:var(--hover);}
           </div>
           <button type="submit" class="btn-auth-premium">Entrar no Meu Painel →</button>
         </form>
-        <div class="demo-fill-btn" id="btnFillDemoAdmin">
-          ⚡ Preencher Acesso de Teste (Administrador Demo)
-        </div>
         <div class="auth-toggle">
           Não tem uma conta? <a id="goRegister">Cadastrar-se grátis</a>
         </div>
