@@ -359,19 +359,54 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   background:rgba(10, 13, 19, 0.85); position:relative;
 }
 
-/* Tabs no Form */
+/* Tabs no Form com Alto Contraste */
 .auth-tabs{
-  display:flex; background:rgba(255,255,255,0.04); border-radius:12px; padding:4px; margin-bottom:24px; border:1px solid rgba(255,255,255,0.06);
+  display:flex; background:rgba(0,0,0,0.5); border:1px solid rgba(232,176,75,0.25);
+  border-radius:12px; padding:4px; margin-bottom:24px;
 }
 .auth-tab{
-  flex:1; text-align:center; padding:9px 10px; font-size:12.5px; font-weight:600; color:var(--text-dim); border-radius:8px; cursor:pointer; transition:all .2s;
+  flex:1; text-align:center; padding:10px 12px; font-size:13px; font-weight:600;
+  color:rgba(255,255,255,0.75); border-radius:8px; cursor:pointer; transition:all .2s;
 }
-.auth-tab.active{background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); font-weight:700; box-shadow:0 4px 12px rgba(232,176,75,.25);}
+.auth-tab:hover{color:#ffffff; background:rgba(255,255,255,0.08);}
+.auth-tab.active{
+  background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2));
+  color:#1f1400; font-weight:800; box-shadow:0 4px 14px rgba(232,176,75,.35);
+}
 
 .auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; letter-spacing:-0.4px;}
 .auth-box p.sub{font-size:13px; color:var(--text-dim); margin-bottom:22px;}
 
-/* Chrome Autofill & Background Override Absoluto */
+/* Container de Input com Ícone Fixo e Fundo Escuro */
+.field-input-wrapper {
+  position: relative; width: 100%; display: flex; align-items: center;
+}
+.field-input-wrapper .input-ic {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 16px; opacity: 0.8; pointer-events: none; z-index: 5;
+}
+.field-input-wrapper input {
+  width: 100%; height: 46px; background: #131722 !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  border-radius: 12px !important;
+  padding: 0 40px 0 44px !important;
+  font-size: 14px !important; color: #ffffff !important;
+  transition: border-color .2s, box-shadow .2s, background .2s;
+  box-shadow: none !important;
+}
+.field-input-wrapper input:focus {
+  border-color: var(--auth-accent) !important;
+  box-shadow: 0 0 0 3px rgba(232, 176, 75, 0.25) !important;
+  background: #181d2a !important; outline: none;
+}
+.field-input-wrapper .pass-toggle-ic {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 15px;
+  opacity: 0.7; z-index: 5; color: var(--text-dim); transition: opacity .15s;
+}
+.field-input-wrapper .pass-toggle-ic:hover { opacity: 1; color: #fff; }
+
+/* Autofill Override para Chrome / Edge / Safari */
 input:-webkit-autofill,
 input:-webkit-autofill:hover, 
 input:-webkit-autofill:focus, 
@@ -383,36 +418,10 @@ input:-internal-autofill-previewed {
   -webkit-text-fill-color: #ffffff !important;
   color: #ffffff !important;
   caret-color: #ffffff !important;
-  border-radius: 8px !important;
-  transition: background-color 50000s ease-in-out 0s !important;
+  font-size: 14px !important;
+  border-radius: 12px !important;
+  transition: background-color 99999s ease-in-out 0s !important;
 }
-
-/* Flexbox Input Box sem sobreposição de ícones */
-.input-icon-box {
-  display: flex; align-items: center; gap: 10px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 12px; padding: 0 14px;
-  transition: border-color .2s, box-shadow .2s, background .2s;
-}
-.input-icon-box:focus-within {
-  border-color: var(--auth-accent);
-  box-shadow: 0 0 0 3px rgba(232, 176, 75, 0.22);
-  background: rgba(255, 255, 255, 0.08);
-}
-.input-icon-box .ic {
-  font-size: 16px; opacity: 0.75; flex-shrink: 0; user-select: none;
-}
-.input-icon-box input {
-  flex: 1; min-width: 0; border: none !important; background: transparent !important;
-  padding: 12px 0 !important; font-size: 13.5px; color: #fff !important; outline: none !important;
-  box-shadow: none !important; margin: 0;
-}
-.input-icon-box .pass-toggle-ic {
-  background: none; border: none; cursor: pointer; font-size: 15px; opacity: 0.7;
-  padding: 4px; flex-shrink: 0; transition: opacity .15s; color: var(--text-dim);
-}
-.input-icon-box .pass-toggle-ic:hover { opacity: 1; color: #fff; }
 
 .auth-forgot{display:inline-block; font-size:12px; color:var(--auth-accent); margin-top:8px; cursor:pointer; text-decoration:none; transition:opacity .2s;}
 .auth-forgot:hover{opacity:.8; text-decoration:underline;}
@@ -1029,14 +1038,14 @@ tr.trow:hover td{background:var(--hover);}
         <form id="loginForm">
           <div class="field" style="margin-bottom:16px;">
             <label>E-mail</label>
-            <div class="input-icon-box">
+            <div class="field-input-wrapper">
               <span class="ic">✉️</span>
               <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
             </div>
           </div>
           <div class="field" style="margin-bottom:16px;">
             <label>Senha</label>
-            <div class="input-icon-box">
+            <div class="field-input-wrapper">
               <span class="ic">🔒</span>
               <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
               <button type="button" class="pass-toggle-ic" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha">👁</button>
@@ -1057,7 +1066,7 @@ tr.trow:hover td{background:var(--hover);}
         <form id="forgotStep1">
           <div class="field" style="margin-bottom:18px;">
             <label>E-mail Cadastrado</label>
-            <div class="input-icon-box">
+            <div class="field-input-wrapper">
               <span class="ic">✉️</span>
               <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
             </div>
@@ -1076,21 +1085,21 @@ tr.trow:hover td{background:var(--hover);}
         <form id="registerForm">
           <div class="field" style="margin-bottom:14px;">
             <label>Nome Completo</label>
-            <div class="input-icon-box">
+            <div class="field-input-wrapper">
               <span class="ic">👤</span>
               <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
             </div>
           </div>
           <div class="field" style="margin-bottom:14px;">
             <label>E-mail</label>
-            <div class="input-icon-box">
+            <div class="field-input-wrapper">
               <span class="ic">✉️</span>
               <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
             </div>
           </div>
           <div class="field" style="margin-bottom:14px;">
             <label>Senha</label>
-            <div class="input-icon-box">
+            <div class="field-input-wrapper">
               <span class="ic">🔒</span>
               <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
             </div>
