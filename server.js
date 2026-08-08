@@ -251,107 +251,169 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
+/* ==================== Tela de Auth Portal (Pro Fintech) ==================== */
 .auth-container{
   --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
   --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
   position:relative; overflow:hidden;
-  display:none; align-items:center; justify-content:center; min-height:100vh; padding:20px;
+  display:none; align-items:center; justify-content:center; min-height:100vh; padding:24px 16px;
   background:
-    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
-    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
-    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
+    radial-gradient(circle at 85% 15%, rgba(232,176,75,0.14), transparent 45%),
+    radial-gradient(circle at 15% 85%, rgba(201,134,42,0.12), transparent 50%),
+    linear-gradient(160deg, #07090c 0%, #0c0f15 50%, #120e0a 100%);
 }
 .auth-container.show { display: flex; }
 .auth-grid{
   position:absolute; inset:0; z-index:0; pointer-events:none;
   background-image:
-    linear-gradient(rgba(232,176,75,.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232,176,75,.07) 1px, transparent 1px);
-  background-size:54px 54px;
-  -webkit-mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
-  mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+    linear-gradient(rgba(232,176,75,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,176,75,.06) 1px, transparent 1px);
+  background-size:48px 48px;
+  -webkit-mask-image:radial-gradient(circle at 50% 50%, #000 20%, transparent 80%);
+  mask-image:radial-gradient(circle at 50% 50%, #000 20%, transparent 80%);
 }
 .auth-chart{
-  position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:.38;
-  -webkit-mask-image:linear-gradient(to bottom, transparent, #000 22%, #000 92%, transparent);
-  mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+  position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:.35;
+  -webkit-mask-image:linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
+  mask-image:radial-gradient(circle at 50% 50%, #000 0%, transparent 75%);
 }
-.auth-chart .chart-area{animation:chartBreathe 7s ease-in-out infinite;}
-.auth-chart .chart-line{
-  stroke-dasharray:2600; stroke-dashoffset:2600;
-  animation:chartDraw 3.2s ease-out forwards, chartGlow 4s ease-in-out 3.2s infinite;
-}
-.auth-chart .chart-candles{animation:candlesFade 1.4s ease-out .6s backwards;}
-@keyframes chartDraw{to{stroke-dashoffset:0;}}
-@keyframes chartBreathe{0%,100%{opacity:1;} 50%{opacity:.65;}}
-@keyframes chartGlow{0%,100%{filter:drop-shadow(0 0 0px var(--auth-accent));} 50%{filter:drop-shadow(0 0 6px var(--auth-accent));}}
-@keyframes candlesFade{from{opacity:0;} to{opacity:.8;}}
-body.light .auth-grid{opacity:.5;}
-body.light .auth-chart{opacity:.3;}
-.auth-blob{position:absolute; border-radius:50%; filter:blur(70px); opacity:.28; pointer-events:none; will-change:transform;}
-.auth-blob.b1{width:360px; height:360px; background:var(--auth-accent); top:-110px; left:-100px; animation:blobFloat 24s ease-in-out infinite;}
-.auth-blob.b2{width:320px; height:320px; background:var(--auth-accent-2); bottom:-130px; right:-90px; animation:blobFloat 28s ease-in-out infinite; animation-delay:-8s;}
-body.light .auth-blob{opacity:.16;}
+.auth-blob{position:absolute; border-radius:50%; filter:blur(80px); opacity:.25; pointer-events:none; will-change:transform;}
+.auth-blob.b1{width:420px; height:420px; background:var(--auth-accent); top:-130px; left:-120px; animation:blobFloat 22s ease-in-out infinite;}
+.auth-blob.b2{width:380px; height:380px; background:var(--auth-accent-2); bottom:-140px; right:-100px; animation:blobFloat 26s ease-in-out infinite; animation-delay:-8s;}
+
 @keyframes blobFloat{
   0%,100%{transform:translate(0,0) scale(1);}
-  33%{transform:translate(35px,-40px) scale(1.1);}
-  66%{transform:translate(-30px,28px) scale(.92);}
+  33%{transform:translate(40px,-45px) scale(1.08);}
+  66%{transform:translate(-35px,30px) scale(.94);}
 }
 
-@keyframes authIn{
-  from{opacity:0; transform:translateY(26px) scale(.96);}
+@keyframes authPortalIn{
+  from{opacity:0; transform:translateY(28px) scale(.97);}
   to{opacity:1; transform:translateY(0) scale(1);}
 }
-@keyframes fieldIn{
-  from{opacity:0; transform:translateY(10px);}
-  to{opacity:1; transform:translateY(0);}
+
+/* Container do Portal Split Screen */
+.auth-portal-card{
+  position:relative; z-index:1; display:flex; flex-direction:row; width:100%; max-width:980px; min-height:580px;
+  background:rgba(15, 18, 26, 0.76);
+  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(232,176,75,.2); border-radius:24px; overflow:hidden;
+  box-shadow:0 24px 64px rgba(0,0,0,.6), 0 0 0 1px rgba(252,211,133,.08);
+  animation:authPortalIn .65s cubic-bezier(.16,1,.3,1);
 }
-.auth-box{
-  position:relative; z-index:1;
-  background:var(--card); border:1px solid var(--card-border); border-radius:18px;
-  padding:36px; width:100%; max-width:400px;
-  box-shadow:var(--shadow), 0 0 0 1px rgba(232,176,75,.06);
-  animation:authIn .55s cubic-bezier(.16,1,.3,1);
+
+/* Lado Esquerdo: Showcase do Cartão & Benefícios */
+.auth-hero-side{
+  flex:1.1; position:relative; padding:44px; display:flex; flex-direction:column; justify-content:space-between;
+  background:linear-gradient(145deg, rgba(232,176,75,0.08) 0%, rgba(20,15,10,0.45) 100%);
+  border-right:1px solid rgba(232,176,75,.14); overflow:hidden;
 }
-.auth-box .brand{display:flex; justify-content:center; margin-bottom:24px; padding:0;}
-.auth-box .brand .logo{
-  background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)) !important; color:var(--auth-text-on) !important;
-  animation:logoPulse 3s ease-in-out infinite;
+.auth-hero-brand{display:flex; align-items:center; gap:12px; margin-bottom:20px;}
+.auth-hero-brand .logo-ic{
+  width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2));
+  color:var(--auth-text-on); font-weight:800; font-size:22px; display:flex; align-items:center; justify-content:center;
+  box-shadow:0 6px 18px rgba(232,176,75,.35);
 }
-@keyframes logoPulse{
-  0%,100%{box-shadow:0 0 0 0 rgba(232,176,75,.45);}
-  50%{box-shadow:0 0 0 9px rgba(232,176,75,0);}
+.auth-hero-brand .brand-title{font-size:18px; font-weight:800; color:#fff;}
+.auth-hero-brand .brand-title span{color:var(--auth-accent); font-size:11px; display:block; font-weight:600; letter-spacing:1.5px;}
+
+/* Cartão Virtual Metallic Gold 3D */
+.vip-card-preview{
+  position:relative; width:100%; max-width:320px; height:180px; margin:10px auto 20px; border-radius:16px; padding:22px;
+  background:linear-gradient(135deg, #241c10 0%, #120e08 50%, #302414 100%);
+  border:1px solid rgba(232,176,75,0.4);
+  box-shadow:0 14px 36px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,0.25);
+  display:flex; flex-direction:column; justify-content:space-between;
+  transform:rotate(-2deg) translateY(0); transition:transform .35s ease, box-shadow .35s ease;
+  animation:cardFloat 6s ease-in-out infinite;
 }
-.auth-box h2{font-size:20px; font-weight:700; margin-bottom:6px; text-align:center;}
-.auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
-.auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
-.auth-box .field:nth-of-type(1){animation-delay:.05s;}
-.auth-box .field:nth-of-type(2){animation-delay:.1s;}
-.auth-box .field input:focus, .auth-box .field select:focus{
-  border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft); transform:translateY(-1px);
+.vip-card-preview:hover{transform:rotate(0deg) translateY(-6px) scale(1.02); box-shadow:0 20px 45px rgba(232,176,75,0.25);}
+@keyframes cardFloat{
+  0%,100%{transform:rotate(-2deg) translateY(0);}
+  50%{transform:rotate(0deg) translateY(-8px);}
 }
-.auth-box .field input{transition:border-color .2s, box-shadow .2s, transform .15s;}
-.auth-forgot{display:block; text-align:right; font-size:12px; color:var(--text-dim); margin-top:8px; cursor:pointer; transition:color .15s;}
-.auth-forgot:hover{color:var(--auth-accent); text-decoration:underline;}
-.auth-box .btn-auth{
-  position:relative; overflow:hidden;
-  width:100%; padding:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); border:none;
-  border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;
-  transition:filter .2s, transform .15s;
+.vip-card-preview .card-top{display:flex; justify-content:space-between; align-items:center;}
+.vip-card-preview .chip{width:36px; height:26px; background:linear-gradient(135deg,#e8c475,#b3832d); border-radius:5px; border:1px solid rgba(255,255,255,.3);}
+.vip-card-preview .nfc{font-size:18px; color:rgba(232,176,75,.8);}
+.vip-card-preview .card-num{font-family:monospace; font-size:15px; letter-spacing:2px; color:rgba(255,255,255,.85);}
+.vip-card-preview .card-bottom{display:flex; justify-content:space-between; align-items:flex-end;}
+.vip-card-preview .card-holder{font-size:10px; text-transform:uppercase; color:var(--auth-accent); letter-spacing:1px; font-weight:700;}
+.vip-card-preview .card-holder div{color:#fff; font-size:12px; margin-top:2px;}
+.vip-card-preview .card-balance{text-align:right;}
+.vip-card-preview .card-balance span{font-size:9px; color:rgba(255,255,255,.6); display:block;}
+.vip-card-preview .card-balance strong{font-size:13px; color:#e8b04b;}
+
+.hero-features-list{display:flex; flex-direction:column; gap:10px;}
+.feature-pill{
+  display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px;
+  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); font-size:12.5px; color:var(--text-dim);
 }
-.auth-box .btn-auth::after{
-  content:''; position:absolute; top:0; left:-75%; width:45%; height:100%;
-  background:linear-gradient(120deg, transparent, rgba(255,255,255,.45), transparent);
-  transform:skewX(-20deg);
+.feature-pill .ic{font-size:16px;}
+
+/* Lado Direito: Formulário Glassmorphism */
+.auth-box-side{
+  flex:1; padding:44px 38px; display:flex; flex-direction:column; justify-content:center;
+  background:rgba(10, 13, 19, 0.85); position:relative;
 }
-.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-1px);}
-.auth-box .btn-auth:hover::after{animation:shimmer .9s ease;}
-.auth-box .btn-auth:active{transform:translateY(0) scale(.98);}
+
+/* Tabs no Form */
+.auth-tabs{
+  display:flex; background:rgba(255,255,255,0.04); border-radius:12px; padding:4px; margin-bottom:24px; border:1px solid rgba(255,255,255,0.06);
+}
+.auth-tab{
+  flex:1; text-align:center; padding:9px 10px; font-size:12.5px; font-weight:600; color:var(--text-dim); border-radius:8px; cursor:pointer; transition:all .2s;
+}
+.auth-tab.active{background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); font-weight:700; box-shadow:0 4px 12px rgba(232,176,75,.25);}
+
+.auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; letter-spacing:-0.4px;}
+.auth-box p.sub{font-size:13px; color:var(--text-dim); margin-bottom:22px;}
+
+/* Campos com Ícone Embutido */
+.input-group-custom{position:relative; display:flex; align-items:center;}
+.input-group-custom .input-ic{position:absolute; left:14px; color:var(--text-faint); font-size:15px; pointer-events:none; transition:color .2s;}
+.input-group-custom input{
+  width:100%; padding:12px 14px 12px 42px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
+  border-radius:11px; font-size:13.5px; color:#fff; transition:all .2s;
+}
+.input-group-custom input:focus{
+  background:rgba(255,255,255,0.07); border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft); outline:none;
+}
+.input-group-custom input:focus + .input-ic, .input-group-custom input:focus ~ .input-ic{color:var(--auth-accent);}
+
+.auth-forgot{display:inline-block; font-size:12px; color:var(--auth-accent); margin-top:8px; cursor:pointer; text-decoration:none; transition:opacity .2s;}
+.auth-forgot:hover{opacity:.8; text-decoration:underline;}
+
+.btn-auth-premium{
+  position:relative; overflow:hidden; width:100%; padding:13px; margin-top:14px;
+  background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on);
+  border:none; border-radius:11px; font-weight:800; font-size:14px; letter-spacing:.3px; cursor:pointer;
+  box-shadow:0 6px 20px rgba(232,176,75,.28); transition:all .2s;
+}
+.btn-auth-premium::after{
+  content:''; position:absolute; top:0; left:-75%; width:50%; height:100%;
+  background:linear-gradient(120deg, transparent, rgba(255,255,255,.5), transparent); transform:skewX(-20deg);
+}
+.btn-auth-premium:hover{filter:brightness(1.1); transform:translateY(-1.5px); box-shadow:0 8px 24px rgba(232,176,75,.38);}
+.btn-auth-premium:hover::after{animation:shimmer .9s ease;}
+.btn-auth-premium:active{transform:translateY(0) scale(.98);}
 @keyframes shimmer{from{left:-75%;} to{left:130%;}}
-.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:22px; padding-top:18px; border-top:1px solid var(--card-border);}
-.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:600; cursor:pointer;}
+
+.demo-fill-btn{
+  margin-top:16px; padding:9px 12px; background:rgba(232,176,75,0.08); border:1px dashed rgba(232,176,75,0.3);
+  border-radius:9px; color:var(--auth-accent); font-size:12px; font-weight:600; text-align:center; cursor:pointer; transition:all .2s;
+}
+.demo-fill-btn:hover{background:rgba(232,176,75,0.16); border-style:solid;}
+
+.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);}
+.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:700; cursor:pointer;}
 .auth-toggle a:hover{text-decoration:underline;}
+
+/* Responsividade Mobile */
+@media(max-width:860px){
+  .auth-portal-card{flex-direction:column; max-width:440px;}
+  .auth-hero-side{display:none;}
+  .auth-box-side{padding:32px 24px;}
+}
 
 /* ==================== App principal Centralizado ==================== */
 .app{
@@ -862,7 +924,7 @@ tr.trow:hover td{background:var(--hover);}
 </head>
 <body>
 
-<!-- TELA DE LOGIN / CADASTRO -->
+<!-- TELA DE LOGIN / CADASTRO PRO FINTECH -->
 <div class="auth-container show" id="authPage">
   <div class="auth-grid" aria-hidden="true"></div>
   <svg class="auth-chart" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -879,83 +941,138 @@ tr.trow:hover td{background:var(--hover);}
   <div class="auth-blob b1"></div>
   <div class="auth-blob b2"></div>
 
-  <!-- Login -->
-  <div class="auth-box" id="loginBox">
-    <div class="brand">
-      <div class="logo">N</div>
-      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
-    </div>
-    <h2>Acessar Conta</h2>
-    <p class="sub">Informe suas credenciais para continuar</p>
-    <form id="loginForm">
-      <div class="field">
-        <label>E-mail</label>
-        <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
-      </div>
-      <div class="field">
-        <label>Senha</label>
-        <div class="pass-field">
-          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-          <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
+  <div class="auth-portal-card">
+    <!-- Lado Esquerdo: Showcase do Cartão & Benefícios -->
+    <div class="auth-hero-side">
+      <div>
+        <div class="auth-hero-brand">
+          <div class="logo-ic">N</div>
+          <div class="brand-title">NEXUS <span>FINANCEIRO HUB</span></div>
         </div>
-        <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
+        <h3 style="font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 8px;">Gestão Patrimonial Inteligente</h3>
+        <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">Sua plataforma centralizada de controle financeiro com criptografia de ponta a ponta e persistência de dados em tempo real.</p>
       </div>
-      <button type="submit" class="btn-auth">Entrar no Sistema</button>
-    </form>
-    <div class="auth-toggle">
-      Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
+
+      <!-- Preview de Cartão VIP 3D -->
+      <div class="vip-card-preview">
+        <div class="card-top">
+          <div class="chip"></div>
+          <div class="nfc">📡</div>
+        </div>
+        <div class="card-num">•••• •••• •••• 8892</div>
+        <div class="card-bottom">
+          <div class="card-holder">
+            <span>Titular VIP</span>
+            <div>PROPRIETÁRIO NEXUS</div>
+          </div>
+          <div class="card-balance">
+            <span>Saldo Ativo</span>
+            <strong>R$ 48.750,00</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="hero-features-list">
+        <div class="feature-pill"><span class="ic">🛡️</span> Autenticação Segura com Hashing Salt PBKDF2</div>
+        <div class="feature-pill"><span class="ic">⚡</span> Banco de Dados PostgreSQL de Alta Performance</div>
+        <div class="feature-pill"><span class="ic">📊</span> Orçamentos, Relatórios e Painel Administrador</div>
+      </div>
+    </div>
+
+    <!-- Lado Direito: Formulário Glassmorphism -->
+    <div class="auth-box-side">
+      <!-- Tabs Selector -->
+      <div class="auth-tabs">
+        <div class="auth-tab active" id="tabAuthLogin">Acessar</div>
+        <div class="auth-tab" id="tabAuthRegister">Criar Conta</div>
+        <div class="auth-tab" id="tabAuthForgot">Recuperar</div>
+      </div>
+
+      <!-- Login Box -->
+      <div class="auth-box" id="loginBox" style="padding:0; background:transparent; border:none; box-shadow:none;">
+        <h2>Acessar Conta</h2>
+        <p class="sub">Informe suas credenciais para continuar</p>
+        <form id="loginForm">
+          <div class="field" style="margin-bottom:16px;">
+            <label>E-mail</label>
+            <div class="input-group-custom">
+              <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
+              <span class="input-ic">✉️</span>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:16px;">
+            <label>Senha</label>
+            <div class="input-group-custom">
+              <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+              <span class="input-ic">🔒</span>
+              <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha" style="right:12px; position:absolute; background:none; border:none; cursor:pointer; font-size:14px; opacity:.7; z-index:3;">👁</button>
+            </div>
+            <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
+          </div>
+          <button type="submit" class="btn-auth-premium">Entrar no Sistema →</button>
+        </form>
+        <div class="demo-fill-btn" id="btnFillDemoAdmin">
+          ⚡ Entrar Rapidamente como Administrador (Demo)
+        </div>
+        <div class="auth-toggle">
+          Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
+        </div>
+      </div>
+
+      <!-- Recuperar Senha Box -->
+      <div class="auth-box" id="forgotBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
+        <h2>Recuperar Senha</h2>
+        <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos uma nova senha temporária</p>
+        <form id="forgotStep1">
+          <div class="field" style="margin-bottom:18px;">
+            <label>E-mail Cadastrado</label>
+            <div class="input-group-custom">
+              <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
+              <span class="input-ic">✉️</span>
+            </div>
+          </div>
+          <button type="submit" class="btn-auth-premium" id="btnSendPassword">Enviar Senha por E-mail →</button>
+        </form>
+        <div class="auth-toggle">
+          Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
+        </div>
+      </div>
+
+      <!-- Cadastro Box -->
+      <div class="auth-box" id="registerBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
+        <h2>Criar Conta</h2>
+        <p class="sub">Preencha seus dados para começar gratuitamente</p>
+        <form id="registerForm">
+          <div class="field" style="margin-bottom:14px;">
+            <label>Nome Completo</label>
+            <div class="input-group-custom">
+              <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
+              <span class="input-ic">👤</span>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>E-mail</label>
+            <div class="input-group-custom">
+              <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
+              <span class="input-ic">✉️</span>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom:14px;">
+            <label>Senha</label>
+            <div class="input-group-custom">
+              <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+              <span class="input-ic">🔒</span>
+            </div>
+          </div>
+          <button type="submit" class="btn-auth-premium">Cadastrar Minha Conta →</button>
+        </form>
+        <div class="auth-toggle">
+          Já tem uma conta? <a id="goLogin">Fazer Login</a>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Recuperar Senha -->
-  <div class="auth-box" id="forgotBox" style="display:none;">
-    <div class="brand">
-      <div class="logo">N</div>
-      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
-    </div>
-    <h2>Recuperar Senha</h2>
-    <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos sua senha</p>
-
-    <form id="forgotStep1">
-      <div class="field">
-        <label>E-mail</label>
-        <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
-      </div>
-      <button type="submit" class="btn-auth" id="btnSendPassword">Enviar Senha por E-mail</button>
-    </form>
-
-    <div class="auth-toggle">
-      Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
-    </div>
-  </div>
-
-  <!-- Cadastro -->
-  <div class="auth-box" id="registerBox" style="display:none;">
-    <div class="brand">
-      <div class="logo">N</div>
-      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
-    </div>
-    <h2>Criar Conta</h2>
-    <p class="sub">Preencha seus dados para começar</p>
-    <form id="registerForm">
-      <div class="field">
-        <label>Nome Completo</label>
-        <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
-      </div>
-      <div class="field">
-        <label>E-mail</label>
-        <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
-      </div>
-      <div class="field">
-        <label>Senha</label>
-        <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
-      </div>
-      <button type="submit" class="btn-auth">Cadastrar Conta</button>
-    </form>
-    <div class="auth-toggle">
-      Já tem uma conta? <a id="goLogin">Fazer Login</a>
-    </div>
-  </div>
   <div class="auth-dev-credit">
     <div class="dev-chip">
       <span class="dev-avatar">PL</span>
@@ -1303,32 +1420,61 @@ let currentUser = null;
 let isViewingOtherUser = false;
 let adminOriginalUser = null;
 
-// Formulários de Login/Cadastro
-document.getElementById('goRegister').onclick = () => {
-  document.getElementById('loginBox').style.display = 'none';
-  document.getElementById('forgotBox').style.display = 'none';
-  document.getElementById('registerBox').style.display = 'block';
-};
-document.getElementById('goLogin').onclick = () => {
-  document.getElementById('registerBox').style.display = 'none';
-  document.getElementById('forgotBox').style.display = 'none';
-  document.getElementById('loginBox').style.display = 'block';
-};
+// Formulários e Abas de Login/Cadastro/Recuperação
+function switchAuthTab(tabName) {
+  const loginBox = document.getElementById('loginBox');
+  const registerBox = document.getElementById('registerBox');
+  const forgotBox = document.getElementById('forgotBox');
+  const tabLogin = document.getElementById('tabAuthLogin');
+  const tabRegister = document.getElementById('tabAuthRegister');
+  const tabForgot = document.getElementById('tabAuthForgot');
 
-// Esqueceu a senha - Enviar por E-mail
-document.getElementById('goForgot').onclick = async (e) => {
+  if (tabLogin) tabLogin.classList.remove('active');
+  if (tabRegister) tabRegister.classList.remove('active');
+  if (tabForgot) tabForgot.classList.remove('active');
+
+  loginBox.style.display = 'none';
+  registerBox.style.display = 'none';
+  forgotBox.style.display = 'none';
+
+  if (tabName === 'register') {
+    registerBox.style.display = 'block';
+    if (tabRegister) tabRegister.classList.add('active');
+  } else if (tabName === 'forgot') {
+    forgotBox.style.display = 'block';
+    if (tabForgot) tabForgot.classList.add('active');
+  } else {
+    loginBox.style.display = 'block';
+    if (tabLogin) tabLogin.classList.add('active');
+  }
+}
+
+const tabLoginEl = document.getElementById('tabAuthLogin');
+const tabRegEl = document.getElementById('tabAuthRegister');
+const tabForgotEl = document.getElementById('tabAuthForgot');
+if (tabLoginEl) tabLoginEl.onclick = () => switchAuthTab('login');
+if (tabRegEl) tabRegEl.onclick = () => switchAuthTab('register');
+if (tabForgotEl) tabForgotEl.onclick = () => switchAuthTab('forgot');
+
+document.getElementById('goRegister').onclick = () => switchAuthTab('register');
+document.getElementById('goLogin').onclick = () => switchAuthTab('login');
+document.getElementById('goLoginFromForgot').onclick = () => switchAuthTab('login');
+document.getElementById('goForgot').onclick = (e) => {
   e.preventDefault();
-  document.getElementById('loginBox').style.display = 'none';
-  document.getElementById('registerBox').style.display = 'none';
-  document.getElementById('forgotBox').style.display = 'block';
+  switchAuthTab('forgot');
   document.getElementById('forgotStep1').reset();
   document.getElementById('forgotSub').textContent = 'Informe seu e-mail para enviarmos sua nova senha temporária';
 };
 
-document.getElementById('goLoginFromForgot').onclick = () => {
-  document.getElementById('forgotBox').style.display = 'none';
-  document.getElementById('loginBox').style.display = 'block';
-};
+const fillDemoBtn = document.getElementById('btnFillDemoAdmin');
+if (fillDemoBtn) {
+  fillDemoBtn.onclick = () => {
+    switchAuthTab('login');
+    document.getElementById('loginEmail').value = 'paulodelima21@gmail.com';
+    document.getElementById('loginPassword').value = '123456';
+    document.getElementById('loginPassword').focus();
+  };
+}
 
 document.getElementById('forgotStep1').onsubmit = async (e) => {
   e.preventDefault();
@@ -1984,23 +2130,23 @@ function pageDashboard(){
 }
 
 function transactionsTable(list, showActions){
-  if(list.length===0) return `<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>`;
-  return `
+  if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>\`;
+  return \`
   <table>
-    <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th>${showActions?'<th></th>':''}</tr></thead>
+    <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th>\${showActions?'<th></th>':''}</tr></thead>
     <tbody>
-      ${list.map(t=>`
+      \${list.map(t=>\`
         <tr class="trow">
-          <td>${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
-          <td>${escapeHTML(t.desc)}</td>
-          <td><span class="pill" style="background:${catColor(t.cat)}22; color:${catColor(t.cat)}">${catIcon(t.cat)} ${escapeHTML(t.cat)}</span></td>
-          <td><span class="type-ic ${t.type}">${t.type==='in'?'↑':'↓'}</span></td>
-          <td class="${t.type==='in'?'val-in':'val-out'}">${t.type==='in'?'+':'-'}${fmt(t.val)}</td>
-          <td><span class="pill status-${(t.status||'').toLowerCase()}">${escapeHTML(t.status)}</span></td>
-          ${showActions?`<td><div class="row-actions"><button data-edit="${t.id}">✎</button><button data-del="${t.id}">🗑</button></div></td>`:''}
-        </tr>`).join('')}
+          <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
+          <td>\${escapeHTML(t.desc)}</td>
+          <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${escapeHTML(t.cat)}</span></td>
+          <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
+          <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
+          <td><span class="pill status-\${(t.status||'').toLowerCase()}">\${escapeHTML(t.status)}</span></td>
+          \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}">✎</button><button data-del="\${t.id}">🗑</button></div></td>\`:''}
+        </tr>\`).join('')}
     </tbody>
-  </table>`;
+  </table>\`;
 }
 
 function pageTransacoes(){
@@ -2219,19 +2365,19 @@ function pageConfig(){
         <label>Nova Senha</label>
         <div class="pass-field">
           <input id="cfgPassword" type="password" placeholder="••••••••" minlength="6">
-          <button type="button" class="pass-toggle" id="cfgPasswordToggle" tabindex="-1" aria-label="Mostrar senha">${EYE_ICON}</button>
+          <button type="button" class="pass-toggle" id="cfgPasswordToggle" tabindex="-1" aria-label="Mostrar senha">\${EYE_ICON}</button>
         </div>
       </div>
       <div class="field" style="margin-bottom:0;">
         <label>Confirmar Nova Senha</label>
         <div class="pass-field">
           <input id="cfgPasswordConfirm" type="password" placeholder="••••••••" minlength="6">
-          <button type="button" class="pass-toggle" id="cfgPasswordConfirmToggle" tabindex="-1" aria-label="Mostrar senha">${EYE_ICON}</button>
+          <button type="button" class="pass-toggle" id="cfgPasswordConfirmToggle" tabindex="-1" aria-label="Mostrar senha">\${EYE_ICON}</button>
         </div>
       </div>
     </div>
   </div>
-  <div class="cfg-save-bar"><button class="btn-primary" id="btnSalvarConfig">Salvar Alterações</button></div>`}`;
+  <div class="cfg-save-bar"><button class="btn-primary" id="btnSalvarConfig">Salvar Alterações</button></div>\`}\`;
 }
 
 let adminGlobalAllUsers = [];
@@ -2268,10 +2414,10 @@ function getUserActivitySummary(email){
 function pageUsuarios(){
   const isAdmin = currentUser && currentUser.role === 'Administrador';
   if(!isAdmin || isViewingOtherUser){
-    return `<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>`;
+    return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>\`;
   }
   const usersList = adminGlobalAllUsers.length ? adminGlobalAllUsers : registeredUsers;
-  return `
+  return \`
   <div class="page-head"><div><h1>Usuários Cadastrados</h1><p>Administre as contas do sistema e acompanhe a atividade de cada usuário</p></div></div>
   <div class="panel" style="margin-bottom:0;">
     <div class="panel-head"><h3>Todos os usuários</h3><span class="tag" style="cursor:default;">\${usersList.length} usuário\${usersList.length===1?'':'s'}</span></div>
@@ -2305,7 +2451,7 @@ function pageUsuarios(){
 function pageAdminTotal(){
   const isAdmin = currentUser && currentUser.role === 'Administrador';
   if(!isAdmin || isViewingOtherUser){
-    return `<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>`;
+    return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>\`;
   }
 
   let totalGlobalReceitas = 0;
@@ -2339,7 +2485,7 @@ function pageAdminTotal(){
 
   allGlobalTransactions.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
 
-  return `
+  return \`
   <div class="page-head">
     <div><h1>Painel Administrador Geral</h1><p>Visão completa, consolidação e capacidade de correção de todos os dados de todos os usuários do sistema</p></div>
     <div class="head-actions">
