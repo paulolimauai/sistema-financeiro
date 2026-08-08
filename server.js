@@ -1184,7 +1184,10 @@ tr.trow:hover td{background:var(--hover);}
       <div class="auth-box" id="forgotBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
         <h2>Recuperar Senha</h2>
         <p class="sub" id="forgotSub">Informe seu e-mail cadastrado para receber sua senha temporária</p>
-        <form id="forgotStep1" onsubmit="handleForgotSubmit(event); return false;">
+        
+        <div id="forgotResultBox" style="display:none; margin-bottom:18px; padding:16px; border-radius:12px; font-size:14px; line-height:1.5;"></div>
+
+        <form id="forgotStep1" onsubmit="event.preventDefault(); window.handleForgotSubmit(event); return false;">
           <div class="field" style="margin-bottom:18px;">
             <label>E-mail Cadastrado</label>
             <div class="field-input-wrapper">
@@ -1660,20 +1663,34 @@ if (fillDemoBtn) {
   };
 }
 
+window.fillLoginAndSwitch = function(email, password) {
+  if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
+  if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = password;
+  window.switchAuthTab('login');
+};
+
 window.handleForgotSubmit = async function(e) {
-  if (e) e.preventDefault();
+  if (e) {
+    e.preventDefault();
+    if (e.stopPropagation) e.stopPropagation();
+  }
   const emailInput = document.getElementById('forgotEmail');
   const email = emailInput ? emailInput.value.trim() : '';
   const btn = document.getElementById('btnSendPassword');
+  const resultBox = document.getElementById('forgotResultBox');
 
   if (!email) {
     alert('Por favor, informe seu e-mail.');
-    return;
+    return false;
   }
 
   if (btn) {
     btn.disabled = true;
     btn.textContent = 'Processando...';
+  }
+
+  if (resultBox) {
+    resultBox.style.display = 'none';
   }
 
   try {
@@ -1685,28 +1702,64 @@ window.handleForgotSubmit = async function(e) {
     const data = await res.json();
 
     if (!data.success) {
-      alert(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
-      return;
+      if (resultBox) {
+        resultBox.style.display = 'block';
+        resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
+        resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
+        resultBox.style.color = '#ff8888';
+        resultBox.innerHTML = '⚠️ ' + escapeHTML(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
+      } else {
+        alert(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
+      }
+      return false;
     }
 
-    if (data.mode === 'direct' && data.tempPassword) {
-      alert('🔑 Nova senha temporária gerada: ' + data.tempPassword + '\n\n(Aviso: Para enviar e-mails reais diretamente para a caixa de entrada, adicione a chave RESEND_API_KEY no painel do Render).');
-      if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
-      if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = data.tempPassword;
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(232, 176, 75, 0.15)';
+      resultBox.style.border = '1px solid rgba(232, 176, 75, 0.4)';
+      resultBox.style.color = '#e8b04b';
+
+      if (data.mode === 'direct' && data.tempPassword) {
+        resultBox.innerHTML = 
+          '<div style="font-weight:800; font-size:16px; margin-bottom:6px; color:#fff;">🔑 Senha Temporária Gerada!</div>' +
+          '<div style="font-size:13px; color:#cbd5e1; margin-bottom:10px;">Sua nova senha temporária de acesso é:</div>' +
+          '<div style="font-size:26px; font-weight:800; letter-spacing:4px; font-family:monospace; background:#0b0e14; padding:10px; border-radius:8px; text-align:center; border:1px solid #e8b04b; margin-bottom:12px; color:#e8b04b;">' +
+            escapeHTML(data.tempPassword) +
+          '</div>' +
+          '<button type="button" onclick="window.fillLoginAndSwitch(\'' + escapeHTML(email) + '\', \'' + escapeHTML(data.tempPassword) + '\')" style="width:100%; background:linear-gradient(135deg,#e8b04b,#c9862a); color:#131722; border:none; padding:12px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer;">' +
+            'Ir para o Login com esta Senha →' +
+          '</button>';
+      } else {
+        resultBox.innerHTML = 
+          '<div style="font-weight:800; font-size:16px; margin-bottom:6px; color:#fff;">📧 E-mail Enviado com Sucesso!</div>' +
+          '<div style="font-size:13.5px; color:#cbd5e1; margin-bottom:12px;">Enviamos uma nova senha temporária para o seu e-mail cadastrado. Verifique sua caixa de entrada ou spam.</div>' +
+          '<button type="button" onclick="window.switchAuthTab(\'login\')" style="width:100%; background:linear-gradient(135deg,#e8b04b,#c9862a); color:#131722; border:none; padding:12px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer;">' +
+            'Ir para a Tela de Login →' +
+          '</button>';
+      }
     } else {
-      alert('📧 Sua nova senha temporária foi enviada para o seu e-mail com sucesso! Verifique sua caixa de entrada.');
-      if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
+      alert('Sua nova senha temporária foi processada!');
+      window.switchAuthTab('login');
     }
 
-    window.switchAuthTab('login');
   } catch(err) {
-    alert('Erro ao processar solicitação de recuperação de senha.');
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
+      resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
+      resultBox.style.color = '#ff8888';
+      resultBox.innerHTML = '⚠️ Erro ao conectar ao servidor para recuperar a senha.';
+    } else {
+      alert('Erro ao processar solicitação de recuperação de senha.');
+    }
   } finally {
     if (btn) {
       btn.disabled = false;
       btn.textContent = 'Enviar Senha por E-mail →';
     }
   }
+  return false;
 };
 
 const loginPassToggle = document.getElementById('loginPasswordToggle');
