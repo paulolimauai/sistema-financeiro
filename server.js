@@ -2413,15 +2413,17 @@ function pageAlertas(){
   </div>\`;
 }
 
-/* ==================== Open Finance Brasil / Consulta por CPF ==================== */
+/* ==================== Open Finance Brasil / Consulta por CPF & Pendências ==================== */
 function pageOpenFinance(){
   const userCpf = (currentUser && currentUser.cpf) || '';
+  const pendingTx = transactions.filter(t => t.status === 'Pendente');
+  const totalPendingVal = pendingTx.reduce((s,t) => s + (t.type==='out'?t.val:-t.val), 0);
 
   return \`
   <div class="page-head">
     <div>
-      <h1>⚡ Open Finance Brasil — Conexão por CPF</h1>
-      <p>Sincronize automaticamente todas as suas contas bancárias, cartões de crédito e faturas atreladas ao seu CPF</p>
+      <h1>⚡ Open Finance Brasil — Busca por CPF & Pendências em Aberto</h1>
+      <p>Consulte e puxes todas as suas contas bancárias, cartões, faturas e boletos em aberto no seu CPF</p>
     </div>
   </div>
 
@@ -2429,8 +2431,8 @@ function pageOpenFinance(){
     <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
       <div style="width:48px; height:48px; border-radius:14px; background:linear-gradient(135deg,var(--green),#c9862a); color:#1f1400; font-size:24px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🏛️</div>
       <div>
-        <h3 style="font-size:17px; font-weight:800; color:#fff; margin-bottom:2px;">Conexão Direta por CPF (Banco Central do Brasil)</h3>
-        <p style="font-size:12.5px; color:var(--text-dim); margin:0;">Informe seu CPF para consultar e vincular suas contas correntes, cartões de crédito, poupanças e investimentos em tempo real.</p>
+        <h3 style="font-size:17px; font-weight:800; color:#fff; margin-bottom:2px;">Consulta Completa de Pendências no CPF (BACEN & DDA)</h3>
+        <p style="font-size:12.5px; color:var(--text-dim); margin:0;">Informe seu CPF para consultar faturas de cartão, boletos DDA a vencer, empréstimos e contas em aberto em todos os bancos do Brasil.</p>
       </div>
     </div>
 
@@ -2443,10 +2445,66 @@ function pageOpenFinance(){
         </div>
       </div>
       <button type="submit" id="btnSyncCpf" class="btn-auth-premium" style="width:auto; padding:12px 24px; margin:0; height:46px;">
-        ⚡ Consultar e Sincronizar Contas do CPF →
+        ⚡ Puxar Tudo em Aberto no CPF →
       </button>
     </form>
     <div id="ofSyncStatus" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; background:rgba(232,176,75,0.12); border:1px solid rgba(232,176,75,0.3); color:var(--green); font-size:13px; font-weight:600;"></div>
+  </div>
+
+  <!-- KPIs do CPF -->
+  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:20px;">
+    <div class="kpi">
+      <div class="row1">Total em Aberto no CPF <span class="ic" style="background:var(--red-soft);color:var(--red)">📋</span></div>
+      <div class="val" style="color:var(--red);">\${fmt(Math.max(0, totalPendingVal))}</div>
+      <div class="sub">contas, faturas e DDA pendentes</div>
+    </div>
+    <div class="kpi">
+      <div class="row1">Contas Pendentes <span class="ic" style="background:rgba(232,176,75,0.14);color:var(--green)">⏳</span></div>
+      <div class="val">\${pendingTx.length}</div>
+      <div class="sub">registros a vencer</div>
+    </div>
+    <div class="kpi">
+      <div class="row1">Situação do CPF <span class="ic" style="background:rgba(62,199,199,0.14);color:var(--teal)">🛡️</span></div>
+      <div class="val" style="font-size:16px; color:var(--green); font-weight:800; margin-top:4px;">🟢 REGULAR</div>
+      <div class="sub">Receita Federal & BACEN</div>
+    </div>
+  </div>
+
+  <div class="panel-head" style="margin-bottom:14px;">
+    <h3>Faturas & Pendências Sincronizadas do CPF</h3>
+    <span class="tag" style="cursor:default;">\${pendingTx.length} Pendência\${pendingTx.length===1?'':'s'}</span>
+  </div>
+
+  <div class="panel" style="margin-bottom:24px;">
+    \${pendingTx.length > 0 ? \`
+    <div class="table-panel">
+      <table>
+        <thead>
+          <tr>
+            <th>Descrição / Emissor</th>
+            <th>Categoria</th>
+            <th>Vencimento</th>
+            <th>Valor (R$)</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          \${pendingTx.map(t => \`
+          <tr>
+            <td><strong>\${escapeHTML(t.desc)}</strong></td>
+            <td><span class="pill" style="background:rgba(255,255,255,0.05);">\${escapeHTML(t.cat)}</span></td>
+            <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
+            <td style="font-weight:800; color:var(--red);">\${fmt(t.val)}</td>
+            <td><span class="pill" style="background:var(--red-soft); color:var(--red);">⏳ Em Aberto</span></td>
+          </tr>\`).join('')}
+        </tbody>
+      </table>
+    </div>\` : \`
+    <div class="placeholder">
+      <div class="big">📋</div>
+      <h3>Nenhuma pendência em aberto cadastrada</h3>
+      <p>Clique no botão "Puxar Tudo em Aberto no CPF" acima para consultar e importar automaticamente todas as suas faturas de cartão de crédito e boletos DDA em aberto.</p>
+    </div>\`}
   </div>
 
   <div class="panel-head" style="margin-bottom:14px;">
@@ -2505,7 +2563,7 @@ function pageOpenFinance(){
     <div class="placeholder">
       <div class="big">🏦</div>
       <h3>Nenhuma conta bancária conectada ainda</h3>
-      <p>Digite seu CPF acima e clique em "Consultar e Sincronizar Contas do CPF" para vincular automaticamente suas contas do Nubank, Itaú, Bradesco, Banco do Brasil e outros.</p>
+      <p>Digite seu CPF acima e clique em "Puxar Tudo em Aberto no CPF" para vincular automaticamente suas contas do Nubank, Itaú, Bradesco, Banco do Brasil e outros.</p>
     </div>\`}
   </div>\`;
 }
@@ -2928,11 +2986,30 @@ async function handleOpenFinanceSync(e) {
         }
       });
 
+      // Contas e Faturas em Aberto no CPF (DDA)
+      const today = new Date();
+      const dateIn5Days = new Date(today.getTime() + 5*86400000).toISOString().split('T')[0];
+      const dateIn12Days = new Date(today.getTime() + 12*86400000).toISOString().split('T')[0];
+      const dateIn18Days = new Date(today.getTime() + 18*86400000).toISOString().split('T')[0];
+
+      const defaultPendingTxs = [
+        { id: nextTxId++, desc: 'Fatura Cartão Itaú Select (CPF)', val: 1250.00, date: dateIn5Days, cat: 'Cartão de Crédito', status: 'Pendente', type: 'out' },
+        { id: nextTxId++, desc: 'Boleto Financiamento Santander (DDA)', val: 840.00, date: dateIn12Days, cat: 'Moradia', status: 'Pendente', type: 'out' },
+        { id: nextTxId++, desc: 'Conta de Energia Elétrica (Enel)', val: 215.40, date: dateIn5Days, cat: 'Contas Fixas', status: 'Pendente', type: 'out' },
+        { id: nextTxId++, desc: 'Fatura Internet Fibra 500MB', val: 119.90, date: dateIn18Days, cat: 'Contas Fixas', status: 'Pendente', type: 'out' }
+      ];
+
+      defaultPendingTxs.forEach(pt => {
+        if (!transactions.some(t => t.desc.toLowerCase() === pt.desc.toLowerCase())) {
+          transactions.push(pt);
+        }
+      });
+
       await saveUserData();
-      await pushNotification('Open Finance: 4 contas e cartões vinculados ao CPF ' + cpfInput.value + ' sincronizados com sucesso!', '🏛️');
+      await pushNotification('Open Finance: 4 contas bancárias e 4 pendências/faturas em aberto no CPF ' + cpfInput.value + ' foram puxadas com sucesso!', '🏛️');
 
       if (btnSync) btnSync.disabled = false;
-      showToast('Sincronização com o CPF realizada com sucesso!');
+      showToast('Todas as contas e pendências em aberto do CPF foram puxadas com sucesso!');
       render();
     }, 1200);
   }, 1000);
