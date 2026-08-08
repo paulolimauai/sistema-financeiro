@@ -1,2162 +1,3762 @@
 require('dotenv').config();
-const express = require('express');
-const bcrypt = require('bcrypt');
-const session = require('express-session');
-const fs = require('fs');
-const path = require('path');
+const http = require('http');
+const url = require('url');
+const net = require('net');
+const tls = require('tls');
+const crypto = require('crypto');
+const { Pool } = require('pg');
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.set('trust proxy', 1);
+// ==================== Hashing de Senha Seguro & Gerenciamento de Sessões ====================
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
+}
 
-const DB_FILE = path.join(__dirname, 'database.json');
+function verifyPassword(password, storedPassword) {
+  if (!storedPassword) return false;
+  if (!storedPassword.includes(':')) {
+    // Compatibilidade temporária com senhas legadas em texto limpo
+    return password === storedPassword;
+  }
+  const [salt, originalHash] = storedPassword.split(':');
+  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
+  return hash === originalHash;
+}
 
-function loadDatabase() {
-    if (fs.existsSync(DB_FILE)) {
+const activeSessions = new Map();
+
+function createSessionToken(user) {
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 dias de validade
+  const sessionData = {
+    token,
+    email: user.email.toLowerCase(),
+    name: user.name,
+    role: user.role,
+    active: user.active !== false,
+    expiresAt
+  };
+  activeSessions.set(token, sessionData);
+  return token;
+}
+
+function getAuthUser(req) {
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  let token = null;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7).trim();
+  }
+  if (!token) {
+    const parsedUrl = url.parse(req.url, true);
+    token = parsedUrl.query && parsedUrl.query.token;
+  }
+  if (!token) return null;
+
+  const session = activeSessions.get(token);
+  if (!session) return null;
+  if (Date.now() > session.expiresAt) {
+    activeSessions.delete(token);
+    return null;
+  }
+  return session;
+}
+
+// ==================== Conexão com o PostgreSQL ====================
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false }
+    })
+  : new Pool({
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      user: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || '86266049',
+      database: process.env.DB_NAME || 'FINANCEIRO',
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
+    });
+
+// Usuário admin padrão
+const DEFAULT_ADMIN = {
+  name: 'Administrador de TI',
+  email: 'paulodelima21@gmail.com',
+  password: '86266049',
+  role: 'Administrador',
+  active: true
+};
+
+// Disparo real de e-mail via Socket SMTP Nativo (compatível com Gmail sem pacotes externos)
+function sendPasswordEmail(toEmail, userName, userPassword) {
+  return new Promise((resolve) => {
+    const host = process.env.SMTP_HOST || 'smtp.gmail.com';
+    const port = parseInt(process.env.SMTP_PORT || '465');
+    const user = process.env.SMTP_USER;
+    const pass = process.env.SMTP_PASS;
+
+    if (!user || !pass) {
+      console.log(`[AVISO] Credenciais SMTP ausentes no Render. E-mail não enviado para ${toEmail}`);
+      return resolve(false);
+    }
+
+    const socket = tls.connect(port, host, { rejectUnauthorized: false }, () => {
+      let step = 0;
+
+      const send = (cmd) => {
+        try { socket.write(cmd + '\r\n'); } catch(e){}
+      };
+
+      socket.on('data', (data) => {
         try {
-            const data = fs.readFileSync(DB_FILE, 'utf8');
-            return JSON.parse(data);
-        } catch (e) {
-            console.error('Erro ao ler database.json, inicializando vazio.', e);
+          const response = data.toString();
+
+          if (step === 0 && response.startsWith('220')) {
+            step++;
+            send(`EHLO ${host}`);
+          } else if (step === 1 && response.startsWith('250')) {
+            step++;
+            send('AUTH LOGIN');
+          } else if (step === 2 && response.startsWith('334')) {
+            step++;
+            send(Buffer.from(user).toString('base64'));
+          } else if (step === 3 && response.startsWith('334')) {
+            step++;
+            send(Buffer.from(pass).toString('base64'));
+          } else if (step === 4 && response.startsWith('235')) {
+            step++;
+            send(`MAIL FROM:<${user}>`);
+          } else if (step === 5 && response.startsWith('250')) {
+            step++;
+            send(`RCPT TO:<${toEmail}>`);
+          } else if (step === 6 && response.startsWith('250')) {
+            step++;
+            send('DATA');
+          } else if (step === 7 && response.startsWith('354')) {
+            step++;
+            const body = [
+              `From: "Nexus Financeiro" <${user}>`,
+              `To: <${toEmail}>`,
+              `Subject: Reciclagem de Senha - Nexus Financeiro`,
+              'MIME-Version: 1.0',
+              'Content-Type: text/html; charset=UTF-8',
+              '',
+              '<div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #1f2530; border-radius: 10px; background-color: #0b0e12; color: #e9edf3;">',
+              '  <h2 style="color: #e8b04b; text-align: center;">Nexus Financeiro Hub</h2>',
+              `  <p>Olá, <strong>${userName}</strong>!</p>`,
+              '  <p>Sua senha temporária de acesso ao sistema Nexus Financeiro é:</p>',
+              '  <div style="text-align: center; margin: 25px 0;">',
+              `    <span style="font-size: 24px; font-weight: bold; color: #e8b04b; background: #141821; padding: 10px 20px; border-radius: 8px; border: 1px solid #1f2530;">${userPassword}</span>`,
+              '  </div>',
+              '  <p style="font-size: 12px; color: #8a93a3;">Recomendamos alterar sua senha após realizar o login no painel.</p>',
+              '</div>',
+              '.'
+            ].join('\r\n');
+            send(body);
+          } else if (step === 8 && response.startsWith('250')) {
+            step++;
+            send('QUIT');
+            resolve(true);
+          }
+        } catch(err) {
+          resolve(false);
         }
+      });
+    });
+
+    socket.on('error', (err) => {
+      console.error('Erro na conexão SMTP:', err);
+      resolve(false);
+    });
+  });
+}
+
+// Cria as tabelas (se não existirem) e garante o admin padrão com hash de senha
+async function initDatabase() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS usuarios (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(150) NOT NULL,
+      email VARCHAR(150) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      role VARCHAR(50) NOT NULL DEFAULT 'Usuário',
+      active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS dados_financeiros (
+      id SERIAL PRIMARY KEY,
+      email VARCHAR(150) UNIQUE NOT NULL REFERENCES usuarios(email) ON DELETE CASCADE ON UPDATE CASCADE,
+      dados JSONB NOT NULL DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMP NOT NULL DEFAULT now()
+    );
+  `);
+
+  const adminCheck = await pool.query('SELECT id, password FROM usuarios WHERE LOWER(email) = LOWER($1)', [DEFAULT_ADMIN.email]);
+  if (adminCheck.rows.length === 0) {
+    const hashedPass = hashPassword(DEFAULT_ADMIN.password);
+    await pool.query(
+      `INSERT INTO usuarios (name, email, password, role, active)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [DEFAULT_ADMIN.name, DEFAULT_ADMIN.email, hashedPass, DEFAULT_ADMIN.role, DEFAULT_ADMIN.active]
+    );
+  } else {
+    const currentPass = adminCheck.rows[0].password;
+    if (!currentPass.includes(':')) {
+      const hashedPass = hashPassword(DEFAULT_ADMIN.password);
+      await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [hashedPass, adminCheck.rows[0].id]);
     }
-    return {
-        users: [],
-        accounts: [],
-        cards: [],
-        transactions: [],
-        investments: [],
-        budgets: [],
-        goals: [],
-        debts: [],
-        recurring: []
-    };
+  }
 }
 
-function saveDatabase(db) {
-    fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), 'utf8');
-}
-
-function getDb() {
-    return loadDatabase();
-}
-
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(express.json({ limit: '50mb' }));
-app.use(session({
-    secret: process.env.SESSION_SECRET || 'plp_financeiro_secret_2026',
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-        maxAge: 24 * 60 * 60 * 1000
-    }
-}));
-
-function isAuthenticated(req, res, next) {
-    if (req.session && req.session.userId) return next();
-    if (req.xhr || (req.headers.accept && req.headers.accept.includes('application/json'))) {
-        return res.status(401).json({ error: '🔒 Sessão expirada. Faça login novamente.' });
-    }
-    res.redirect('/login');
-}
-
-// ==========================================
-// TELA DE LOGIN / CADASTRO (DESIGN HIGH-FREQUENCY TRADING TERMINAL)
-// ==========================================
-app.get('/login', (req, res) => {
-    res.send(`<!DOCTYPE html>
-<html lang="pt-BR" data-theme="dark">
+// Conteúdo HTML/JS/CSS da aplicação centralizada com isolamento por usuário
+const htmlContent = `<!DOCTYPE html>
+<html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PLP FINANCEIRO - Acesso ao Terminal</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus Financeiro Hub</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
+  --text:#e9edf3; --text-dim:#8a93a3; --text-faint:#5b6472;
+  --green:#e8b04b; --green-soft:rgba(232,176,75,.14);
+  --red:#ef5a5a; --red-soft:rgba(239,90,90,.12);
+  --blue:#4a90e2; --purple:#9b6bd8; --orange:#f0a63a; --teal:#3ec7c7; --pink:#d85bb0;
+  --hover:#1a1f29;
+  --radius:14px;
+  --shadow:0 8px 24px rgba(0,0,0,.35);
+}
+body.light{
+  --bg:#f4f6f9; --sidebar:#ffffff; --card:#ffffff; --card-border:#e6e9ef;
+  --text:#1b2028; --text-dim:#6b7280; --text-faint:#9aa2b1;
+  --hover:#eef1f6;
+  --shadow:0 6px 18px rgba(20,30,60,.08);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+body{
+  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
+  background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
+}
+button, input, select{font-family:inherit; color:inherit;}
+code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5px;}
 
-        :root {
-            --bg-main: #06111f;
-            --card-bg: rgba(13, 27, 46, 0.75);
-            --card-border: rgba(56, 189, 248, 0.2);
-            --field-bg: #ffffff;
-            --field-text: #0f172a;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent-cyan: #38bdf8;
-            --accent-blue: #2563eb;
-            --neon-green: #10b981;
-            --neon-red: #f43f5e;
-            --glow-cyan: rgba(56, 189, 248, 0.35);
-        }
+/* Prevenção de Piscamento/Flicker */
+#pageContent {
+  contain: content;
+  will-change: auto;
+}
 
-        html, body { height: 100%; width: 100%; margin: 0; padding: 0; }
-        
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: var(--bg-main);
-            color: var(--text-main);
-            min-height: 100vh;
-            position: relative;
-            overflow-x: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 24px 16px;
-        }
+/* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
+.auth-container{
+  --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
+  --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
+  position:relative; overflow:hidden;
+  display:none; align-items:center; justify-content:center; min-height:100vh; padding:20px;
+  background:
+    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
+    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
+    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
+}
+.auth-container.show { display: flex; }
+.auth-grid{
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  background-image:
+    linear-gradient(rgba(232,176,75,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,176,75,.07) 1px, transparent 1px);
+  background-size:54px 54px;
+  -webkit-mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+  mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+}
+.auth-chart{
+  position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:.38;
+  -webkit-mask-image:linear-gradient(to bottom, transparent, #000 22%, #000 92%, transparent);
+  mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+}
+.auth-chart .chart-area{animation:chartBreathe 7s ease-in-out infinite;}
+.auth-chart .chart-line{
+  stroke-dasharray:2600; stroke-dashoffset:2600;
+  animation:chartDraw 3.2s ease-out forwards, chartGlow 4s ease-in-out 3.2s infinite;
+}
+.auth-chart .chart-candles{animation:candlesFade 1.4s ease-out .6s backwards;}
+@keyframes chartDraw{to{stroke-dashoffset:0;}}
+@keyframes chartBreathe{0%,100%{opacity:1;} 50%{opacity:.65;}}
+@keyframes chartGlow{0%,100%{filter:drop-shadow(0 0 0px var(--auth-accent));} 50%{filter:drop-shadow(0 0 6px var(--auth-accent));}}
+@keyframes candlesFade{from{opacity:0;} to{opacity:.8;}}
+body.light .auth-grid{opacity:.5;}
+body.light .auth-chart{opacity:.3;}
+.auth-blob{position:absolute; border-radius:50%; filter:blur(70px); opacity:.28; pointer-events:none; will-change:transform;}
+.auth-blob.b1{width:360px; height:360px; background:var(--auth-accent); top:-110px; left:-100px; animation:blobFloat 24s ease-in-out infinite;}
+.auth-blob.b2{width:320px; height:320px; background:var(--auth-accent-2); bottom:-130px; right:-90px; animation:blobFloat 28s ease-in-out infinite; animation-delay:-8s;}
+body.light .auth-blob{opacity:.16;}
+@keyframes blobFloat{
+  0%,100%{transform:translate(0,0) scale(1);}
+  33%{transform:translate(35px,-40px) scale(1.1);}
+  66%{transform:translate(-30px,28px) scale(.92);}
+}
 
-        /* CENÁRIO DE BACKGROUND COM VELAS E SÍMBOLOS FINANANCEIROS */
-        .bg-scene {
-            position: fixed;
-            inset: 0;
-            z-index: 0;
-            overflow: hidden;
-            background: radial-gradient(circle at 50% 40%, #0d1e36 0%, #050b14 80%);
-        }
+@keyframes authIn{
+  from{opacity:0; transform:translateY(26px) scale(.96);}
+  to{opacity:1; transform:translateY(0) scale(1);}
+}
+@keyframes fieldIn{
+  from{opacity:0; transform:translateY(10px);}
+  to{opacity:1; transform:translateY(0);}
+}
+.auth-box{
+  position:relative; z-index:1;
+  background:var(--card); border:1px solid var(--card-border); border-radius:18px;
+  padding:36px; width:100%; max-width:400px;
+  box-shadow:var(--shadow), 0 0 0 1px rgba(232,176,75,.06);
+  animation:authIn .55s cubic-bezier(.16,1,.3,1);
+}
+.auth-box .brand{display:flex; justify-content:center; margin-bottom:24px; padding:0;}
+.auth-box .brand .logo{
+  background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)) !important; color:var(--auth-text-on) !important;
+  animation:logoPulse 3s ease-in-out infinite;
+}
+@keyframes logoPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(232,176,75,.45);}
+  50%{box-shadow:0 0 0 9px rgba(232,176,75,0);}
+}
+.auth-box h2{font-size:20px; font-weight:700; margin-bottom:6px; text-align:center;}
+.auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
+.auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
+.auth-box .field:nth-of-type(1){animation-delay:.05s;}
+.auth-box .field:nth-of-type(2){animation-delay:.1s;}
+.auth-box .field input:focus, .auth-box .field select:focus{
+  border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft); transform:translateY(-1px);
+}
+.auth-box .field input{transition:border-color .2s, box-shadow .2s, transform .15s;}
+.auth-forgot{display:block; text-align:right; font-size:12px; color:var(--text-dim); margin-top:8px; cursor:pointer; transition:color .15s;}
+.auth-forgot:hover{color:var(--auth-accent); text-decoration:underline;}
+.auth-box .btn-auth{
+  position:relative; overflow:hidden;
+  width:100%; padding:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); border:none;
+  border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;
+  transition:filter .2s, transform .15s;
+}
+.auth-box .btn-auth::after{
+  content:''; position:absolute; top:0; left:-75%; width:45%; height:100%;
+  background:linear-gradient(120deg, transparent, rgba(255,255,255,.45), transparent);
+  transform:skewX(-20deg);
+}
+.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-1px);}
+.auth-box .btn-auth:hover::after{animation:shimmer .9s ease;}
+.auth-box .btn-auth:active{transform:translateY(0) scale(.98);}
+@keyframes shimmer{from{left:-75%;} to{left:130%;}}
+.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:22px; padding-top:18px; border-top:1px solid var(--card-border);}
+.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:600; cursor:pointer;}
+.auth-toggle a:hover{text-decoration:underline;}
 
-        .bg-grid {
-            position: absolute;
-            inset: 0;
-            background-image: 
-                linear-gradient(rgba(56, 189, 248, 0.08) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(56, 189, 248, 0.08) 1px, transparent 1px);
-            background-size: 40px 40px;
-            opacity: 0.6;
-        }
+/* ==================== App principal Centralizado ==================== */
+.app{
+  display:none; min-height:100vh; position:relative; flex-direction:column;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(232,176,75,.10), transparent 40%),
+    radial-gradient(circle at 88% 18%, rgba(201,134,42,.08), transparent 45%),
+    radial-gradient(circle at 50% 100%, rgba(232,176,75,.05), transparent 55%),
+    var(--bg);
+}
+.app.show{display:flex;}
+body.light .app{
+  background:
+    radial-gradient(circle at 12% 0%, rgba(232,176,75,.08), transparent 40%),
+    radial-gradient(circle at 88% 18%, rgba(201,134,42,.06), transparent 45%),
+    var(--bg);
+}
 
-        /* GRÁFICO CANDLESTICK DE FUNDO */
-        .chart-bg-line {
-            position: absolute;
-            top: 52%;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: rgba(56, 189, 248, 0.4);
-            box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
-            z-index: 1;
-        }
+.app-bg-scene{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+.app-bg-grid{
+  position:absolute; inset:0;
+  background-image:
+    linear-gradient(rgba(232,176,75,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,176,75,.06) 1px, transparent 1px);
+  background-size:54px 54px;
+  -webkit-mask-image:radial-gradient(circle at 20% 0%, #000 0%, transparent 65%);
+  mask-image:radial-gradient(circle at 20% 0%, #000 0%, transparent 65%);
+}
+.app-bg-chart{position:absolute; inset:0; width:100%; height:100%; opacity:.16;}
+.app-blob{position:absolute; border-radius:50%; filter:blur(90px); opacity:.16; will-change:transform;}
+.app-blob.a1{width:420px; height:420px; background:var(--green); top:-140px; right:-120px; animation:blobFloat 30s ease-in-out infinite;}
+.app-blob.a2{width:360px; height:360px; background:#c9862a; bottom:-150px; left:20%; animation:blobFloat 34s ease-in-out infinite; animation-delay:-10s;}
+.app-blob.a3{width:300px; height:300px; background:var(--teal); opacity:.08; top:38%; left:-100px; animation:blobFloat 38s ease-in-out infinite; animation-delay:-18s;}
+body.light .app-bg-grid{opacity:.6;}
+body.light .app-bg-chart{opacity:.08;}
+body.light .app-blob{opacity:.08;}
+body.light .app-blob.a3{opacity:.05;}
 
-        .candles-layer {
-            position: absolute;
-            top: 40%;
-            width: 100%;
-            height: 200px;
-            display: flex;
-            align-items: center;
-            justify-content: space-around;
-            z-index: 1;
-            opacity: 0.65;
-            pointer-events: none;
-        }
+/* ==================== Cabeçalho superior (nav horizontal) ==================== */
+.topheader{
+  position:sticky; top:0; z-index:50; background:var(--sidebar); border-bottom:1px solid var(--card-border);
+  backdrop-filter:blur(10px);
+}
+.topheader-row{
+  display:flex; align-items:center; gap:20px; padding:15px 28px; max-width:1440px; margin:0 auto;
+}
+.brand{display:flex; align-items:center; gap:11px; flex-shrink:0;}
+.brand .logo{
+  width:42px; height:42px; border-radius:11px; background:linear-gradient(135deg,var(--green),#c9862a);
+  display:flex; align-items:center; justify-content:center; font-weight:800; color:#08130c; font-size:18px; flex-shrink:0;
+}
+.brand .name{font-weight:700; font-size:16px; line-height:1.25; white-space:nowrap;}
+.brand .name span{display:block; color:var(--green); font-size:11px; letter-spacing:.06em; font-weight:700;}
 
-        .candle { position: relative; width: 18px; border-radius: 2px; }
-        .candle::before { content: ''; position: absolute; left: 50%; transform: translateX(-50%); width: 2px; background: inherit; }
-        .candle.green { background: var(--neon-green); height: 35px; box-shadow: 0 0 10px rgba(16, 185, 129, 0.4); }
-        .candle.green::before { top: -14px; bottom: -14px; }
-        .candle.red { background: var(--neon-red); height: 40px; box-shadow: 0 0 10px rgba(244, 63, 94, 0.4); }
-        .candle.red::before { top: -16px; bottom: -16px; }
+nav.menu{
+  display:flex; align-items:center; flex-wrap:nowrap; gap:4px; width:100%;
+  padding:0 16px 10px; max-width:1440px; margin:0 auto;
+  overflow-x:auto; scrollbar-width:thin;
+}
+nav.menu::-webkit-scrollbar{height:5px;}
+nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:10px;}
+.menu button{
+  display:flex; align-items:center; gap:7px; text-align:left; background:none; border:none;
+  color:var(--text-dim); padding:11px 12px; border-radius:10px; font-size:14.5px; font-weight:600; cursor:pointer;
+  transition:background .15s,color .15s; white-space:nowrap; flex-shrink:0;
+}
+.menu button:hover{background:var(--hover); color:var(--text);}
+.menu button.active{background:var(--green-soft); color:var(--green); font-weight:700;}
+.menu button .ic{width:18px; text-align:center; font-size:15.5px; flex-shrink:0;}
 
-        /* MOEDAS EM MARCA D'ÁGUA */
-        .symbol-float { position: absolute; color: rgba(255, 255, 255, 0.07); font-family: 'JetBrains Mono', monospace; font-weight: 700; user-select: none; z-index: 1; }
+/* ==================== Logo / Crédito de Desenvolvimento ==================== */
+.auth-dev-credit{
+  position:absolute; left:0; right:0; bottom:18px; z-index:10;
+  display:flex; justify-content:center; pointer-events:none;
+}
+.app-dev-credit{
+  position:fixed; left:0; right:0; bottom:0; z-index:100;
+  display:flex; justify-content:center; padding:8px 16px;
+  background:rgba(11,14,18,0.95); border-top:1px solid var(--card-border); backdrop-filter:blur(10px);
+}
+.dev-chip{
+  position:relative;
+  pointer-events:auto; display:inline-flex; align-items:center; gap:8px;
+  background:linear-gradient(135deg, rgba(24,20,12,0.9), rgba(12,11,8,0.92));
+  border:1px solid rgba(232,176,75,.35);
+  border-radius:999px;
+  padding:5px 16px 5px 5px; box-shadow:0 2px 10px rgba(0,0,0,.25);
+}
+.app-dev-credit .dev-chip{background:linear-gradient(135deg, rgba(24,20,12,0.92), rgba(12,11,8,0.94));}
+.dev-chip .dev-avatar{
+  width:24px; height:24px; border-radius:50%; flex-shrink:0;
+  background:linear-gradient(135deg, #f6d999, #e8b04b, #c9862a);
+  display:flex; align-items:center; justify-content:center;
+  font-size:9.5px; font-weight:800; color:#08130c; letter-spacing:0;
+}
+.dev-chip .dev-text{display:flex; align-items:baseline; gap:5px; line-height:1;}
+.dev-chip .dev-text small{font-size:9.5px; color:var(--text-faint); letter-spacing:.05em; font-weight:600;}
+.dev-chip .dev-text strong{
+  font-size:12.5px; font-weight:700; letter-spacing:.01em; color:var(--green);
+}
 
-        .login-container { 
-            position: relative; 
-            z-index: 5; 
-            width: 100%; 
-            max-width: 450px; 
-            margin: auto; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-        }
+.cfg-divider{display:flex; align-items:center; gap:10px; margin:22px 0 14px;}
+.cfg-divider span{font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--text-faint); white-space:nowrap;}
+.cfg-divider::before, .cfg-divider::after{content:''; flex:1; height:1px; background:var(--card-border);}
 
-        .brand-header-container { text-align: center; margin-bottom: 22px; width: 100%; }
+/* Centralização do conteúdo principal */
+.main{
+  flex:1; min-width:0; padding:22px 28px 80px;
+  max-width:1440px; margin:0 auto; width:100%;
+}
+.right{display:flex; align-items:center; gap:16px; flex-shrink:0;}
+.icon-btn{
+  width:40px; height:40px; border-radius:11px; background:var(--card); border:1px solid var(--card-border);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; font-size:16px; flex-shrink:0;
+}
+.icon-btn .dot{position:absolute; top:8px; right:8px; width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 2px var(--sidebar);}
+.user{display:flex; align-items:center; gap:10px; cursor:pointer; min-width:0;}
+.avatar{width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,#f0a63a,#d85bb0); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:#1b1200; flex-shrink:0;}
+.user .uname{font-size:15.5px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:170px;}
+.user .urole{font-size:12px; color:var(--text-faint); white-space:nowrap;}
+.topheader-row .btn-ghost{padding:10px 18px; font-size:13px; flex-shrink:0;}
 
-        .brand-pill {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: rgba(16, 185, 129, 0.12);
-            border: 1px solid var(--neon-green);
-            color: var(--neon-green);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 10px;
-            font-weight: 800;
-            padding: 4px 14px;
-            border-radius: 20px;
-            letter-spacing: 1.5px;
-            text-transform: uppercase;
-            margin-bottom: 12px;
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
-        }
+.page-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:14px;}
+.page-head h1{font-size:23px; font-weight:700;}
+.page-head p{color:var(--text-dim); font-size:13px; margin-top:3px;}
+.head-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap;}
+.period-wrap{position:relative;}
+.period{
+  display:flex; align-items:center; gap:9px; background:var(--card); border:1px solid var(--card-border);
+  padding:6px 14px 6px 6px; border-radius:12px; font-size:13px; cursor:pointer; white-space:nowrap;
+  transition:border-color .18s ease, box-shadow .18s ease, transform .15s ease;
+}
+.period:hover{border-color:var(--green); box-shadow:0 4px 16px rgba(232,176,75,.16); transform:translateY(-1px);}
+.period:active{transform:translateY(0);}
+.period-ic{
+  width:32px; height:32px; border-radius:9px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--green),#c9862a); color:#1f1400;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.3);
+}
+.period-ic svg{width:16px; height:16px;}
+.period-text{display:flex; align-items:baseline; gap:4px; font-weight:700; color:var(--text);}
+.period-text .period-year{font-weight:500; color:var(--text-dim);}
+.period-chevron{width:9px; height:9px; color:var(--text-faint); flex-shrink:0; transition:transform .25s ease;}
+.period.open .period-chevron{transform:rotate(180deg); color:var(--green);}
+.period-panel{
+  display:none; position:absolute; top:calc(100% + 10px); right:0; background:var(--card); border:1px solid var(--card-border);
+  border-radius:14px; padding:16px; z-index:60; width:236px; box-shadow:var(--shadow); transform-origin:top right;
+}
+.period-panel.show{display:block; animation:periodPanelIn .22s cubic-bezier(.16,1,.3,1);}
+@keyframes periodPanelIn{
+  from{opacity:0; transform:translateY(-8px) scale(.95);}
+  to{opacity:1; transform:translateY(0) scale(1);}
+}
+.period-today-btn{
+  display:block; width:100%; text-align:center; background:var(--green-soft); color:var(--green); border:none;
+  padding:8px; border-radius:9px; font-size:12px; font-weight:700; cursor:pointer; margin-bottom:12px;
+  transition:filter .15s, transform .12s;
+}
+.period-today-btn:hover{filter:brightness(1.1);}
+.period-today-btn:active{transform:scale(.97);}
 
-        .brand-animated-name {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            font-size: 30px;
-            font-weight: 900;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            color: #ffffff;
-            display: block;
-            text-shadow: 0 0 20px var(--glow-cyan);
-        }
+.notif-wrap{position:relative;}
+.notif-panel{
+  display:none; position:absolute; top:calc(100% + 10px); right:0; background:var(--card); border:1px solid var(--card-border);
+  border-radius:14px; z-index:70; width:340px; max-width:88vw; box-shadow:var(--shadow); overflow:hidden;
+}
+.notif-panel.show{display:block;}
+.notif-panel-head{display:flex; align-items:center; justify-content:space-between; gap:10px; padding:14px 16px; border-bottom:1px solid var(--card-border);}
+.notif-panel-head h4{font-size:13.5px; font-weight:700;}
+.notif-markall{background:none; border:none; color:var(--green); font-size:11.5px; font-weight:600; cursor:pointer; white-space:nowrap;}
+.notif-markall:hover{text-decoration:underline;}
+.notif-list{max-height:360px; overflow-y:auto; padding:6px;}
+.notif-item{display:flex; align-items:flex-start; gap:11px; padding:10px 10px; border-radius:10px; cursor:default;}
+.notif-item:hover{background:var(--hover);}
+.notif-item .ic{
+  width:34px; height:34px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:15px; background:var(--green-soft);
+}
+.notif-item .body{flex:1; min-width:0;}
+.notif-item .txt{font-size:12.5px; color:var(--text); line-height:1.4;}
+.notif-item .time{font-size:11px; color:var(--text-faint); margin-top:2px;}
+.notif-item.unread{background:var(--green-soft);}
+.notif-item .unread-dot{width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0; margin-top:5px;}
+.notif-empty{padding:32px 16px; text-align:center; color:var(--text-faint); font-size:12.5px;}
+.btn-primary{
+  position:relative; overflow:hidden;
+  background:linear-gradient(135deg,var(--green),#c9862a); color:#1f1400; border:none; padding:10px 18px; border-radius:10px;
+  font-weight:700; font-size:13.5px; cursor:pointer; display:flex; align-items:center; gap:7px;
+  box-shadow:0 4px 14px rgba(232,176,75,.28), inset 0 1px 0 rgba(255,255,255,.25);
+  transition:filter .2s, transform .15s, box-shadow .2s;
+}
+.btn-primary::after{
+  content:''; position:absolute; top:0; left:-75%; width:45%; height:100%;
+  background:linear-gradient(120deg, transparent, rgba(255,255,255,.4), transparent);
+  transform:skewX(-20deg);
+}
+.btn-primary:hover{filter:brightness(1.08); transform:translateY(-1px); box-shadow:0 6px 18px rgba(232,176,75,.36), inset 0 1px 0 rgba(255,255,255,.25);}
+.btn-primary:hover::after{animation:shimmer .9s ease;}
+.btn-primary:active{transform:translateY(0) scale(.98);}
+.btn-ghost{
+  background:var(--card); color:var(--text); border:1px solid var(--card-border); padding:10px 16px;
+  border-radius:10px; font-size:13px; cursor:pointer;
+}
+.btn-ghost:hover{background:var(--hover);}
 
-        .brand-subtitle { 
-            font-size: 11px; 
-            color: var(--text-muted); 
-            letter-spacing: 3px; 
-            text-transform: uppercase; 
-            font-weight: 700; 
-            margin-top: 4px; 
-        }
+.kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:20px;}
+.kpi{
+  background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius); padding:18px;
+}
+.kpi .row1{display:flex; align-items:center; justify-content:space-between; color:var(--text-dim); font-size:12.5px; margin-bottom:12px;}
+.kpi .ic{width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:17px; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+.kpi .val{font-size:22px; font-weight:700; margin-bottom:5px;}
+.kpi .sub{font-size:11.5px; color:var(--text-faint);}
+.kpi .sub.up{color:var(--green);}
 
-        .login-card { 
-            width: 100%; 
-            background: var(--card-bg); 
-            border: 1px solid var(--card-border); 
-            border-radius: 18px; 
-            padding: 28px 28px 24px; 
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(56, 189, 248, 0.08); 
-            backdrop-filter: blur(16px); 
-            -webkit-backdrop-filter: blur(16px);
-            animation: cardIn 0.4s ease-out; 
-        }
-        @keyframes cardIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.grid3{display:grid; grid-template-columns:1fr 1fr .82fr; gap:16px; margin-bottom:20px; align-items:start;}
+.panel{background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius); padding:20px;}
+.panel-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; gap:10px; flex-wrap:wrap;}
+.panel-head h3{font-size:14.5px; font-weight:700;}
+.panel-head .tag{font-size:12px; color:var(--text-dim); background:var(--hover); padding:5px 10px; border-radius:8px; cursor:pointer; border:none;}
 
-        .login-card-head { text-align: left; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
-        .login-title { font-size: 16px; font-weight: 800; color: #ffffff; letter-spacing: -0.2px; display: flex; align-items: center; gap: 8px; }
+.cfg-grid{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start; margin-bottom:20px;}
+.cfg-grid .panel{height:100%;}
+.cfg-hint{color:var(--text-faint); font-size:12px; margin:-6px 0 14px; line-height:1.4;}
+.cfg-save-bar{display:flex; justify-content:flex-end; margin-bottom:24px;}
+.pass-field{position:relative;}
+.pass-field input{width:100%; padding-right:42px;}
+.pass-toggle{
+  position:absolute; top:50%; right:6px; transform:translateY(-50%);
+  width:30px; height:30px; display:flex; align-items:center; justify-content:center;
+  background:none; border:none; color:var(--text-faint); cursor:pointer; border-radius:8px; padding:0;
+  transition:color .15s, background .15s;
+}
+.pass-toggle:hover{color:var(--text); background:var(--hover);}
+.pass-toggle svg{width:16px; height:16px;}
+@media(max-width:820px){
+  .cfg-grid{grid-template-columns:1fr;}
+}
 
-        .form-group { margin-bottom: 14px; position: relative; text-align: left; }
-        label { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: #ffffff; display: block; margin-bottom: 6px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        input { 
-            width: 100%; 
-            padding: 12px 14px; 
-            background: var(--field-bg); 
-            border: 1px solid #cbd5e1; 
-            color: var(--field-text); 
-            border-radius: 8px; 
-            font-size: 13.5px; 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            font-weight: 600;
-            outline: none; 
-            transition: all 0.2s ease; 
-        }
-        input::placeholder { color: #94a3b8; }
-        input:focus { border-color: var(--accent-cyan); box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.3); }
-        input.field-error { border-color: var(--neon-red); animation: shake 0.3s ease-in-out; }
-        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.donut-wrap{display:flex; align-items:center; justify-content:center; gap:20px;}
+.donut-side{font-size:12px; color:var(--text-dim);}
+.donut-side b{display:block; font-size:15px; margin-top:2px;}
+.donut-side.r{text-align:right;}
+.donut-canvas{position:relative; width:150px; height:150px; margin: 0 auto;}
+.donut-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;}
+.donut-center span{font-size:11px; color:var(--text-faint);}
+.donut-center b{font-size:14.5px; margin-top:2px;}
+.bar-split{height:8px; border-radius:5px; background:var(--red); overflow:hidden; margin-top:16px; display:flex;}
+.bar-split .g{background:var(--green); height:100%;}
+.split-labels{display:flex; justify-content:space-between; font-size:11.5px; margin-top:6px; color:var(--text-dim);}
 
-        .reg-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-        .hidden { display: none; }
+.cat-wrap{display:flex; gap:16px; align-items:center; justify-content:center;}
+.cat-legend{flex:1; display:flex; flex-direction:column; gap:9px;}
+.cat-row{display:flex; align-items:center; justify-content:space-between; font-size:12px;}
+.cat-row .lbl{display:flex; align-items:center; gap:7px; color:var(--text-dim);}
+.cat-row .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+.cat-row .amt{color:var(--text); font-weight:600; margin-right:6px;}
+.cat-row .pct{color:var(--text-faint);}
 
-        .bottom-row { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; margin-bottom: 18px; }
-        .remember-check { display: flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-family: 'JetBrains Mono', monospace; }
-        .remember-check input[type=checkbox] { appearance: none; padding: 0; width: 14px; height: 14px; margin: 0; border-radius: 3px; border: 1px solid var(--card-border); background: rgba(255,255,255,0.05); cursor: pointer; display: grid; place-content: center; flex-shrink: 0; transition: all 0.2s; }
-        .remember-check input[type=checkbox]:checked { background: var(--accent-blue); border-color: var(--accent-cyan); }
-        .remember-check input[type=checkbox]::before { content: ''; width: 6px; height: 6px; transform: scale(0); border-radius: 1px; background: #fff; transition: transform 0.15s ease-in-out; }
-        .remember-check input[type=checkbox]:checked::before { transform: scale(1); }
-        
-        .pill-link { color: var(--accent-cyan); font-size: 11px; font-weight: 700; text-decoration: none; cursor: pointer; transition: color 0.2s; font-family: 'JetBrains Mono', monospace; }
-        .pill-link:hover { text-decoration: underline; color: #7dd3fc; }
+.accounts-list{display:flex; flex-direction:column; gap:10px; margin-bottom:14px;}
+.acc-row{display:flex; align-items:center; gap:10px; padding:8px 4px; border-radius:10px;}
+.acc-row:hover{background:var(--hover);}
+.acc-row:hover .acc-edit{opacity:1;}
+.acc-ic{width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink:0; color:#fff; box-shadow:0 2px 6px rgba(0,0,0,.25);}
+.acc-info{flex:1; min-width:0;}
+.acc-info .n{font-size:12.8px; font-weight:600;}
+.acc-info .t{font-size:11px; color:var(--text-faint);}
+.acc-val{font-size:12.8px; font-weight:700; white-space:nowrap;}
+.acc-val.neg{color:var(--red);}
+.acc-edit{opacity:0; transition:opacity .15s; background:none; border:none; color:var(--text-faint); cursor:pointer; font-size:12px; padding:4px;}
 
-        button.btn-submit { 
-            width: 100%; 
-            padding: 12px; 
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%); 
-            color: #ffffff; 
-            border: 1px solid rgba(255, 255, 255, 0.2); 
-            border-radius: 8px; 
-            cursor: pointer; 
-            font-weight: 800; 
-            font-size: 12.5px; 
-            font-family: 'JetBrains Mono', monospace;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            gap: 8px; 
-            transition: all 0.2s ease; 
-        }
-        button.btn-submit:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(56, 189, 248, 0.5); border-color: var(--accent-cyan); }
-        button.btn-submit:disabled { opacity: 0.65; cursor: wait; }
-        .spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; animation: spin 0.7s linear infinite; display: none; }
-        button.btn-submit.loading .spinner { display: inline-block; }
-        @keyframes spin { to { transform: rotate(360deg); } }
+.table-panel{background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius); padding:20px; overflow-x:auto;}
+table{width:100%; border-collapse:collapse;}
+th{text-align:left; font-size:11.5px; color:var(--text-faint); font-weight:600; padding:0 10px 12px; text-transform:uppercase; letter-spacing:.03em;}
+td{padding:12px 10px; font-size:13px; border-top:1px solid var(--card-border);}
+tr.trow:hover td{background:var(--hover);}
+.pill{padding:4px 10px; border-radius:7px; font-size:11.5px; font-weight:600; display:inline-block;}
+.status-pago{background:var(--green-soft); color:var(--green);}
+.status-recebido{background:rgba(74,144,226,.14); color:var(--blue);}
+.status-pendente{background:rgba(240,166,58,.14); color:var(--orange);}
+.val-in{color:var(--green); font-weight:700;}
+.val-out{color:var(--red); font-weight:700;}
+.type-ic.in{color:var(--green); font-weight:700;}
+.type-ic.out{color:var(--red); font-weight:700;}
+.row-actions{display:flex; gap:6px;}
+.row-actions button{background:none; border:1px solid var(--card-border); color:var(--text-dim); width:28px; height:28px; border-radius:8px; cursor:pointer; font-size:12.5px; flex-shrink:0;}
+.row-actions button:hover{background:var(--hover); color:var(--text); border-color:var(--text-faint);}
 
-        .error-message { font-size: 12px; font-weight: 600; min-height: 18px; margin-bottom: 10px; text-align: center; }
+.icon-picker{display:flex; gap:6px; flex-wrap:wrap;}
+.icon-picker button{width:32px; height:32px; border-radius:8px; border:1px solid var(--card-border); background:var(--bg); font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:border-color .15s, background .15s;}
+.icon-picker button:hover{border-color:var(--green); background:var(--green-soft);}
+.icon-picker button.sel{border-color:var(--green); background:var(--green-soft);}
+.cat-manage-tabs{display:flex; gap:8px;}
+.cat-manage-tabs .cat-tab{flex:1; padding:9px; border-radius:9px; border:1px solid var(--card-border); background:var(--bg); color:var(--text-dim); font-size:12.5px; font-weight:600; cursor:pointer; font-family:inherit;}
+.cat-manage-tabs .cat-tab.active{background:var(--green-soft); color:var(--green); border-color:var(--green);}
+.cat-manage-row{display:flex; align-items:center; gap:10px;}
+.cat-manage-row .cat-badge{font-size:16px;}
+.cat-manage-row .info{min-width:0; flex:1;}
+.cat-manage-row .n{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.cat-manage-row .u{font-size:11px; color:var(--text-faint);}
+.filters{display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;}
+.filters input, .filters select{
+  background:var(--bg); border:1px solid var(--card-border); border-radius:9px; padding:8px 12px; font-size:12.5px; outline:none;
+}
+.filters input{flex:1; min-width:180px;}
 
-        .register-section-box {
-            width: 100%;
-            margin-top: 14px;
-            background: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-radius: 12px;
-            padding: 10px 16px;
-            backdrop-filter: blur(16px);
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-        }
-        .register-section-box span { font-size: 12px; color: var(--text-muted); font-weight: 600; }
-        .btn-toggle-mode { font-family: 'JetBrains Mono', monospace; background: rgba(56, 189, 248, 0.1); border: 1px solid var(--accent-cyan); color: var(--accent-cyan); padding: 6px 14px; border-radius: 6px; font-weight: 800; font-size: 11px; cursor: pointer; transition: all 0.2s; white-space: nowrap; text-transform: uppercase; }
-        .btn-toggle-mode:hover { background: var(--accent-cyan); color: #0b1528; }
+.placeholder{padding:60px 20px; text-align:center; color:var(--text-dim);}
+.placeholder .big{font-size:38px; margin-bottom:10px;}
+.placeholder h3{color:var(--text); font-size:16px; margin-bottom:6px;}
 
-        .login-footer { 
-            text-align: center; 
-            padding-top: 20px; 
-            font-size: 11px; 
-            font-family: 'JetBrains Mono', monospace;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            width: 100%;
-        }
+.cat-cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; justify-content:center;}
+.cat-card{background:var(--card); border:1px solid var(--card-border); border-radius:12px; padding:16px; display:flex; flex-direction:column;}
+.cat-card .top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px; gap:10px;}
+.cat-card .id-group{display:flex; align-items:center; gap:10px; min-width:0;}
+.cat-card .dot{width:20px; height:20px; border-radius:6px; flex-shrink:0; box-shadow:0 0 0 3px rgba(255,255,255,.06), 0 2px 5px rgba(0,0,0,.3);}
+.cat-card h4{font-size:13.5px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.cat-card .amt{font-size:17px; font-weight:700;}
+.cat-card .row-actions{flex-shrink:0;}
+.cat-badge{
+  width:34px; height:34px; border-radius:10px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:800;
+}
+.cat-card-stats{display:flex; align-items:baseline; justify-content:space-between; gap:8px; margin-top:auto;}
+.cat-card-stats .amt{font-size:17px; font-weight:700;}
+.cat-count{color:var(--text-faint); font-size:11.5px; white-space:nowrap;}
+.cat-card{transition:border-color .15s, transform .15s;}
+.cat-card:hover{border-color:var(--green);}
+.cat-card-add{
+  border:1.5px dashed var(--card-border); background:transparent; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  color:var(--text-dim); font-size:13px; font-weight:600; min-height:96px; font-family:inherit;
+  transition:border-color .15s, color .15s, background .15s;
+}
+.cat-card-add:hover{border-color:var(--green); color:var(--green); background:var(--green-soft);}
+.cat-card-add .plus{font-size:22px; line-height:1; font-weight:400;}
 
-        @media (max-width: 480px) {
-            .login-card { padding: 22px 18px; }
-            .reg-grid-2 { grid-template-columns: 1fr; }
-            .brand-animated-name { font-size: 24px; }
-            .register-section-box { flex-direction: column; gap: 8px; text-align: center; }
-            .btn-toggle-mode { width: 100%; }
-        }
-    </style>
+/* ==================== Admin: Usuários Cadastrados ==================== */
+.user-admin-list{display:flex; flex-direction:column; gap:8px;}
+.user-row{
+  display:flex; align-items:center; gap:12px; padding:11px 12px; border:1px solid var(--card-border);
+  border-radius:12px; background:var(--bg); transition:border-color .15s;
+}
+.user-row:hover{border-color:var(--green);}
+.user-row.inactive{opacity:.6;}
+.user-row.inactive .user-ic{filter:grayscale(1);}
+.user-ic{
+  width:36px; height:36px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--green),#c9862a); color:#08130c; font-weight:800; font-size:13px;
+}
+.user-info{flex:1; min-width:0;}
+.user-info .n{font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.user-info .e{font-size:11.5px; color:var(--text-faint); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.user-info .stats{font-size:11px; color:var(--text-faint); margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+.role-badge{
+  font-size:11px; font-weight:700; padding:4px 10px; border-radius:20px; flex-shrink:0; white-space:nowrap;
+}
+.role-badge.admin{background:var(--green-soft); color:var(--green);}
+.role-badge.user{background:rgba(138,147,163,.14); color:var(--text-dim);}
+.role-badge.inactive{background:var(--red-soft); color:var(--red);}
+.row-edit{
+  flex-shrink:0; background:none; border:1px solid var(--card-border); color:var(--text-dim); width:30px; height:30px;
+  border-radius:8px; cursor:pointer; font-size:13px; transition:background .15s,color .15s;
+}
+.row-edit:hover{background:var(--hover); color:var(--text);}
+.row-view{
+  flex-shrink:0; background:none; border:1px solid var(--card-border); color:var(--text-dim); width:30px; height:30px;
+  border-radius:8px; cursor:pointer; font-size:13px; transition:background .15s,color .15s;
+}
+.row-view:hover{background:var(--green-soft); color:var(--green); border-color:var(--green);}
+.row-toggle{
+  flex-shrink:0; background:none; border:1px solid var(--card-border); color:var(--text-dim); width:30px; height:30px;
+  border-radius:8px; cursor:pointer; font-size:13px; transition:background .15s,color .15s;
+}
+.row-toggle:hover{background:var(--red-soft); color:var(--red); border-color:var(--red);}
+
+/* ==================== Banner: Modo Visualização (Admin) ==================== */
+.view-mode-banner{
+  display:none; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
+  padding:9px 16px; background:linear-gradient(135deg, rgba(232,176,75,.16), rgba(232,176,75,.08));
+  border-bottom:1.5px solid var(--green); font-size:13px; color:var(--text); text-align:center;
+}
+.view-mode-banner.show{display:flex;}
+.view-mode-banner strong{color:var(--green);}
+.view-mode-banner button{
+  background:var(--green); color:#08130c; border:none; font-weight:700; font-size:12.5px;
+  padding:6px 14px; border-radius:8px; cursor:pointer; flex-shrink:0;
+}
+.view-mode-banner button:hover{filter:brightness(1.08);}
+
+.acc-card{background:var(--card); border:1px solid var(--card-border); border-radius:var(--radius); padding:18px; display:flex; flex-direction:column;}
+.acc-card .top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; gap:10px;}
+.acc-card .row-actions{flex-shrink:0;}
+
+.overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
+.overlay.show{display:flex;}
+.modal{background:var(--card); border:1px solid var(--card-border); border-radius:16px; padding:24px; width:100%; max-width:440px; box-shadow:var(--shadow); position:relative; max-height:88vh; overflow-y:auto;}
+.modal h2{font-size:17px; margin-bottom:18px;}
+.field{margin-bottom:14px;}
+.field label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px;}
+.field input, .field select{
+  width:100%; background:var(--bg); border:1px solid var(--card-border); border-radius:9px; padding:10px 12px; font-size:13.5px; outline:none;
+}
+.field input[type=color]{padding:3px; height:38px; cursor:pointer;}
+.field input[type=file]{padding:8px;}
+.field-row{display:flex; gap:10px;}
+.field-row .field{flex:1;}
+.toggle-type{display:flex; gap:8px; margin-bottom:14px;}
+.toggle-type button{
+  flex:1; padding:10px; border-radius:9px; border:1px solid var(--card-border); background:var(--bg); cursor:pointer; font-size:13px; font-weight:600; color:var(--text-dim);
+}
+.toggle-type button.sel-in{background:var(--green-soft); color:var(--green); border-color:var(--green);}
+.toggle-type button.sel-out{background:var(--red-soft); color:var(--red); border-color:var(--red);}
+.modal-actions{display:flex; gap:10px; margin-top:18px;}
+.modal-actions button{flex:1; padding:11px; border-radius:10px; font-size:13.5px; cursor:pointer; border:1px solid var(--card-border); background:var(--bg); color:var(--text);}
+.modal-actions .save{background:var(--green); border:none; color:#08130c; font-weight:700;}
+.close-x{position:absolute; top:16px; right:18px; background:none; border:none; color:var(--text-dim); font-size:18px; cursor:pointer;}
+
+.toast{
+  position:fixed; bottom:24px; right:24px; background:var(--card); border:1px solid var(--green); color:var(--text);
+  padding:12px 18px; border-radius:10px; font-size:13px; box-shadow:var(--shadow); z-index:200; display:none; align-items:center; gap:8px; max-width:320px;
+}
+.toast.show{display:flex;}
+.toast .d{width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0;}
+
+/* ==================== Popup de login bem-sucedido ==================== */
+.login-success-overlay{
+  position:fixed; inset:0; background:rgba(4,6,10,.6); backdrop-filter:blur(3px);
+  display:none; align-items:center; justify-content:center; z-index:300; padding:20px; opacity:0;
+  transition:opacity .25s ease;
+}
+.login-success-overlay.show{display:flex;}
+.login-success-overlay.in{opacity:1;}
+.login-success-box{
+  background:var(--card); border:1px solid var(--card-border); border-radius:18px;
+  padding:36px 32px; width:100%; max-width:340px; text-align:center; box-shadow:var(--shadow);
+  transform:translateY(14px) scale(.96); opacity:0; transition:transform .3s cubic-bezier(.16,1,.3,1), opacity .3s ease;
+}
+.login-success-overlay.in .login-success-box{transform:translateY(0) scale(1); opacity:1;}
+.login-success-check{
+  width:64px; height:64px; margin:0 auto 18px; border-radius:50%;
+  background:var(--green-soft); display:flex; align-items:center; justify-content:center;
+}
+.login-success-check svg{width:34px; height:34px;}
+.login-success-check circle{stroke:var(--green); stroke-width:2.5; opacity:.35;}
+.login-success-check path{
+  stroke:var(--green); stroke-width:4; stroke-linecap:round; stroke-linejoin:round;
+  stroke-dasharray:40; stroke-dashoffset:40; animation:loginCheckDraw .45s ease .15s forwards;
+}
+@keyframes loginCheckDraw{to{stroke-dashoffset:0;}}
+.login-success-box h3{font-size:16.5px; margin-bottom:6px;}
+.login-success-box p{color:var(--text-dim); font-size:13px;}
+
+/* ==================== Popup de conta desativada ==================== */
+.account-disabled-icon{
+  width:64px; height:64px; margin:0 auto 18px; border-radius:50%;
+  background:var(--red-soft); display:flex; align-items:center; justify-content:center;
+}
+.account-disabled-icon svg{width:30px; height:30px;}
+.account-disabled-icon path, .account-disabled-icon circle{stroke:var(--red); stroke-width:2.5; fill:none; stroke-linecap:round; stroke-linejoin:round;}
+.login-success-box .account-disabled-btn{
+  margin-top:20px; width:100%; background:var(--red); color:#fff; border:none; font-weight:700;
+  font-size:13.5px; padding:11px; border-radius:10px; cursor:pointer; transition:filter .15s;
+}
+.login-success-box .account-disabled-btn:hover{filter:brightness(1.08);}
+
+@media(min-width:1700px){
+  .brand .name{font-size:17px;}
+}
+@media(max-width:1150px){
+  .grid3{grid-template-columns:1fr 1fr;}
+  .grid3 > :nth-child(3){grid-column:1/-1;}
+  .kpis{grid-template-columns:repeat(3,1fr);}
+}
+@media(max-width:820px){
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .grid3{grid-template-columns:1fr;}
+  .topheader-row{padding:10px 16px; gap:12px;}
+  nav.menu{padding:0 16px 10px;}
+  .menu button{font-size:14px; padding:10px 12px;}
+  .brand .name{font-size:14px;}
+}
+@media(max-width:480px){
+  .main{padding:16px 14px 60px;}
+  .kpis{grid-template-columns:1fr 1fr;}
+  .topbar{gap:8px;}
+  .page-head h1{font-size:19px;}
+  .brand .name span{display:none;}
+
+  /* Cadastro/edição em modal mais fácil de usar no celular */
+  .overlay{align-items:flex-end; padding:0;}
+  .modal{max-width:100%; width:100%; border-radius:20px 20px 0 0; max-height:94vh; padding:20px 16px 22px;}
+  .field-row{flex-direction:column; gap:0;}
+  .field-row .field{margin-bottom:14px;}
+  .field{margin-bottom:16px;}
+  .field label{font-size:12.5px; margin-bottom:7px;}
+  .field input, .field select{font-size:16px; padding:12px 13px;}
+  .toggle-type button{padding:12px; font-size:13.5px;}
+  .modal-actions{position:sticky; bottom:-1px; background:var(--card); padding-top:6px; margin-top:14px;}
+  .modal-actions button{padding:13px; font-size:14px;}
+  .close-x{top:14px; right:14px; font-size:20px; padding:4px 6px;}
+
+  /* Tabelas: rolagem horizontal em vez de espremer as colunas */
+  .table-panel{padding:14px 12px;}
+  table{min-width:640px;}
+  .filters input, .filters select{font-size:16px; padding:10px 12px;}
+}
+</style>
 </head>
 <body>
 
-    <!-- AMBIENTE DE FUNDO TERMINAL / CANDLESTICKS -->
-    <div class="bg-scene">
-        <div class="bg-grid"></div>
-        <div class="chart-bg-line"></div>
-        
-        <div class="candles-layer">
-            <div class="candle red"></div>
-            <div class="candle green"></div>
-            <div class="candle green"></div>
-            <div class="candle red"></div>
-            <div class="candle green"></div>
-            <div class="candle green"></div>
-            <div class="candle red"></div>
-            <div class="candle green"></div>
-            <div class="candle green"></div>
-        </div>
+<!-- TELA DE LOGIN / CADASTRO -->
+<div class="auth-container show" id="authPage">
+  <div class="auth-grid" aria-hidden="true"></div>
+  <svg class="auth-chart" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+    <defs>
+      <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="var(--auth-accent)" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="var(--auth-accent)" stop-opacity="0"/>
+      </linearGradient>
+    </defs>
+    <path class="chart-area" d="M 0.0,380 L 27.1,385.0 L 54.2,400.1 L 81.4,386.1 L 108.5,405.7 L 135.6,398.4 L 162.7,401.0 L 189.8,421.5 L 216.9,415.8 L 244.1,437.5 L 271.2,436.1 L 298.3,455.8 L 325.4,474.4 L 352.5,473.6 L 379.7,449.4 L 406.8,466.0 L 433.9,476.9 L 461.0,464.3 L 488.1,433.1 L 515.3,423.4 L 542.4,424.2 L 569.5,391.4 L 596.6,412.5 L 623.7,386.5 L 650.8,393.5 L 678.0,409.0 L 705.1,425.9 L 732.2,431.8 L 759.3,408.3 L 786.4,421.6 L 813.6,411.7 L 840.7,398.4 L 867.8,400.6 L 894.9,392.7 L 922.0,412.8 L 949.2,433.2 L 976.3,445.0 L 1003.4,429.4 L 1030.5,428.4 L 1057.6,433.9 L 1084.7,423.8 L 1111.9,421.3 L 1139.0,427.7 L 1166.1,405.4 L 1193.2,388.7 L 1220.3,398.3 L 1247.5,388.8 L 1274.6,382.1 L 1301.7,355.2 L 1328.8,336.7 L 1355.9,343.8 L 1383.1,310.7 L 1410.2,327.7 L 1437.3,327.2 L 1464.4,307.1 L 1491.5,322.1 L 1518.6,317.5 L 1545.8,339.1 L 1572.9,324.1 L 1600.0,303.6 L 1600.0,800 L 0.0,800 Z" fill="url(#chartFill)" stroke="none"/>
+    <path class="chart-line" d="M 0.0,380 L 27.1,385.0 L 54.2,400.1 L 81.4,386.1 L 108.5,405.7 L 135.6,398.4 L 162.7,401.0 L 189.8,421.5 L 216.9,415.8 L 244.1,437.5 L 271.2,436.1 L 298.3,455.8 L 325.4,474.4 L 352.5,473.6 L 379.7,449.4 L 406.8,466.0 L 433.9,476.9 L 461.0,464.3 L 488.1,433.1 L 515.3,423.4 L 542.4,424.2 L 569.5,391.4 L 596.6,412.5 L 623.7,386.5 L 650.8,393.5 L 678.0,409.0 L 705.1,425.9 L 732.2,431.8 L 759.3,408.3 L 786.4,421.6 L 813.6,411.7 L 840.7,398.4 L 867.8,400.6 L 894.9,392.7 L 922.0,412.8 L 949.2,433.2 L 976.3,445.0 L 1003.4,429.4 L 1030.5,428.4 L 1057.6,433.9 L 1084.7,423.8 L 1111.9,421.3 L 1139.0,427.7 L 1166.1,405.4 L 1193.2,388.7 L 1220.3,398.3 L 1247.5,388.8 L 1274.6,382.1 L 1301.7,355.2 L 1328.8,336.7 L 1355.9,343.8 L 1383.1,310.7 L 1410.2,327.7 L 1437.3,327.2 L 1464.4,307.1 L 1491.5,322.1 L 1518.6,317.5 L 1545.8,339.1 L 1572.9,324.1 L 1600.0,303.6" fill="none" stroke="var(--auth-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
 
-        <!-- SIMBOLOS MOEDAS -->
-        <span class="symbol-float" style="top: 25%; left: 15%; font-size: 20px;">฿</span>
-        <span class="symbol-float" style="top: 30%; left: 30%; font-size: 14px;">£</span>
-        <span class="symbol-float" style="top: 35%; left: 20%; font-size: 16px;">¥</span>
-        <span class="symbol-float" style="top: 45%; left: 30%; font-size: 15px;">%</span>
-        <span class="symbol-float" style="top: 52%; left: 18%; font-size: 22px;">฿</span>
-        <span class="symbol-float" style="top: 68%; left: 30%; font-size: 18px;">฿</span>
-        <span class="symbol-float" style="top: 22%; right: 25%; font-size: 14px;">%</span>
-        <span class="symbol-float" style="top: 32%; right: 10%; font-size: 18px;">$</span>
-        <span class="symbol-float" style="top: 62%; right: 12%; font-size: 16px;">£</span>
+  <div class="auth-blob b1"></div>
+  <div class="auth-blob b2"></div>
+
+  <!-- Login -->
+  <div class="auth-box" id="loginBox">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
     </div>
-
-    <div class="login-container">
-        <div class="brand-header-container">
-            <div class="brand-pill">@ PLATAFORMA HIGH-FREQUENCY</div>
-            <span class="brand-animated-name">PLP FINANCEIRO</span>
-            <div class="brand-subtitle">Gestão & Inteligência de Mercado</div>
+    <h2>Acessar Conta</h2>
+    <p class="sub">Informe suas credenciais para continuar</p>
+    <form id="loginForm">
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <div class="pass-field">
+          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
         </div>
-
-        <div class="login-card">
-            <div class="login-card-head">
-                <div class="login-title" id="form-title">🔒 Acesso ao Terminal</div>
-            </div>
-
-            <div class="error-message" id="error-msg"></div>
-
-            <form id="auth-form" autocomplete="off">
-                <div id="register-fields" class="hidden">
-                    <div class="form-group">
-                        <label for="name">Nome completo</label>
-                        <input type="text" id="name" placeholder="Seu nome completo">
-                    </div>
-                    
-                    <div class="reg-grid-2">
-                        <div class="form-group">
-                            <label for="cpf">CPF</label>
-                            <input type="text" id="cpf" placeholder="000.000.000-00">
-                        </div>
-                        <div class="form-group">
-                            <label for="phone">Telefone</label>
-                            <input type="text" id="phone" placeholder="(00) 00000-0000">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="form-group">
-                    <label for="email">E-mail Corporativo</label>
-                    <input type="email" id="email" placeholder="paulo@email.com" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="password">Senha de Segurança</label>
-                    <input type="password" id="password" placeholder="••••••••" required>
-                </div>
-
-                <div class="bottom-row">
-                    <label class="remember-check">
-                        <input type="checkbox" id="remember">
-                        <span>Lembrar Credenciais</span>
-                    </label>
-                    <a class="pill-link" onclick="forgotPassword(event)">Esqueceu a senha? Recuperar</a>
-                </div>
-
-                <button type="submit" class="btn-submit" id="submit-btn">
-                    <span id="submit-btn-text">Autenticar no Sistema</span>
-                    <span class="spinner"></span>
-                </button>
-            </form>
-        </div>
-
-        <div class="register-section-box">
-            <span id="toggle-question">Ainda não possui credenciais?</span>
-            <button type="button" class="btn-toggle-mode" id="toggle-btn" onclick="toggleMode()">Criar Cadastro</button>
-        </div>
-
-        <footer class="login-footer">
-            Desenvolvido por Paulo Lima • 2026
-        </footer>
+        <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
+      </div>
+      <button type="submit" class="btn-auth">Entrar no Sistema</button>
+    </form>
+    <div class="auth-toggle">
+      Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
     </div>
-
-    <script>
-        let isLogin = true;
-
-        function toggleMode() {
-            isLogin = !isLogin;
-            document.getElementById('form-title').innerText = isLogin ? '🔒 Acesso ao Terminal' : '📝 Registrar Nova Conta';
-            document.getElementById('submit-btn-text').innerText = isLogin ? 'Autenticar no Sistema' : 'Concluir Cadastro';
-            document.getElementById('toggle-question').innerText = isLogin ? 'Ainda não possui credenciais?' : 'Já possui acesso registrado?';
-            document.getElementById('toggle-btn').innerText = isLogin ? 'Criar Cadastro' : 'Fazer Login';
-            document.getElementById('register-fields').classList.toggle('hidden', isLogin);
-            const nameInput = document.getElementById('name');
-            if (nameInput) nameInput.required = !isLogin;
-            document.getElementById('error-msg').innerText = '';
-            document.querySelectorAll('input').forEach(i => i.classList.remove('field-error'));
-        }
-
-        function forgotPassword(e) {
-            e.preventDefault();
-            const errorEl = document.getElementById('error-msg');
-            errorEl.style.color = 'var(--accent-cyan)';
-            errorEl.innerText = 'ℹ️ Entre em contato com o suporte para redefinir sua senha.';
-            setTimeout(() => { errorEl.innerText = ''; errorEl.style.color = ''; }, 5000);
-        }
-
-        const cpfInput = document.getElementById('cpf');
-        if (cpfInput) {
-            cpfInput.addEventListener('input', () => {
-                let v = cpfInput.value.replace(/[^0-9]/g, '').slice(0, 11);
-                v = v.replace(/(\\d{3})(\\d)/, '$1.$2').replace(/(\\d{3})(\\d)/, '$1.$2').replace(/(\\d{3})(\\d{1,2})$/, '$1-$2');
-                cpfInput.value = v;
-            });
-        }
-        const phoneInput = document.getElementById('phone');
-        if (phoneInput) {
-            phoneInput.addEventListener('input', () => {
-                let v = phoneInput.value.replace(/[^0-9]/g, '').slice(0, 11);
-                if (v.length > 10) v = v.replace(/(\\d{2})(\\d{5})(\\d{4})/, '($1) $2-$3');
-                else if (v.length > 5) v = v.replace(/(\\d{2})(\\d{4})(\\d{0,4})/, '($1) $2-$3');
-                else if (v.length > 2) v = v.replace(/(\\d{2})(\\d{0,5})/, '($1) $2');
-                phoneInput.value = v;
-            });
-        }
-
-        function setLoading(loading) {
-            const btn = document.getElementById('submit-btn');
-            btn.disabled = loading;
-            btn.classList.toggle('loading', loading);
-        }
-
-        document.getElementById('auth-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const errorEl = document.getElementById('error-msg');
-            errorEl.style.color = '';
-            errorEl.innerText = '';
-            document.querySelectorAll('input').forEach(i => i.classList.remove('field-error'));
-
-            const email = document.getElementById('email').value.trim().toLowerCase();
-            const password = document.getElementById('password').value;
-            const name = document.getElementById('name') ? document.getElementById('name').value.trim() : '';
-            const cpf = document.getElementById('cpf') ? document.getElementById('cpf').value.trim() : '';
-            const phone = document.getElementById('phone') ? document.getElementById('phone').value.trim() : '';
-            const remember = document.getElementById('remember').checked;
-
-            if (!email || !password || (!isLogin && !name)) {
-                errorEl.style.color = 'var(--neon-red)';
-                errorEl.innerText = 'Por favor, preencha todos os campos obrigatórios.';
-                if (!email) document.getElementById('email').classList.add('field-error');
-                if (!password) document.getElementById('password').classList.add('field-error');
-                if (!isLogin && !name) document.getElementById('name').classList.add('field-error');
-                return;
-            }
-
-            const endpoint = isLogin ? '/api/login' : '/api/register';
-            const payload = isLogin ? { email, password, remember } : { name, cpf, phone, email, password };
-
-            setLoading(true);
-            try {
-                const res = await fetch(endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    if (isLogin) {
-                        window.location.href = '/dashboard';
-                        return;
-                    } else {
-                        errorEl.style.color = 'var(--neon-green)';
-                        errorEl.innerText = 'Conta registrada com sucesso! Faça login para continuar.';
-                        toggleMode();
-                    }
-                } else {
-                    errorEl.style.color = 'var(--neon-red)';
-                    errorEl.innerText = data.error || 'Não foi possível concluir a operação.';
-                    document.getElementById('password').classList.add('field-error');
-                }
-            } catch (err) {
-                errorEl.style.color = 'var(--neon-red)';
-                errorEl.innerText = 'Erro na comunicação com o servidor.';
-            } finally {
-                setLoading(false);
-            }
-        });
-    </script>
-</body>
-</html>`);
-});
-
-app.get('/api/user', isAuthenticated, (req, res) => {
-    const db = getDb();
-    const user = db.users.find(u => u.id === req.session.userId);
-    if (!user) return res.status(404).json({ error: '❌ Usuário não encontrado.' });
-    res.json({ id: user.id, name: user.name, cpf: user.cpf, phone: user.phone, email: user.email });
-});
-
-// ==========================================
-// DASHBOARD EXECUTIVO COM MENU REFORMULADO
-// ==========================================
-app.get('/dashboard', isAuthenticated, (req, res) => {
-    res.send(`<!DOCTYPE html>
-<html lang="pt-BR" data-theme="dark">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PLP FINANCEIRO - Dashboard Executivo</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        * { box-sizing: border-box; text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
-        
-        [data-theme="dark"] {
-            --bg-main: #020617;
-            --header-bg: rgba(15, 23, 42, 0.85);
-            --header-border: rgba(99, 102, 241, 0.2);
-            --panel-bg: rgba(15, 23, 42, 0.75);
-            --panel-border: rgba(255, 255, 255, 0.08);
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --accent: #6366f1;
-            --accent-glow: rgba(99, 102, 241, 0.35);
-            --field-bg: #030712;
-            --table-th-bg: rgba(3, 7, 18, 0.95);
-            --modal-overlay: rgba(2, 6, 23, 0.85);
-            --modal-box: rgba(15, 23, 42, 0.98);
-            --bank-card-bg: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
-        }
-
-        [data-theme="light"] {
-            --bg-main: #f8fafc;
-            --header-bg: rgba(255, 255, 255, 0.9);
-            --header-border: rgba(79, 70, 229, 0.2);
-            --panel-bg: rgba(255, 255, 255, 0.9);
-            --panel-border: rgba(15, 23, 42, 0.08);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --accent: #4f46e5;
-            --accent-glow: rgba(79, 70, 229, 0.2);
-            --field-bg: #ffffff;
-            --table-th-bg: rgba(241, 245, 249, 0.95);
-            --modal-overlay: rgba(15, 23, 42, 0.5);
-            --modal-box: rgba(255, 255, 255, 0.98);
-            --bank-card-bg: linear-gradient(135deg, #e0e7ff 0%, #cbd5e1 100%);
-        }
-
-        body { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            background: var(--bg-main); 
-            color: var(--text-main); 
-            margin: 0; 
-            padding: 0; 
-            min-height: 100vh; 
-            overflow-x: hidden; 
-            position: relative; 
-            transition: background 0.3s ease, color 0.3s ease;
-        }
-
-        /* ============ LAYOUT BASE & SIDEBAR REFORMULADA ============ */
-        .app-shell { display: flex; align-items: stretch; min-height: 100vh; }
-
-        .sidebar { 
-            width: 265px; 
-            flex-shrink: 0; 
-            background: var(--header-bg); 
-            border-right: 1px solid var(--panel-border); 
-            padding: 24px 16px; 
-            display: flex; 
-            flex-direction: column; 
-            position: sticky; 
-            top: 0; 
-            height: 100vh; 
-            overflow-y: auto; 
-            backdrop-filter: blur(24px); 
-            z-index: 900; 
-            box-shadow: 4px 0 25px rgba(0,0,0,0.1);
-        }
-
-        .sidebar-logo { 
-            display: flex; 
-            align-items: center; 
-            justify-content: space-between;
-            padding: 4px 8px 24px 8px; 
-            font-size: 16px; 
-            font-weight: 800; 
-            color: var(--text-main); 
-            border-bottom: 1px solid var(--panel-border);
-            margin-bottom: 16px;
-        }
-        .sidebar-logo-content { display: flex; align-items: center; gap: 10px; }
-        .sidebar-logo .mark { 
-            width: 36px; 
-            height: 36px; 
-            border-radius: 10px; 
-            background: linear-gradient(135deg, var(--accent), #818cf8); 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
-            font-size: 17px; 
-            box-shadow: 0 8px 18px var(--accent-glow); 
-            flex-shrink: 0; 
-        }
-        .sidebar-badge { font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid rgba(99, 102, 241, 0.3); padding: 3px 6px; border-radius: 6px; }
-
-        .sidebar-section-label { 
-            font-family: 'JetBrains Mono', monospace; 
-            font-size: 9.5px; 
-            color: var(--text-muted); 
-            text-transform: uppercase; 
-            letter-spacing: 1.5px; 
-            font-weight: 700; 
-            margin: 16px 10px 8px; 
-            opacity: 0.8;
-        }
-
-        .sidebar-nav { display: flex; flex-direction: column; gap: 4px; }
-        
-        .sidebar-nav .menu-item { 
-            font-family: 'Plus Jakarta Sans', sans-serif; 
-            display: flex; 
-            align-items: center; 
-            gap: 12px; 
-            padding: 10px 14px; 
-            border-radius: 12px; 
-            background: transparent; 
-            border: 1px solid transparent; 
-            color: var(--text-muted); 
-            font-weight: 600; 
-            font-size: 13px; 
-            cursor: pointer; 
-            text-align: left; 
-            width: 100%; 
-            position: relative;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .sidebar-nav .menu-item .ic { 
-            font-size: 16px; 
-            width: 22px; 
-            text-align: center; 
-            flex-shrink: 0; 
-            transition: transform 0.2s ease;
-        }
-
-        .sidebar-nav .menu-item:hover { 
-            background: rgba(255, 255, 255, 0.04); 
-            color: var(--text-main); 
-            transform: translateX(3px);
-        }
-
-        .sidebar-nav .menu-item:hover .ic { transform: scale(1.15); }
-
-        .sidebar-nav .menu-item.active { 
-            background: linear-gradient(135deg, var(--accent) 0%, #4338ca 100%); 
-            color: #ffffff; 
-            font-weight: 700;
-            border-color: rgba(255, 255, 255, 0.15); 
-            box-shadow: 0 8px 20px var(--accent-glow); 
-        }
-
-        .sidebar-nav .menu-item.active::before {
-            content: '';
-            position: absolute;
-            left: -16px;
-            top: 20%;
-            height: 60%;
-            width: 4px;
-            background: var(--accent);
-            border-radius: 0 4px 4px 0;
-            box-shadow: 0 0 10px var(--accent);
-        }
-
-        .sidebar-bottom { 
-            margin-top: auto; 
-            padding-top: 18px; 
-            border-top: 1px solid var(--panel-border); 
-            display: flex; 
-            flex-direction: column; 
-            gap: 10px; 
-        }
-
-        .sidebar-bottom .theme-toggle-dash, 
-        .sidebar-bottom .btn-exit-yellow { 
-            width: 100%; 
-            box-sizing: border-box; 
-            text-align: center; 
-        }
-
-        .sidebar-credit { 
-            font-family: 'JetBrains Mono', monospace; 
-            font-size: 10px; 
-            color: var(--text-muted); 
-            text-align: center; 
-            padding: 8px 4px 0; 
-            letter-spacing: 0.5px; 
-        }
-        .sidebar-credit b { color: var(--accent); }
-
-        .main-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-
-        .topbar { position: sticky; top: 0; z-index: 800; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 28px; background: var(--header-bg); border-bottom: 1px solid var(--header-border); backdrop-filter: blur(20px); flex-wrap: wrap; }
-        .topbar-title { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
-        .topbar-right { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-        .search-fake { display: flex; align-items: center; gap: 8px; background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 9px 14px; border-radius: 12px; color: var(--text-muted); font-size: 12.5px; font-weight: 600; white-space: nowrap; }
-        .icon-avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #818cf8); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 13px; flex-shrink: 0; }
-        
-        .filter-group { display: flex; align-items: center; gap: 8px; background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 6px 12px; border-radius: 10px; backdrop-filter: blur(10px); }
-        .filter-group label { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin: 0; }
-        .filter-group select { background: var(--field-bg); border: 1px solid var(--panel-border); color: var(--text-main); padding: 6px 10px; border-radius: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; outline: none; cursor: pointer; }
-
-        main { margin-top: 20px; padding: 0 28px 48px 28px; max-width: 1400px; margin-left: auto; margin-right: auto; position: relative; z-index: 1; }
-        @media(max-width: 950px) { main { padding: 12px; margin-top: 12px; } }
-
-        .metrics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 22px; }
-        @media(max-width: 768px) { .metrics-grid { grid-template-columns: 1fr; } }
-
-        .metric-card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 18px; padding: 20px 18px; position: relative; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.1); backdrop-filter: blur(12px); transition: transform 0.2s, border-color 0.2s, background 0.3s; display: flex; flex-direction: column; justify-content: space-between; min-height: 115px; }
-        .metric-card:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: 0 15px 35px rgba(0,0,0,0.15); }
-        .metric-card::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--accent), #10b981); }
-        .metric-title { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; line-height: 1.3; }
-        .metric-value { font-size: 17.5px; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; word-break: break-all; }
-        
-        .charts-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 24px; margin-bottom: 24px; }
-        @media(max-width: 1100px) { .charts-grid { grid-template-columns: 1fr; } }
-        .chart-container-box { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 18px; padding: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); backdrop-filter: blur(12px); display: flex; flex-direction: column; justify-content: space-between; transition: background 0.3s; }
-        .chart-title { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
-        
-        .panel { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 18px; padding: 28px; margin-bottom: 24px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); backdrop-filter: blur(12px); overflow: hidden; transition: background 0.3s; }
-        .panel-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--panel-border); padding-bottom: 14px; flex-wrap: wrap; gap: 10px; }
-        .panel-title { font-family: 'JetBrains Mono', monospace; font-size: 13.5px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.6px; }
-        
-        .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 18px; margin-bottom: 22px; }
-        .form-group { display: flex; flex-direction: column; gap: 6px; }
-        label { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        input, select { background: var(--field-bg); border: 1px solid var(--panel-border); color: var(--text-main); padding: 12px 14px; border-radius: 10px; font-size: 13.5px; outline: none; width: 100%; transition: all 0.2s; font-weight: 600; }
-        input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
-        .btn-primary { font-family: 'JetBrains Mono', monospace; background: linear-gradient(135deg, var(--accent) 0%, #4338ca 100%); color: #ffffff; border: none; padding: 13px 22px; border-radius: 10px; font-weight: 800; cursor: pointer; font-size: 13px; width: 100%; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; box-shadow: 0 6px 20px rgba(0,0,0,0.15); }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 10px 25px rgba(0,0,0,0.25); }
-        
-        .cards-visual-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; margin-bottom: 20px; }
-        .bank-card-visual { background: var(--bank-card-bg); border: 1px solid var(--panel-border); border-radius: 18px; padding: 24px; position: relative; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.2); display: flex; flex-direction: column; justify-content: space-between; min-height: 200px; }
-        .card-header-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-        .card-brand-name { font-size: 13.5px; font-weight: 800; color: var(--accent); letter-spacing: 0.6px; text-transform: uppercase; }
-        .card-photo-thumb { width: 48px; height: 32px; border-radius: 6px; object-fit: cover; border: 1px solid var(--panel-border); flex-shrink: 0; }
-        .card-number-sim { font-family: monospace; font-size: 14px; letter-spacing: 1.5px; color: var(--text-main); margin: 10px 0; font-weight: 700; }
-        
-        .card-stats-box { background: var(--field-bg); border: 1px solid var(--panel-border); border-radius: 12px; padding: 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
-        .card-stat-item div:first-child { font-size: 9.5px; color: var(--text-muted); text-transform: uppercase; font-weight: 700; }
-        .card-stat-item div:last-child { font-size: 12.5px; font-weight: 800; color: var(--text-main); margin-top: 2px; }
-        
-        .card-footer-row { display: flex; justify-content: space-between; align-items: center; margin-top: 4px; gap: 8px; }
-        .card-limit-val { font-size: 12.5px; font-weight: 800; color: #10b981; }
-        
-        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 14px; border: 1px solid var(--panel-border); box-shadow: 0 8px 20px rgba(0,0,0,0.05); }
-        table { width: 100%; border-collapse: collapse; min-width: 680px; }
-        th, td { padding: 14px 16px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--panel-border); white-space: nowrap; font-weight: 500; color: var(--text-main); }
-        th { background: var(--table-th-bg); color: var(--text-muted); font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; font-family: 'JetBrains Mono', monospace; font-size: 10.5px; }
-        tr:hover td { background: var(--field-bg); }
-        .empty-row td { text-align: center; color: var(--text-muted); font-style: italic; padding: 28px; }
-        
-        .section-view { display: none; }
-        .section-view.active { display: block; }
-        
-        .action-btns { display: flex; gap: 6px; flex-shrink: 0; }
-        .btn-edit { padding: 5px 10px; font-size: 11px; background: rgba(99, 102, 241, 0.15); color: var(--accent); border: 1px solid var(--panel-border); border-radius: 6px; cursor: pointer; font-weight: 700; transition: background 0.2s; }
-        .btn-edit:hover { background: rgba(99, 102, 241, 0.3); }
-        .btn-delete { padding: 5px 10px; font-size: 11px; background: rgba(244, 63, 94, 0.15); color: #f43f5e; border: 1px solid var(--panel-border); border-radius: 6px; cursor: pointer; font-weight: 700; transition: background 0.2s; }
-        .btn-delete:hover { background: rgba(244, 63, 94, 0.3); }
-
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--modal-overlay); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px; backdrop-filter: blur(10px); opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
-        .modal-overlay.active { opacity: 1; pointer-events: auto; }
-        .modal-box { background: var(--modal-box); border: 1px solid var(--panel-border); border-radius: 20px; width: 100%; max-width: 580px; padding: 28px; box-shadow: 0 30px 70px rgba(0,0,0,0.4); position: relative; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.3s ease, background 0.3s; }
-        .modal-overlay.active .modal-box { transform: translateY(0); }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--panel-border); padding-bottom: 14px; }
-        .modal-title { font-size: 17.5px; font-weight: 800; color: var(--accent); text-transform: uppercase; letter-spacing: 0.8px; display: flex; align-items: center; gap: 8px; }
-        .modal-close { background: transparent; border: none; color: var(--text-muted); font-size: 18px; font-weight: 900; cursor: pointer; transition: color 0.2s; }
-        .modal-close:hover { color: #f43f5e; }
-        .modal-actions { display: flex; gap: 12px; margin-top: 22px; }
-        .btn-secondary { font-family: 'JetBrains Mono', monospace; background: var(--field-bg); color: var(--text-main); border: 1px solid var(--panel-border); padding: 12px 20px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 12.5px; width: 100%; text-transform: uppercase; letter-spacing: 1px; transition: all 0.2s; }
-        .btn-secondary:hover { border-color: var(--accent); }
-
-        .dev-tag-dash { 
-            text-align: center; 
-            margin-top: 40px; 
-            padding: 28px 20px; 
-            background: var(--panel-bg); 
-            border-radius: 16px; 
-            border: 1px solid var(--panel-border);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            position: relative;
-            overflow: hidden;
-            transition: background 0.3s;
-        }
-
-        .dev-tag-label-dash { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text-muted); letter-spacing: 2px; text-transform: uppercase; font-weight: 700; margin-bottom: 6px; }
-        .dev-tag-name-dash { 
-            font-size: 22px; font-weight: 900; letter-spacing: 2px; text-transform: uppercase;
-            background: linear-gradient(90deg, var(--accent), #10b981, var(--text-main), var(--accent));
-            background-size: 300% auto;
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: gradientText 5s linear infinite;
-            display: inline-block;
-            padding: 2px 10px;
-        }
-
-        .progress-bar-bg { width: 100%; background: var(--field-bg); border-radius: 6px; height: 8px; border: 1px solid var(--panel-border); overflow: hidden; margin-top: 6px; }
-        .progress-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #10b981); border-radius: 6px; transition: width 0.4s; }
-
-        .right-panel { width: 290px; flex-shrink: 0; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; border-left: 1px solid var(--panel-border); position: sticky; top: 0; height: 100vh; overflow-y: auto; }
-        .rp-card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 16px; padding: 18px; backdrop-filter: blur(12px); }
-        .rp-profile-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
-        .rp-avatar { width: 46px; height: 46px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), #818cf8); display: flex; align-items: center; justify-content: center; font-weight: 800; color: #fff; font-size: 15px; flex-shrink: 0; }
-        .rp-name { font-weight: 800; font-size: 14px; }
-        .rp-role { font-size: 11px; color: var(--text-muted); font-weight: 600; }
-        .rp-info-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted); font-weight: 600; padding: 8px 0; border-top: 1px solid var(--panel-border); }
-        .rp-info-row:first-of-type { border-top: none; padding-top: 0; }
-        .rp-info-row a { color: var(--accent); text-decoration: none; font-weight: 700; word-break: break-all; }
-
-        .calendar-widget .cal-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-        .calendar-widget .cal-nav { background: var(--field-bg); border: 1px solid var(--panel-border); color: var(--text-muted); width: 24px; height: 24px; border-radius: 6px; cursor: pointer; font-weight: 800; }
-        .calendar-widget .cal-nav:hover { border-color: var(--accent); color: var(--accent); }
-        .calendar-widget .cal-title { font-weight: 800; font-size: 13px; text-transform: capitalize; }
-        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; }
-        .cal-grid .cal-dow { font-size: 9px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; padding-bottom: 4px; }
-        .cal-grid .cal-day { font-size: 11px; font-weight: 700; color: var(--text-main); padding: 5px 0; border-radius: 6px; }
-        .cal-grid .cal-day.muted { visibility: hidden; }
-        .cal-grid .cal-day.today { background: linear-gradient(135deg, var(--accent), #818cf8); color: #fff; box-shadow: 0 4px 12px var(--accent-glow); }
-
-        .notif-list { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
-        .notif-item { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--text-muted); font-weight: 600; padding: 8px 0; border-bottom: 1px solid var(--panel-border); }
-        .notif-item:last-child { border-bottom: none; }
-        .notif-dot { width: 7px; height: 7px; border-radius: 50%; background: #f59e0b; flex-shrink: 0; box-shadow: 0 0 6px #f59e0b; }
-        .notif-item b { color: var(--text-main); }
-
-        .hero-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
-        @media(max-width: 1200px) { .hero-grid { grid-template-columns: 1fr; } }
-        .hero-card { background: var(--panel-bg); border: 1px solid var(--panel-border); border-radius: 18px; padding: 20px; backdrop-filter: blur(12px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
-        .hero-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-        .hero-label { font-size: 13px; font-weight: 700; color: var(--text-muted); }
-        .hero-icon { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 15px; background: rgba(99,102,241,0.15); border: 1px solid var(--panel-border); flex-shrink: 0; }
-        .hero-value { font-size: 26px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px; word-break: break-all; }
-        .hero-delta { font-size: 11.5px; font-weight: 700; color: var(--text-muted); }
-        .hero-delta.up { color: #10b981; } .hero-delta.down { color: #f43f5e; }
-
-        .flow-goal-grid { display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; margin-bottom: 22px; }
-        @media(max-width: 1100px) { .flow-goal-grid { grid-template-columns: 1fr; } }
-        .flow-panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
-        .flow-panel-head-title { font-size: 15.5px; font-weight: 800; }
-        .btn-details { font-family: 'JetBrains Mono', monospace; background: var(--field-bg); border: 1px solid var(--panel-border); color: var(--text-main); padding: 8px 14px; border-radius: 8px; font-size: 10.5px; font-weight: 700; cursor: pointer; text-transform: uppercase; letter-spacing: 0.5px; }
-        .btn-details:hover { border-color: var(--accent); color: var(--accent); }
-        .flow-compare { display: flex; gap: 32px; margin-bottom: 14px; flex-wrap: wrap; }
-        .flow-compare div span.lbl { display: block; font-size: 11px; color: var(--text-muted); font-weight: 700; margin-bottom: 3px; }
-        .flow-compare div span.val { font-size: 17.5px; font-weight: 800; }
-
-        .goal-ring-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4px 0 18px; }
-        .goal-ring { width: 170px; height: 180px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: conic-gradient(var(--accent) 0deg, #4338ca 0deg, var(--field-bg) 0deg); transition: background 0.5s; }
-        .goal-ring .goal-ring-inner { width: 134px; height: 134px; border-radius: 50%; background: var(--panel-bg); display: flex; flex-direction: column; align-items: center; justify-content: center; }
-        .goal-ring .goal-total-lbl { font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; }
-        .goal-ring .goal-total-val { font-size: 22px; font-weight: 800; margin-top: 2px; }
-        .goal-footer { display: flex; justify-content: space-between; border-top: 1px solid var(--panel-border); padding-top: 14px; }
-        .goal-footer div span.lbl { display: block; font-size: 10.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 3px; }
-        .goal-footer div span.val { font-size: 18px; font-weight: 800; }
-
-        .theme-toggle-dash { background: var(--panel-bg); color: var(--text-main); border: 1px solid var(--panel-border); padding: 9px 12px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'JetBrains Mono', monospace; transition: all 0.2s; }
-        .theme-toggle-dash:hover { border-color: var(--accent); color: var(--accent); }
-
-        .btn-exit-yellow { background: transparent; color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.4); padding: 9px 12px; border-radius: 10px; font-weight: 700; cursor: pointer; font-size: 11px; text-decoration: none; transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.5px; font-family: 'JetBrains Mono', monospace; display: inline-block; text-align: center; white-space: nowrap; }
-        .btn-exit-yellow:hover { background: rgba(244, 63, 94, 0.15); border-color: #f43f5e; }
-
-        @media(max-width: 1100px) {
-            .app-shell { flex-direction: column; }
-            .sidebar { width: 100%; height: auto; position: relative; flex-direction: row; align-items: center; overflow-x: auto; padding: 12px 16px; gap: 10px; }
-            .sidebar-logo { padding: 0; border-bottom: none; margin-bottom: 0; }
-            .sidebar-section-label { display: none; }
-            .sidebar-nav { flex-direction: row; }
-            .sidebar-nav .menu-item span.txt { display: none; }
-            .sidebar-nav .menu-item.active::before { display: none; }
-            .sidebar-bottom { display: none; }
-            .right-panel { width: 100%; height: auto; position: relative; border-left: none; border-top: 1px solid var(--panel-border); flex-direction: row; flex-wrap: wrap; }
-            .right-panel .rp-card { flex: 1; min-width: 260px; }
-        }
-    </style>
-</head>
-<body>
-
-    <div class="app-shell">
-        <!-- SIDEBAR COM MENU PRINCIPAL REFORMULADO -->
-        <aside class="sidebar">
-            <div class="sidebar-logo">
-                <div class="sidebar-logo-content">
-                    <span class="mark">💼</span> 
-                    <span>PLP <span style="color:var(--accent);">Financeiro</span></span>
-                </div>
-                <span class="sidebar-badge">v2.0 PRO</span>
-            </div>
-
-            <!-- VISÃO GERAL -->
-            <div class="sidebar-section-label">Visão Geral</div>
-            <nav class="sidebar-nav">
-                <button class="menu-item active" onclick="switchView('overview', this)"><span class="ic">📊</span><span class="txt">Dashboard</span></button>
-            </nav>
-
-            <!-- GESTÃO FINANCEIRA -->
-            <div class="sidebar-section-label">Gestão Financeira</div>
-            <nav class="sidebar-nav">
-                <button class="menu-item" onclick="switchView('accounts', this)"><span class="ic">🏦</span><span class="txt">Contas & Bancos</span></button>
-                <button class="menu-item" onclick="switchView('cards', this)"><span class="ic">💳</span><span class="txt">Cartões de Crédito</span></button>
-                <button class="menu-item" onclick="switchView('transactions', this)"><span class="ic">📋</span><span class="txt">Receitas & Despesas</span></button>
-                <button class="menu-item" onclick="switchView('recurring', this)"><span class="ic">🔄</span><span class="txt">Contas Recorrentes</span></button>
-            </nav>
-
-            <!-- ESTRATÉGIA & PLANEJAMENTO -->
-            <div class="sidebar-section-label">Estratégia & Metas</div>
-            <nav class="sidebar-nav">
-                <button class="menu-item" onclick="switchView('investments', this)"><span class="ic">📈</span><span class="txt">Investimentos</span></button>
-                <button class="menu-item" onclick="switchView('budgets', this)"><span class="ic">🎯</span><span class="txt">Orçamentos</span></button>
-                <button class="menu-item" onclick="switchView('goals', this)"><span class="ic">🏆</span><span class="txt">Metas Patrimoniais</span></button>
-                <button class="menu-item" onclick="switchView('debts', this)"><span class="ic">⚠️</span><span class="txt">Dívidas & Passivos</span></button>
-            </nav>
-
-            <div class="sidebar-bottom">
-                <button class="theme-toggle-dash" onclick="toggleTheme()" id="dash-theme-btn">☀️ Tema Claro</button>
-                <a href="/api/logout" class="btn-exit-yellow">Sair do Sistema</a>
-                <div class="sidebar-credit">Desenvolvido por <b>Paulo Lima</b></div>
-            </div>
-        </aside>
-
-        <div class="main-col">
-            <header class="topbar">
-                <div class="topbar-title" id="page-title">Dashboard</div>
-                <div class="topbar-right">
-                    <div class="filter-group">
-                        <label for="global-month-select">📅 Periodo:</label>
-                        <select id="global-month-select" onchange="onMonthFilterChange()">
-                            <option value="all">Todos os Meses</option>
-                        </select>
-                    </div>
-                    <div class="search-fake">🔍 Buscar...</div>
-                    <div class="icon-avatar" id="user-avatar-chip">👤</div>
-                </div>
-            </header>
-
-            <main>
-                <div id="view-overview" class="section-view active">
-                    <div class="hero-grid">
-                        <div class="hero-card">
-                            <div class="hero-card-top"><div class="hero-label">Receitas Consolidadas</div><div class="hero-icon">📈</div></div>
-                            <div class="hero-value" id="kpi-revenue" style="color: #10b981;">R$ 0,00</div>
-                            <div class="hero-delta" id="kpi-revenue-delta">— vs mês anterior</div>
-                        </div>
-                        <div class="hero-card">
-                            <div class="hero-card-top"><div class="hero-label">Despesas Consolidadas</div><div class="hero-icon">📉</div></div>
-                            <div class="hero-value" id="kpi-expense" style="color: #f43f5e;">R$ 0,00</div>
-                            <div class="hero-delta" id="kpi-expense-delta">— vs mês anterior</div>
-                        </div>
-                        <div class="hero-card">
-                            <div class="hero-card-top"><div class="hero-label">Patrimônio Líquido</div><div class="hero-icon">💎</div></div>
-                            <div class="hero-value" id="kpi-networth" style="color: var(--accent);">R$ 0,00</div>
-                            <div class="hero-delta">Contas + Investimentos</div>
-                        </div>
-                    </div>
-
-                    <div class="metrics-grid">
-                        <div class="metric-card"><div class="metric-title">💼 Portfólio de Ativos</div><div class="metric-value" id="kpi-investments" style="color: var(--accent);">R$ 0,00</div></div>
-                        <div class="metric-card"><div class="metric-title">💳 Comprometimento Cartões</div><div class="metric-value" id="kpi-cards-spent" style="color: #f59e0b;">R$ 0,00</div></div>
-                        <div class="metric-card"><div class="metric-title">⚠️ Passivos / Dívidas</div><div class="metric-value" id="kpi-debts" style="color: #f43f5e;">R$ 0,00</div></div>
-                    </div>
-
-                    <div class="flow-goal-grid">
-                        <div class="chart-container-box">
-                            <div class="flow-panel-head">
-                                <div class="flow-panel-head-title">📈 Fluxo de Caixa Mensal</div>
-                                <button class="btn-details" onclick="switchView('transactions', document.querySelectorAll('.menu-item')[3])">Ver Extrato</button>
-                            </div>
-                            <div class="flow-compare">
-                                <div><span class="lbl">Este mês (líquido)</span><span class="val" id="flow-this-month">R$ 0,00</span></div>
-                                <div><span class="lbl">Mês passado (líquido)</span><span class="val" id="flow-last-month">R$ 0,00</span></div>
-                            </div>
-                            <div style="position: relative; height: 220px; width: 100%;"><canvas id="lineChart"></canvas></div>
-                        </div>
-                        <div class="chart-container-box">
-                            <div class="flow-panel-head"><div class="flow-panel-head-title">🏆 Metas Patrimoniais</div></div>
-                            <div class="goal-ring-wrap">
-                                <div class="goal-ring" id="goal-ring">
-                                    <div class="goal-ring-inner">
-                                        <div class="goal-total-lbl">Progresso Médio</div>
-                                        <div class="goal-total-val" id="goal-total-pct">0%</div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="goal-footer">
-                                <div><span class="lbl">Concluídas</span><span class="val" id="goal-completed" style="color:#10b981;">0</span></div>
-                                <div><span class="lbl">Em Progresso</span><span class="val" id="goal-inprogress" style="color:var(--accent);">0</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="charts-grid">
-                        <div class="chart-container-box">
-                            <div class="chart-title">📊 Comparativo: Receitas vs Despesas</div>
-                            <div style="position: relative; height: 250px; width: 100%;"><canvas id="barChart"></canvas></div>
-                        </div>
-                        <div class="chart-container-box">
-                            <div class="chart-title">🥧 Distribuição de Despesas</div>
-                            <div style="position: relative; height: 250px; width: 100%; display: flex; justify-content: center; align-items: center;"><canvas id="pieChart"></canvas></div>
-                        </div>
-                    </div>
-
-                    <div class="charts-grid" style="grid-template-columns: 1fr;">
-                        <div class="chart-container-box">
-                            <div class="chart-title">📈 Evolução Histórica Patrimonial</div>
-                            <div style="position: relative; height: 250px; width: 100%;"><canvas id="areaChart"></canvas></div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="view-accounts" class="section-view">
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">🏦 Cadastro de Contas e Bancos</div></div>
-                        <form id="account-form">
-                            <div class="form-grid">
-                                <div class="form-group"><label>Instituição / Banco</label><input type="text" id="acc-name" placeholder="Ex: Nubank, Itaú, XP" required></div>
-                                <div class="form-group"><label>Tipo de Conta</label><select id="acc-type"><option value="Conta Corrente">Conta Corrente</option><option value="Conta PJ">Conta PJ / Empresarial</option><option value="Poupança">Poupança</option><option value="Dinheiro Físico">Dinheiro Físico / Espécie</option></select></div>
-                                <div class="form-group"><label>Saldo Inicial / Atual (R$)</label><input type="number" step="0.01" id="acc-balance" placeholder="0,00" required></div>
-                                <div class="form-group"><label>Agência / Conta (Opcional)</label><input type="text" id="acc-agency" placeholder="Ex: Ag 0001 / C/C 12345-6"></div>
-                            </div>
-                            <button type="submit" class="btn-primary">Registrar Conta no Sistema</button>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">📋 Contas e Bancos Cadastrados</div></div>
-                        <div class="table-responsive"><table><thead><tr><th>Instituição</th><th>Tipo</th><th>Dados / Agência</th><th>Saldo Atual</th><th>Ações</th></tr></thead><tbody id="accounts-list"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div id="view-cards" class="section-view">
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">💳 Cadastro de Cartões de Crédito</div></div>
-                        <form id="card-form">
-                            <div class="form-grid">
-                                <div class="form-group"><label>Nome do Cartão</label><input type="text" id="card-name" placeholder="Ex: Nubank Ultravioleta" required></div>
-                                <div class="form-group"><label>Limite Total (R$)</label><input type="number" step="0.01" id="card-limit" placeholder="5000.00" required></div>
-                                <div class="form-group"><label>Dia de Vencimento</label><input type="text" id="card-due" placeholder="Ex: Vencimento dia 10" required></div>
-                                <div class="form-group"><label>Bandeira</label><select id="card-brand"><option value="Mastercard">Mastercard</option><option value="Visa">Visa</option><option value="Elo">Elo</option><option value="American Express">American Express</option></select></div>
-                                <div class="form-group" style="grid-column: 1 / -1;"><label>Foto / Logo do Cartão (Opcional)</label><input type="file" id="card-image" accept="image/*"></div>
-                            </div>
-                            <button type="submit" class="btn-primary">Adicionar Cartão com Inteligência</button>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">🖼️ Cartões Visuais & Limites em Tempo Real</div></div>
-                        <div class="cards-visual-grid" id="cards-grid-visual"></div>
-                    </div>
-                </div>
-
-                <div id="view-transactions" class="section-view">
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">📋 Nova Receita ou Despesa</div></div>
-                        <form id="tx-form">
-                            <div class="form-grid">
-                                <div class="form-group"><label>Tipo de Lançamento</label><select id="tx-type"><option value="Receita">Receita (Entrada)</option><option value="Despesa">Despesa (Saída)</option></select></div>
-                                <div class="form-group"><label>Descrição Detalhada</label><input type="text" id="tx-desc" placeholder="Ex: Salário Corporativo / Supermercado" required></div>
-                                <div class="form-group"><label>Valor (R$)</label><input type="number" step="0.01" id="tx-amount" placeholder="0,00" required></div>
-                                <div class="form-group"><label>Categoria</label><input type="text" id="tx-category" placeholder="Ex: Alimentação, Moradia, Vendas" required></div>
-                                <div class="form-group"><label>Vincular a Cartão?</label><select id="tx-card"><option value="">Nenhum (Movimentação Direta)</option></select></div>
-                                <div class="form-group"><label>Data</label><input type="date" id="tx-date" required></div>
-                            </div>
-                            <button type="submit" class="btn-primary">Registrar Transação no Fluxo</button>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">📊 Extrato Consolidado e Detalhado</div></div>
-                        <div class="table-responsive"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Cartão Vinculado</th><th>Tipo</th><th>Valor</th><th>Ações</th></tr></thead><tbody id="transactions-list"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div id="view-investments" class="section-view">
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">📈 Cadastro de Investimentos e Ativos</div></div>
-                        <form id="inv-form">
-                            <div class="form-grid">
-                                <div class="form-group"><label>Nome do Ativo</label><input type="text" id="inv-name" placeholder="Ex: Tesouro IPCA+ / PETR4 / Bitcoin" required></div>
-                                <div class="form-group"><label>Classe do Ativo</label><select id="inv-class"><option value="Renda Fixa">Renda Fixa</option><option value="Ações">Ações Nacionais/Internacionais</option><option value="FIIs">Fundos Imobiliários (FIIs)</option><option value="Cripto">Criptomoedas</option><option value="Exterior">Ativos no Exterior</option></select></div>
-                                <div class="form-group"><label>Valor Aplicado / Atual (R$)</label><input type="number" step="0.01" id="inv-amount" placeholder="0,00" required></div>
-                                <div class="form-group"><label>Rentabilidade Esperada (% a.a.)</label><input type="text" id="inv-yield" placeholder="Ex: 12% a.a. ou CDI+2%"></div>
-                            </div>
-                            <button type="submit" class="btn-primary">Incluir Ativo no Portfólio</button>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">💼 Ativos Detalhados</div></div>
-                        <div class="table-responsive"><table><thead><tr><th>Ativo</th><th>Classe</th><th>Valor Atual</th><th>Rentabilidade</th><th>Ações</th></tr></thead><tbody id="investments-list"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div id="view-budgets" class="section-view">
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">🎯 Cadastro de Orçamento por Categoria</div></div>
-                        <form id="budget-form">
-                            <div class="form-grid">
-                                <div class="form-group"><label>Categoria do Orçamento</label><input type="text" id="bud-category" placeholder="Ex: Lazer, Alimentação, Transporte" required></div>
-                                <div class="form-group"><label>Limite Máximo Mensal (R$)</label><input type="number" step="0.01" id="bud-limit" placeholder="0,00" required></div>
-                                <div class="form-group"><label>Alerta de Consumo (%)</label><input type="number" id="bud-alert" placeholder="Ex: 80% (Aviso preventivo)" value="80"></div>
-                            </div>
-                            <button type="submit" class="btn-primary">Salvar Orçamento Inteligente</button>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">📊 Orçamentos Vigentes e Monitoramento</div></div>
-                        <div class="table-responsive"><table><thead><tr><th>Categoria</th><th>Limite Máximo</th><th>Gasto Atual</th><th>Progresso</th><th>Ações</th></tr></thead><tbody id="budgets-list"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div id="view-goals" class="section-view">
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">🏆 Cadastro de Metas Patrimoniais</div></div>
-                        <form id="goal-form">
-                            <div class="form-grid">
-                                <div class="form-group"><label>Objetivo da Meta</label><input type="text" id="goal-name" placeholder="Ex: Reserva de Emergência / Viagem Europa" required></div>
-                                <div class="form-group"><label>Valor Alvo (R$)</label><input type="number" step="0.01" id="goal-target" placeholder="0,00" required></div>
-                                <div class="form-group"><label>Valor Já Guardado (R$)</label><input type="number" step="0.01" id="goal-current" placeholder="0,00" required></div>
-                                <div class="form-group"><label>Data Limite (Prazo)</label><input type="date" id="goal-deadline"></div>
-                            </div>
-                            <button type="submit" class="btn-primary">Cadastrar Meta Estratégica</button>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">🎯 Acompanhamento de Metas</div></div>
-                        <div class="table-responsive"><table><thead><tr><th>Objetivo</th><th>Guardado</th><th>Alvo</th><th>Progresso</th><th>Ações</th></tr></thead><tbody id="goals-list"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div id="view-debts" class="section-view">
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">⚠️ Cadastro de Dívidas e Passivos</div></div>
-                        <form id="debt-form">
-                            <div class="form-grid">
-                                <div class="form-group"><label>Credor / Descrição</label><input type="text" id="debt-name" placeholder="Ex: Empréstimo Pessoal / Financiamento" required></div>
-                                <div class="form-group"><label>Categoria do Passivo</label><select id="debt-category"><option value="Cartão de Crédito">Cartão de Crédito</option><option value="Empréstimo Bancário">Empréstimo Bancário</option><option value="Financiamento Imobiliário/Veículo">Financiamento</option><option value="Outros Passivos">Outros Passivos</option></select></div>
-                                <div class="form-group"><label>Valor Total da Dívida (R$)</label><input type="number" step="0.01" id="debt-total" placeholder="0,00" required></div>
-                                <div class="form-group"><label>Valor Restante (R$)</label><input type="number" step="0.01" id="debt-remaining" placeholder="0,00" required></div>
-                            </div>
-                            <button type="submit" class="btn-primary">Registrar Dívida no Sistema</button>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">📋 Passivos Ativos</div></div>
-                        <div class="table-responsive"><table><thead><tr><th>Credor</th><th>Categoria</th><th>Total</th><th>Restante</th><th>Ações</th></tr></thead><tbody id="debts-list"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div id="view-recurring" class="section-view">
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">🔄 Cadastro de Conta Recorrente</div></div>
-                        <form id="rec-form">
-                            <div class="form-grid">
-                                <div class="form-group"><label>Descrição da Conta</label><input type="text" id="rec-desc" placeholder="Ex: Aluguel, Internet, Netflix" required></div>
-                                <div class="form-group"><label>Valor Mensal (R$)</label><input type="number" step="0.01" id="rec-amount" placeholder="0,00" required></div>
-                                <div class="form-group"><label>Dia de Vencimento</label><input type="number" min="1" max="31" id="rec-day" placeholder="10" required></div>
-                            </div>
-                            <button type="submit" class="btn-primary">Adicionar Recorrência</button>
-                        </form>
-                    </div>
-                    <div class="panel">
-                        <div class="panel-header"><div class="panel-title">📅 Recorrentes Ativas</div></div>
-                        <div class="table-responsive"><table><thead><tr><th>Descrição</th><th>Valor</th><th>Dia</th><th>Ações</th></tr></thead><tbody id="recurring-list"></tbody></table></div>
-                    </div>
-                </div>
-
-                <div class="dev-tag-dash">
-                    <div class="dev-tag-label-dash">SISTEMA DESENVOLVIDO POR</div>
-                    <div class="dev-tag-name-dash">PAULO LIMA</div>
-                </div>
-            </main>
-        </div>
-
-        <aside class="right-panel">
-            <div class="rp-card">
-                <div class="rp-profile-top">
-                    <div class="rp-avatar" id="rp-avatar">👤</div>
-                    <div>
-                        <div class="rp-name" id="rp-name">Carregando...</div>
-                        <div class="rp-role">Titular da Conta</div>
-                    </div>
-                </div>
-                <div class="rp-info-row">✉️&nbsp;<a href="#" id="rp-email">-</a></div>
-                <div class="rp-info-row" id="rp-phone-row" style="display:none;">📞&nbsp;<span id="rp-phone"></span></div>
-            </div>
-
-            <div class="rp-card calendar-widget">
-                <div class="cal-head">
-                    <button class="cal-nav" onclick="calChangeMonth(-1)" type="button">‹</button>
-                    <div class="cal-title" id="cal-title">-</div>
-                    <button class="cal-nav" onclick="calChangeMonth(1)" type="button">›</button>
-                </div>
-                <div class="cal-grid" id="cal-grid"></div>
-            </div>
-
-            <div class="rp-card">
-                <div style="font-weight:800; font-size:13.5px; margin-bottom:2px;">🔔 Contas a Vencer</div>
-                <div style="font-size:11px; color:var(--text-muted); font-weight:600;">Recorrências cadastradas</div>
-                <div class="notif-list" id="notif-list"></div>
-            </div>
-        </aside>
+  </div>
+
+  <!-- Recuperar Senha -->
+  <div class="auth-box" id="forgotBox" style="display:none;">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
     </div>
+    <h2>Recuperar Senha</h2>
+    <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos sua senha</p>
 
-    <div class="modal-overlay" id="edit-modal-overlay">
-        <div class="modal-box">
-            <div class="modal-header">
-                <div class="modal-title" id="modal-title-text">✏️ Editar Registro</div>
-                <button class="modal-close" onclick="closeEditModal()">✕</button>
-            </div>
-            <form id="dynamic-edit-form">
-                <input type="hidden" id="edit-resource-type">
-                <input type="hidden" id="edit-resource-id">
-                <div id="modal-form-body" class="form-grid" style="grid-template-columns: 1fr;"></div>
-                <div class="modal-actions">
-                    <button type="button" class="btn-secondary" onclick="closeEditModal()">Cancelar</button>
-                    <button type="submit" class="btn-primary" id="modal-submit-btn">Salvar Alterações</button>
-                </div>
-            </form>
-        </div>
+    <form id="forgotStep1">
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
+      </div>
+      <button type="submit" class="btn-auth" id="btnSendPassword">Enviar Senha por E-mail</button>
+    </form>
+
+    <div class="auth-toggle">
+      Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
     </div>
-
-    <script>
-        function applySavedTheme() {
-            const saved = localStorage.getItem('plp_theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', saved);
-            const btn = document.getElementById('dash-theme-btn');
-            if (btn) btn.innerText = saved === 'dark' ? '☀️ Tema Claro' : '🌙 Tema Escuro';
-        }
-        applySavedTheme();
-
-        function toggleTheme() {
-            const current = document.documentElement.getAttribute('data-theme');
-            const next = current === 'dark' ? 'light' : 'dark';
-            document.documentElement.setAttribute('data-theme', next);
-            localStorage.setItem('plp_theme', next);
-            const btn = document.getElementById('dash-theme-btn');
-            if (btn) btn.innerText = next === 'dark' ? '☀️ Tema Claro' : '🌙 Tema Escuro';
-            if (window.allTransactions) renderFilteredData(window.allTransactions);
-        }
-
-        let barChartInstance = null;
-        let pieChartInstance = null;
-        let lineChartInstance = null;
-        let areaChartInstance = null;
-        let globalCards = [];
-        let globalTransactions = [];
-        let globalBudgets = [];
-        let globalAccounts = [];
-        let globalInvestments = [];
-        let globalGoals = [];
-        let globalDebts = [];
-        let globalRecurring = [];
-
-        document.getElementById('tx-date').valueAsDate = new Date();
-
-        const viewTitles = {
-            overview: 'Dashboard', accounts: 'Contas & Bancos', cards: 'Cartões de Crédito',
-            transactions: 'Receitas & Despesas', investments: 'Investimentos',
-            budgets: 'Orçamentos', goals: 'Metas Patrimoniais', debts: 'Dívidas & Passivos', recurring: 'Contas Recorrentes'
-        };
-
-        function switchView(viewId, btn) {
-            document.querySelectorAll('.section-view').forEach(v => v.classList.remove('active'));
-            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
-            document.getElementById('view-' + viewId).classList.add('active');
-            if (btn) btn.classList.add('active');
-            const titleEl = document.getElementById('page-title');
-            if (titleEl) titleEl.innerText = viewTitles[viewId] || 'Dashboard';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            if (viewId === 'overview' && window.allTransactions) { setTimeout(() => renderFilteredData(window.allTransactions), 100); }
-        }
-
-        async function loadUserData() {
-            const res = await fetch('/api/user');
-            if (res.ok) {
-                const user = await res.json();
-                const initials = (user.name || '?').trim().split(/\\s+/).slice(0, 2).map(p => p[0]).join('').toUpperCase();
-                const avatarChip = document.getElementById('user-avatar-chip');
-                if (avatarChip) avatarChip.innerText = initials || '👤';
-                const rpAvatar = document.getElementById('rp-avatar');
-                if (rpAvatar) rpAvatar.innerText = initials || '👤';
-                const rpName = document.getElementById('rp-name');
-                if (rpName) rpName.innerText = user.name || 'Usuário';
-                const rpEmail = document.getElementById('rp-email');
-                if (rpEmail) { rpEmail.innerText = user.email || '-'; rpEmail.href = user.email ? \`mailto:\${user.email}\` : '#'; }
-                if (user.phone) {
-                    const rpPhoneRow = document.getElementById('rp-phone-row');
-                    const rpPhone = document.getElementById('rp-phone');
-                    if (rpPhoneRow && rpPhone) { rpPhone.innerText = user.phone; rpPhoneRow.style.display = 'flex'; }
-                }
-            }
-        }
-        loadUserData();
-
-        const calState = (() => { const d = new Date(); return { year: d.getFullYear(), month: d.getMonth() }; })();
-        const calMonthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-        const calDowNames = ['D','S','T','Q','Q','S','S'];
-
-        function renderCalendar() {
-            const titleEl = document.getElementById('cal-title');
-            const gridEl = document.getElementById('cal-grid');
-            if (!titleEl || !gridEl) return;
-            titleEl.innerText = \`\${calMonthNames[calState.month]} \${calState.year}\`;
-
-            const today = new Date();
-            const firstDow = new Date(calState.year, calState.month, 1).getDay();
-            const daysInMonth = new Date(calState.year, calState.month + 1, 0).getDate();
-
-            let html = calDowNames.map(d => \`<div class="cal-dow">\${d}</div>\`).join('');
-            for (let i = 0; i < firstDow; i++) html += '<div class="cal-day muted">0</div>';
-            for (let day = 1; day <= daysInMonth; day++) {
-                const isToday = day === today.getDate() && calState.month === today.getMonth() && calState.year === today.getFullYear();
-                html += \`<div class="cal-day \${isToday ? 'today' : ''}">\${day}</div>\`;
-            }
-            gridEl.innerHTML = html;
-        }
-
-        function calChangeMonth(delta) {
-            calState.month += delta;
-            if (calState.month > 11) { calState.month = 0; calState.year++; }
-            if (calState.month < 0) { calState.month = 11; calState.year--; }
-            renderCalendar();
-        }
-        renderCalendar();
-
-        function renderGoalOverview() {
-            const ring = document.getElementById('goal-ring');
-            const pctEl = document.getElementById('goal-total-pct');
-            const completedEl = document.getElementById('goal-completed');
-            const inProgressEl = document.getElementById('goal-inprogress');
-            if (!ring) return;
-
-            let avgPct = 0, completed = 0, inProgress = 0;
-            if (globalGoals.length) {
-                let sum = 0;
-                globalGoals.forEach(g => {
-                    const target = Number(g.target) || 0;
-                    const current = Number(g.current) || 0;
-                    const pct = target > 0 ? Math.min(100, (current / target) * 100) : 0;
-                    sum += pct;
-                    if (pct >= 100) completed++; else inProgress++;
-                });
-                avgPct = sum / globalGoals.length;
-            }
-            const deg = (avgPct / 100) * 360;
-            ring.style.background = \`conic-gradient(var(--accent) \${deg}deg, #4338ca \${deg}deg, var(--field-bg) \${deg}deg 360deg)\`;
-            pctEl.innerText = \`\${avgPct.toFixed(1)}%\`;
-            completedEl.innerText = completed;
-            inProgressEl.innerText = inProgress;
-        }
-
-        function renderNotifications() {
-            const listEl = document.getElementById('notif-list');
-            if (!listEl) return;
-            if (!globalRecurring.length) {
-                listEl.innerHTML = '<div class="notif-item" style="border-bottom:none;">Nenhuma recorrência cadastrada.</div>';
-                return;
-            }
-            const todayDay = new Date().getDate();
-            const sorted = globalRecurring.slice().sort((a, b) => {
-                const da = Number(a.day) >= todayDay ? Number(a.day) : Number(a.day) + 31;
-                const db = Number(b.day) >= todayDay ? Number(b.day) : Number(b.day) + 31;
-                return da - db;
-            });
-            listEl.innerHTML = sorted.slice(0, 6).map(r => \`
-                <div class="notif-item">
-                    <span class="notif-dot"></span>
-                    <span>Dia \${r.day} — <b>\${r.desc}</b> — R$ \${fmt(r.amount)}</span>
-                </div>\`).join('');
-        }
-
-        function renderFlowComparison() {
-            const now = new Date();
-            const curKey = \`\${now.getFullYear()}-\${String(now.getMonth() + 1).padStart(2, '0')}\`;
-            const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-            const prevKey = \`\${prevDate.getFullYear()}-\${String(prevDate.getMonth() + 1).padStart(2, '0')}\`;
-
-            let curRev = 0, curExp = 0, prevRev = 0, prevExp = 0;
-            (window.allTransactions || []).forEach(t => {
-                if (!t.date) return;
-                const amt = Number(t.amount) || 0;
-                if (t.date.startsWith(curKey)) { t.type === 'Receita' ? curRev += amt : curExp += amt; }
-                else if (t.date.startsWith(prevKey)) { t.type === 'Receita' ? prevRev += amt : prevExp += amt; }
-            });
-
-            const curNet = curRev - curExp, prevNet = prevRev - prevExp;
-            const thisMonthEl = document.getElementById('flow-this-month');
-            const lastMonthEl = document.getElementById('flow-last-month');
-            if (thisMonthEl) thisMonthEl.innerText = \`R$ \${fmt(curNet)}\`;
-            if (lastMonthEl) lastMonthEl.innerText = \`R$ \${fmt(prevNet)}\`;
-
-            renderDelta('kpi-revenue-delta', curRev, prevRev);
-            renderDelta('kpi-expense-delta', curExp, prevExp, true);
-        }
-
-        function renderDelta(elId, curVal, prevVal, invertColor) {
-            const el = document.getElementById(elId);
-            if (!el) return;
-            if (prevVal === 0) { el.innerText = 'Sem dados do mês anterior'; el.className = 'hero-delta'; return; }
-            const change = ((curVal - prevVal) / prevVal) * 100;
-            const isUp = change >= 0;
-            const goodDirection = invertColor ? !isUp : isUp;
-            el.className = 'hero-delta ' + (goodDirection ? 'up' : 'down');
-            el.innerText = \`\${isUp ? '▲' : '▼'} \${Math.abs(change).toFixed(1)}% vs mês anterior\`;
-        }
-
-        function getBaseImage(fileInputId) {
-            return new Promise((resolve) => {
-                const fileInput = document.getElementById(fileInputId);
-                if (fileInput.files && fileInput.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => resolve(e.target.result);
-                    reader.readAsDataURL(fileInput.files[0]);
-                } else { resolve(''); }
-            });
-        }
-
-        function fmt(v) { return Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 }); }
-        function emptyRow(colspan, text) { return \`<tr class="empty-row"><td colspan="\${colspan}">\${text}</td></tr>\`; }
-
-        async function loadAllData() {
-            const [resAcc, resCard, resTx, resInv, resBud, resGoal, resDebt, resRec] = await Promise.all([
-                fetch('/api/accounts'),
-                fetch('/api/cards'),
-                fetch('/api/transactions'),
-                fetch('/api/investments'),
-                fetch('/api/budgets'),
-                fetch('/api/goals'),
-                fetch('/api/debts'),
-                fetch('/api/recurring')
-            ]);
-
-            if (resAcc.ok) globalAccounts = await resAcc.json();
-            if (resCard.ok) {
-                globalCards = await resCard.json();
-                const selectCard = document.getElementById('tx-card');
-                selectCard.innerHTML = '<option value="">Nenhum (Movimentação Direta)</option>';
-                globalCards.forEach(c => {
-                    selectCard.innerHTML += \`<option value="\${c.id}">\${c.name}</option>\`;
-                });
-            }
-            if (resTx.ok) {
-                globalTransactions = await resTx.json();
-                window.allTransactions = globalTransactions;
-                populateMonthSelector(globalTransactions);
-            }
-            if (resInv.ok) globalInvestments = await resInv.json();
-            if (resBud.ok) globalBudgets = await resBud.json();
-            if (resGoal.ok) globalGoals = await resGoal.json();
-            if (resDebt.ok) globalDebts = await resDebt.json();
-            if (resRec.ok) globalRecurring = await resRec.json();
-
-            renderFilteredData(globalTransactions);
-        }
-
-        function populateMonthSelector(transactions) {
-            const select = document.getElementById('global-month-select');
-            const currentSelected = select.value;
-            
-            const monthsSet = new Set();
-            transactions.forEach(t => {
-                if (t.date) {
-                    const ym = t.date.substring(0, 7);
-                    monthsSet.add(ym);
-                }
-            });
-
-            const sortedMonths = Array.from(monthsSet).sort().reverse();
-            
-            let optionsHtml = '<option value="all">Todos os Meses (Consolidado Geral)</option>';
-            const monthNames = {
-                '01': 'Janeiro', '02': 'Fevereiro', '03': 'Março', '04': 'Abril',
-                '05': 'Maio', '06': 'Junho', '07': 'Julho', '08': 'Agosto',
-                '09': 'Setembro', '10': 'Outubro', '11': 'Novembro', '12': 'Dezembro'
-            };
-
-            sortedMonths.forEach(ym => {
-                const [y, m] = ym.split('-');
-                const label = \`\${monthNames[m] || m}/\${y}\`;
-                optionsHtml += \`<option value="\${ym}">\${label}</option>\`;
-            });
-
-            select.innerHTML = optionsHtml;
-
-            if (currentSelected && select.querySelector(\`option[value="\${currentSelected}"]\`)) {
-                select.value = currentSelected;
-            } else if (sortedMonths.length > 0) {
-                select.value = sortedMonths[0];
-            } else {
-                select.value = 'all';
-            }
-        }
-
-        function onMonthFilterChange() {
-            renderFilteredData(window.allTransactions || []);
-        }
-
-        function renderFilteredData(transactions) {
-            const selectedMonth = document.getElementById('global-month-select').value;
-            
-            let filteredTxs = transactions;
-            if (selectedMonth !== 'all') {
-                filteredTxs = transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
-            }
-
-            let totalAcc = 0;
-            const tbAcc = document.getElementById('accounts-list');
-            tbAcc.innerHTML = globalAccounts.length ? '' : emptyRow(5, 'Nenhuma conta cadastrada.');
-            globalAccounts.forEach(a => {
-                totalAcc += Number(a.balance) || 0;
-                tbAcc.innerHTML += \`<tr><td>🏦 \${a.name}</td><td>\${a.type}</td><td>\${a.agency || 'Geral'}</td><td>R$ \${fmt(a.balance)}</td><td><div class="action-btns"><button class="btn-edit" onclick='openEditModal("accounts", \${JSON.stringify(a)})'>Editar</button><button class="btn-delete" onclick="deleteItem('accounts', '\${a.id}')">Excluir</button></div></td></tr>\`;
-            });
-
-            let rev = 0, exp = 0;
-            const tbTx = document.getElementById('transactions-list');
-            tbTx.innerHTML = filteredTxs.length ? '' : emptyRow(7, 'Nenhuma movimentação registrada no período.');
-            filteredTxs.slice().sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(t => {
-                const amt = Number(t.amount) || 0;
-                if (t.type === 'Receita') rev += amt; else exp += amt;
-                const icon = t.type === 'Receita' ? '📈' : '📉';
-                const cardObj = globalCards.find(c => String(c.id) === String(t.cardId));
-                const cardNameDisplay = cardObj ? \`💳 \${cardObj.name}\` : 'Direto';
-                tbTx.innerHTML += \`<tr><td>📅 \${t.date}</td><td>\${t.desc}</td><td>\${t.category}</td><td>\${cardNameDisplay}</td><td>\${icon} \${t.type}</td><td>R$ \${fmt(amt)}</td><td><div class="action-btns"><button class="btn-edit" onclick='openEditModal("transactions", \${JSON.stringify(t)})'>Editar</button><button class="btn-delete" onclick="deleteItem('transactions', '\${t.id}')">Excluir</button></div></td></tr>\`;
-            });
-            document.getElementById('kpi-revenue').innerText = \`R$ \${fmt(rev)}\`;
-            document.getElementById('kpi-expense').innerText = \`R$ \${fmt(exp)}\`;
-
-            const gridCards = document.getElementById('cards-grid-visual');
-            gridCards.innerHTML = globalCards.length ? '' : '<p style="color:var(--text-muted); font-style:italic;">Nenhum cartão cadastrado.</p>';
-            let totalCardsSpentGlobal = 0;
-            globalCards.forEach(c => {
-                const fakeDigits = String(c.id).slice(-4);
-                const limitTotal = Number(c.limit) || 0;
-                
-                let spent = 0;
-                filteredTxs.forEach(t => {
-                    if (String(t.cardId) === String(c.id) && t.type === 'Despesa') {
-                        spent += Number(t.amount) || 0;
-                    }
-                });
-                totalCardsSpentGlobal += spent;
-                const remaining = Math.max(0, limitTotal - spent);
-
-                gridCards.innerHTML += \`
-                    <div class="bank-card-visual">
-                        <div class="card-header-row">
-                            <div class="card-brand-name">💳 \${c.name} (\${c.brand || 'Mastercard'})</div>
-                            \${c.image ? \`<img src="\${c.image}" class="card-photo-thumb" alt="Cartão">\` : ''}
-                        </div>
-                        <div class="card-number-sim">•••• •••• •••• \${fakeDigits}</div>
-                        
-                        <div class="card-stats-box">
-                            <div class="card-stat-item">
-                                <div>Gasto Atual</div>
-                                <div style="color: #f43f5e;">R$ \${fmt(spent)}</div>
-                            </div>
-                            <div class="card-stat-item">
-                                <div>Disponível</div>
-                                <div style="color: #10b981;">R$ \${fmt(remaining)}</div>
-                            </div>
-                        </div>
-
-                        <div class="card-footer-row">
-                            <div>
-                                <div style="font-size:9px; color:var(--text-muted); text-transform:uppercase; font-weight:700;">Limite Total</div>
-                                <div class="card-limit-val">R$ \${fmt(limitTotal)}</div>
-                            </div>
-                            <div class="action-btns">
-                                <button class="btn-edit" onclick='openEditModal("cards", \${JSON.stringify(c)})'>Editar</button>
-                                <button class="btn-delete" onclick="deleteItem('cards', '\${c.id}')">Excluir</button>
-                            </div>
-                        </div>
-                    </div>\`;
-            });
-            document.getElementById('kpi-cards-spent').innerText = \`R$ \${fmt(totalCardsSpentGlobal)}\`;
-
-            let totalInv = 0;
-            const tbInv = document.getElementById('investments-list');
-            tbInv.innerHTML = globalInvestments.length ? '' : emptyRow(5, 'Nenhum ativo cadastrado.');
-            globalInvestments.forEach(i => {
-                totalInv += Number(i.amount) || 0;
-                tbInv.innerHTML += \`<tr><td>💼 \${i.name}</td><td>\${i.class}</td><td>R$ \${fmt(i.amount)}</td><td>\${i.yield || 'N/D'}</td><td><div class="action-btns"><button class="btn-edit" onclick='openEditModal("investments", \${JSON.stringify(i)})'>Editar</button><button class="btn-delete" onclick="deleteItem('investments', '\${i.id}')">Excluir</button></div></td></tr>\`;
-            });
-            document.getElementById('kpi-investments').innerText = \`R$ \${fmt(totalInv)}\`;
-            document.getElementById('kpi-networth').innerText = \`R$ \${fmt(totalAcc + totalInv)}\`;
-
-            const tbBud = document.getElementById('budgets-list');
-            tbBud.innerHTML = globalBudgets.length ? '' : emptyRow(5, 'Nenhum orçamento cadastrado.');
-            globalBudgets.forEach(b => {
-                let spentCat = 0;
-                filteredTxs.forEach(t => {
-                    if (t.type === 'Despesa' && t.category.toLowerCase() === b.category.toLowerCase()) {
-                        spentCat += Number(t.amount) || 0;
-                    }
-                });
-                const limitVal = Number(b.limit) || 1;
-                const pct = Math.min(100, (spentCat / limitVal) * 100).toFixed(1);
-                tbBud.innerHTML += \`
-                    <tr>
-                        <td>🎯 \${b.category}</td>
-                        <td>R$ \${fmt(limitVal)}</td>
-                        <td style="color: #f43f5e;">R$ \${fmt(spentCat)}</td>
-                        <td>
-                            \${pct}%
-                            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: \${pct}%;"></div></div>
-                        </td>
-                        <td><div class="action-btns"><button class="btn-edit" onclick='openEditModal("budgets", \${JSON.stringify(b)})'>Editar</button><button class="btn-delete" onclick="deleteItem('budgets', '\${b.id}')">Excluir</button></div></td>
-                    </tr>\`;
-            });
-
-            const tbGoal = document.getElementById('goals-list');
-            tbGoal.innerHTML = globalGoals.length ? '' : emptyRow(5, 'Nenhuma meta cadastrada.');
-            globalGoals.forEach(g => {
-                const target = Number(g.target) || 0;
-                const current = Number(g.current) || 0;
-                const pct = target > 0 ? Math.min(100, (current / target) * 100).toFixed(1) : 0;
-                tbGoal.innerHTML += \`
-                    <tr>
-                        <td>🏆 \${g.name}</td>
-                        <td>R$ \${fmt(current)}</td>
-                        <td>R$ \${fmt(target)}</td>
-                        <td>
-                            \${pct}%
-                            <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: \${pct}%;"></div></div>
-                        </td>
-                        <td><div class="action-btns"><button class="btn-edit" onclick='openEditModal("goals", \${JSON.stringify(g)})'>Editar</button><button class="btn-delete" onclick="deleteItem('goals', '\${g.id}')">Excluir</button></div></td>
-                    </tr>\`;
-            });
-
-            let totalDebtsVal = 0;
-            const tbDebt = document.getElementById('debts-list');
-            tbDebt.innerHTML = globalDebts.length ? '' : emptyRow(5, 'Nenhuma dívida cadastrada.');
-            globalDebts.forEach(d => {
-                const rem = Number(d.remaining) || 0;
-                totalDebtsVal += rem;
-                tbDebt.innerHTML += \`<tr><td>⚠️ \${d.name}</td><td>\${d.category}</td><td>R$ \${fmt(d.total)}</td><td style="color:#f43f5e;">R$ \${fmt(rem)}</td><td><div class="action-btns"><button class="btn-edit" onclick='openEditModal("debts", \${JSON.stringify(d)})'>Editar</button><button class="btn-delete" onclick="deleteItem('debts', '\${d.id}')">Excluir</button></div></td></tr>\`;
-            });
-            document.getElementById('kpi-debts').innerText = \`R$ \${fmt(totalDebtsVal)}\`;
-
-            const tbRec = document.getElementById('recurring-list');
-            tbRec.innerHTML = globalRecurring.length ? '' : emptyRow(4, 'Nenhuma recorrência cadastrada.');
-            globalRecurring.forEach(r => {
-                tbRec.innerHTML += \`<tr><td>🔄 \${r.desc}</td><td>R$ \${fmt(r.amount)}</td><td>Dia \${r.day}</td><td><div class="action-btns"><button class="btn-edit" onclick='openEditModal("recurring", \${JSON.stringify(r)})'>Editar</button><button class="btn-delete" onclick="deleteItem('recurring', '\${r.id}')">Excluir</button></div></td></tr>\`;
-            });
-
-            renderGoalOverview();
-            renderNotifications();
-            renderFlowComparison();
-            renderCharts(filteredTxs, transactions);
-        }
-
-        function renderCharts(filteredTxs, allTxs) {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-            const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
-            const textColor = isDark ? '#94a3b8' : '#64748b';
-
-            const mapMonths = {};
-            allTxs.forEach(t => {
-                if (!t.date) return;
-                const ym = t.date.substring(0, 7);
-                if (!mapMonths[ym]) mapMonths[ym] = { rev: 0, exp: 0 };
-                if (t.type === 'Receita') mapMonths[ym].rev += Number(t.amount) || 0;
-                else mapMonths[ym].exp += Number(t.amount) || 0;
-            });
-
-            const sortedYms = Object.keys(mapMonths).sort().slice(-6);
-            const barLabels = sortedYms.map(ym => {
-                const [y, m] = ym.split('-');
-                return \`\${m}/\${y}\`;
-            });
-            const barRevData = sortedYms.map(ym => mapMonths[ym].rev);
-            const barExpData = sortedYms.map(ym => mapMonths[ym].exp);
-
-            if (barChartInstance) barChartInstance.destroy();
-            const ctxBar = document.getElementById('barChart').getContext('2d');
-            barChartInstance = new Chart(ctxBar, {
-                type: 'bar',
-                data: {
-                    labels: barLabels.length ? barLabels : ['Nenhum dado'],
-                    datasets: [
-                        { label: 'Receitas', data: barLabels.length ? barRevData : [0], backgroundColor: '#10b981', borderRadius: 6 },
-                        { label: 'Despesas', data: barLabels.length ? barExpData : [0], backgroundColor: '#f43f5e', borderRadius: 6 }
-                    ]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: textColor, font: { family: 'JetBrains Mono', size: 11 } } } },
-                    scales: {
-                        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } } },
-                        y: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } } }
-                    }
-                }
-            });
-
-            const catMap = {};
-            filteredTxs.filter(t => t.type === 'Despesa').forEach(t => {
-                catMap[t.category] = (catMap[t.category] || 0) + (Number(t.amount) || 0);
-            });
-            const pieLabels = Object.keys(catMap);
-            const pieData = Object.values(catMap);
-
-            if (pieChartInstance) pieChartInstance.destroy();
-            const ctxPie = document.getElementById('pieChart').getContext('2d');
-            pieChartInstance = new Chart(ctxPie, {
-                type: 'doughnut',
-                data: {
-                    labels: pieLabels.length ? pieLabels : ['Sem despesas'],
-                    datasets: [{
-                        data: pieLabels.length ? pieData : [1],
-                        backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#f43f5e', '#8b5cf6', '#ec4899', '#3b82f6'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { position: 'bottom', labels: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } } } }
-                }
-            });
-
-            const lineLabels = barLabels;
-            const lineData = sortedYms.map(ym => mapMonths[ym].rev - mapMonths[ym].exp);
-
-            if (lineChartInstance) lineChartInstance.destroy();
-            const ctxLine = document.getElementById('lineChart').getContext('2d');
-            lineChartInstance = new Chart(ctxLine, {
-                type: 'line',
-                data: {
-                    labels: lineLabels.length ? lineLabels : ['Nenhum dado'],
-                    datasets: [{
-                        label: 'Resultado Líquido',
-                        data: lineLabels.length ? lineData : [0],
-                        borderColor: '#6366f1',
-                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
-                        fill: true,
-                        tension: 0.35,
-                        borderWidth: 3,
-                        pointBackgroundColor: '#6366f1'
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } } },
-                        y: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } } }
-                    }
-                }
-            });
-
-            let runningSum = 0;
-            const areaData = sortedYms.map(ym => {
-                runningSum += (mapMonths[ym].rev - mapMonths[ym].exp);
-                return runningSum;
-            });
-
-            if (areaChartInstance) areaChartInstance.destroy();
-            const ctxArea = document.getElementById('areaChart').getContext('2d');
-            areaChartInstance = new Chart(ctxArea, {
-                type: 'line',
-                data: {
-                    labels: lineLabels.length ? lineLabels : ['Nenhum dado'],
-                    datasets: [{
-                        label: 'Evolução Patrimonial Acumulada',
-                        data: lineLabels.length ? areaData : [0],
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                        fill: true,
-                        tension: 0.4,
-                        borderWidth: 3,
-                        pointBackgroundColor: '#10b981'
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } } },
-                        y: { grid: { color: gridColor }, ticks: { color: textColor, font: { family: 'JetBrains Mono', size: 10 } } }
-                    }
-                }
-            });
-        }
-
-        async function handleFormSubmit(url, payload, successMsg) {
-            try {
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                const data = await res.json();
-                if (res.ok) {
-                    loadAllData();
-                    return true;
-                } else {
-                    alert(data.error || 'Erro ao salvar registro.');
-                    return false;
-                }
-            } catch (err) {
-                alert('Erro de conexão com o servidor.');
-                return false;
-            }
-        }
-
-        document.getElementById('account-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const success = await handleFormSubmit('/api/accounts', {
-                name: document.getElementById('acc-name').value.trim(),
-                type: document.getElementById('acc-type').value,
-                balance: document.getElementById('acc-balance').value,
-                agency: document.getElementById('acc-agency').value.trim()
-            });
-            if (success) e.target.reset();
-        });
-
-        document.getElementById('card-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const imageBase64 = await getBaseImage('card-image');
-            const success = await handleFormSubmit('/api/cards', {
-                name: document.getElementById('card-name').value.trim(),
-                limit: document.getElementById('card-limit').value,
-                due: document.getElementById('card-due').value.trim(),
-                brand: document.getElementById('card-brand').value,
-                image: imageBase64
-            });
-            if (success) e.target.reset();
-        });
-
-        document.getElementById('tx-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const success = await handleFormSubmit('/api/transactions', {
-                type: document.getElementById('tx-type').value,
-                desc: document.getElementById('tx-desc').value.trim(),
-                amount: document.getElementById('tx-amount').value,
-                category: document.getElementById('tx-category').value.trim(),
-                cardId: document.getElementById('tx-card').value,
-                date: document.getElementById('tx-date').value
-            });
-            if (success) {
-                e.target.reset();
-                document.getElementById('tx-date').valueAsDate = new Date();
-            }
-        });
-
-        document.getElementById('inv-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const success = await handleFormSubmit('/api/investments', {
-                name: document.getElementById('inv-name').value.trim(),
-                class: document.getElementById('inv-class').value,
-                amount: document.getElementById('inv-amount').value,
-                yield: document.getElementById('inv-yield').value.trim()
-            });
-            if (success) e.target.reset();
-        });
-
-        document.getElementById('budget-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const success = await handleFormSubmit('/api/budgets', {
-                category: document.getElementById('bud-category').value.trim(),
-                limit: document.getElementById('bud-limit').value,
-                alert: document.getElementById('bud-alert').value
-            });
-            if (success) e.target.reset();
-        });
-
-        document.getElementById('goal-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const success = await handleFormSubmit('/api/goals', {
-                name: document.getElementById('goal-name').value.trim(),
-                target: document.getElementById('goal-target').value,
-                current: document.getElementById('goal-current').value,
-                deadline: document.getElementById('goal-deadline').value
-            });
-            if (success) e.target.reset();
-        });
-
-        document.getElementById('debt-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const success = await handleFormSubmit('/api/debts', {
-                name: document.getElementById('debt-name').value.trim(),
-                category: document.getElementById('debt-category').value,
-                total: document.getElementById('debt-total').value,
-                remaining: document.getElementById('debt-remaining').value
-            });
-            if (success) e.target.reset();
-        });
-
-        document.getElementById('rec-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const success = await handleFormSubmit('/api/recurring', {
-                desc: document.getElementById('rec-desc').value.trim(),
-                amount: document.getElementById('rec-amount').value,
-                day: document.getElementById('rec-day').value
-            });
-            if (success) e.target.reset();
-        });
-
-        async function deleteItem(resource, id) {
-            if (!confirm('Tem certeza que deseja excluir este registro?')) return;
-            try {
-                const res = await fetch(\`/api/\${resource}/\${id}\`, { method: 'DELETE' });
-                if (res.ok) {
-                    loadAllData();
-                } else {
-                    alert('Erro ao excluir registro.');
-                }
-            } catch (err) {
-                alert('Erro de conexão com o servidor.');
-            }
-        }
-
-        function openEditModal(resource, item) {
-            document.getElementById('edit-resource-type').value = resource;
-            document.getElementById('edit-resource-id').value = item.id;
-            const body = document.getElementById('modal-form-body');
-            
-            let html = '';
-            if (resource === 'accounts') {
-                html = \`
-                    <div class="form-group"><label>Instituição</label><input type="text" name="name" value="\${item.name || ''}" required></div>
-                    <div class="form-group"><label>Tipo</label><input type="text" name="type" value="\${item.type || ''}" required></div>
-                    <div class="form-group"><label>Saldo</label><input type="number" step="0.01" name="balance" value="\${item.balance || 0}" required></div>
-                    <div class="form-group"><label>Agência</label><input type="text" name="agency" value="\${item.agency || ''}"></div>
-                \`;
-            } else if (resource === 'cards') {
-                html = \`
-                    <div class="form-group"><label>Nome</label><input type="text" name="name" value="\${item.name || ''}" required></div>
-                    <div class="form-group"><label>Limite</label><input type="number" step="0.01" name="limit" value="\${item.limit || 0}" required></div>
-                    <div class="form-group"><label>Vencimento</label><input type="text" name="due" value="\${item.due || ''}" required></div>
-                    <div class="form-group"><label>Bandeira</label><input type="text" name="brand" value="\${item.brand || ''}"></div>
-                \`;
-            } else if (resource === 'transactions') {
-                html = \`
-                    <div class="form-group"><label>Tipo</label><input type="text" name="type" value="\${item.type || ''}" required></div>
-                    <div class="form-group"><label>Descrição</label><input type="text" name="desc" value="\${item.desc || ''}" required></div>
-                    <div class="form-group"><label>Valor</label><input type="number" step="0.01" name="amount" value="\${item.amount || 0}" required></div>
-                    <div class="form-group"><label>Categoria</label><input type="text" name="category" value="\${item.category || ''}" required></div>
-                    <div class="form-group"><label>Data</label><input type="date" name="date" value="\${item.date || ''}" required></div>
-                \`;
-            } else if (resource === 'investments') {
-                html = \`
-                    <div class="form-group"><label>Nome</label><input type="text" name="name" value="\${item.name || ''}" required></div>
-                    <div class="form-group"><label>Classe</label><input type="text" name="class" value="\${item.class || ''}" required></div>
-                    <div class="form-group"><label>Valor</label><input type="number" step="0.01" name="amount" value="\${item.amount || 0}" required></div>
-                    <div class="form-group"><label>Rentabilidade</label><input type="text" name="yield" value="\${item.yield || ''}"></div>
-                \`;
-            } else if (resource === 'budgets') {
-                html = \`
-                    <div class="form-group"><label>Categoria</label><input type="text" name="category" value="\${item.category || ''}" required></div>
-                    <div class="form-group"><label>Limite</label><input type="number" step="0.01" name="limit" value="\${item.limit || 0}" required></div>
-                \`;
-            } else if (resource === 'goals') {
-                html = \`
-                    <div class="form-group"><label>Objetivo</label><input type="text" name="name" value="\${item.name || ''}" required></div>
-                    <div class="form-group"><label>Alvo</label><input type="number" step="0.01" name="target" value="\${item.target || 0}" required></div>
-                    <div class="form-group"><label>Guardado</label><input type="number" step="0.01" name="current" value="\${item.current || 0}" required></div>
-                \`;
-            } else if (resource === 'debts') {
-                html = \`
-                    <div class="form-group"><label>Credor</label><input type="text" name="name" value="\${item.name || ''}" required></div>
-                    <div class="form-group"><label>Categoria</label><input type="text" name="category" value="\${item.category || ''}" required></div>
-                    <div class="form-group"><label>Total</label><input type="number" step="0.01" name="total" value="\${item.total || 0}" required></div>
-                    <div class="form-group"><label>Restante</label><input type="number" step="0.01" name="remaining" value="\${item.remaining || 0}" required></div>
-                \`;
-            } else if (resource === 'recurring') {
-                html = \`
-                    <div class="form-group"><label>Descrição</label><input type="text" name="desc" value="\${item.desc || ''}" required></div>
-                    <div class="form-group"><label>Valor</label><input type="number" step="0.01" name="amount" value="\${item.amount || 0}" required></div>
-                    <div class="form-group"><label>Dia</label><input type="number" name="day" value="\${item.day || 1}" required></div>
-                \`;
-            }
-            body.innerHTML = html;
-            document.getElementById('edit-modal-overlay').classList.add('active');
-        }
-
-        function closeEditModal() {
-            document.getElementById('edit-modal-overlay').classList.remove('active');
-        }
-
-        document.getElementById('dynamic-edit-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const resource = document.getElementById('edit-resource-type').value;
-            const id = document.getElementById('edit-resource-id').value;
-            
-            const formData = new FormData(e.target);
-            const payload = {};
-            formData.forEach((val, key) => {
-                if (key !== 'edit-resource-type' && key !== 'edit-resource-id') {
-                    payload[key] = val;
-                }
-            });
-
-            try {
-                const res = await fetch(\`/api/\${resource}/\${id}\`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                if (res.ok) {
-                    closeEditModal();
-                    loadAllData();
-                } else {
-                    alert('Erro ao atualizar registro.');
-                }
-            } catch (err) {
-                alert('Erro de conexão com o servidor.');
-            }
-        });
-
-        loadAllData();
-    </script>
-</body>
-</html>`);
-});
-
-// ==========================================
-// ROTAS DE API CRUD (BACKEND)
-// ==========================================
-
-app.post('/api/register', async (req, res) => {
-    const { name, cpf, phone, email, password } = req.body;
-    if (!email || !password || !name) {
-        return res.status(400).json({ error: 'Preencha todos os campos obrigatórios.' });
-    }
-    const db = getDb();
-    if (db.users.find(u => u.email === email)) {
-        return res.status(400).json({ error: 'Este e-mail já está cadastrado.' });
-    }
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = {
-        id: Date.now().toString(),
-        name,
-        cpf: cpf || '',
-        phone: phone || '',
-        email,
-        password: hashedPassword
-    };
-    db.users.push(newUser);
-    saveDatabase(db);
-    res.json({ success: true });
-});
-
-app.post('/api/login', async (req, res) => {
-    const { email, password, remember } = req.body;
-    const db = getDb();
-    const user = db.users.find(u => u.email === email);
-    if (!user) {
-        return res.status(400).json({ error: 'E-mail ou senha incorretos.' });
-    }
-    const match = await bcrypt.compare(password, user.password);
-    if (!match) {
-        return res.status(400).json({ error: 'E-mail ou senha incorretos.' });
-    }
-    req.session.userId = user.id;
-    if (remember) {
-        req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 dias
-    }
-    res.json({ success: true });
-});
-
-app.get('/api/logout', (req, res) => {
-    req.session.destroy(() => {
-        res.redirect('/login');
-    });
-});
-
-// Helper genérico para rotas REST CRUD
-function setupCrudRoutes(resourceName, arrayKey) {
-    app.get(`/api/${resourceName}`, isAuthenticated, (req, res) => {
-        const db = getDb();
-        res.json(db[arrayKey] || []);
-    });
-
-    app.post(`/api/${resourceName}`, isAuthenticated, (req, res) => {
-        const db = getDb();
-        const newItem = { id: Date.now().toString(), ...req.body };
-        db[arrayKey].push(newItem);
-        saveDatabase(db);
-        res.json({ success: true, item: newItem });
-    });
-
-    app.put(`/api/${resourceName}/:id`, isAuthenticated, (req, res) => {
-        const db = getDb();
-        const index = db[arrayKey].findIndex(i => i.id === req.params.id);
-        if (index === -1) return res.status(404).json({ error: 'Registro não encontrado.' });
-        db[arrayKey][index] = { ...db[arrayKey][index], ...req.body };
-        saveDatabase(db);
-        res.json({ success: true, item: db[arrayKey][index] });
-    });
-
-    app.delete(`/api/${resourceName}/:id`, isAuthenticated, (req, res) => {
-        const db = getDb();
-        db[arrayKey] = db[arrayKey].filter(i => i.id !== req.params.id);
-        saveDatabase(db);
-        res.json({ success: true });
-    });
+  </div>
+
+  <!-- Cadastro -->
+  <div class="auth-box" id="registerBox" style="display:none;">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+    </div>
+    <h2>Criar Conta</h2>
+    <p class="sub">Preencha seus dados para começar</p>
+    <form id="registerForm">
+      <div class="field">
+        <label>Nome Completo</label>
+        <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
+      </div>
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+      </div>
+      <button type="submit" class="btn-auth">Cadastrar Conta</button>
+    </form>
+    <div class="auth-toggle">
+      Já tem uma conta? <a id="goLogin">Fazer Login</a>
+    </div>
+  </div>
+  <div class="auth-dev-credit">
+    <div class="dev-chip">
+      <span class="dev-avatar">PL</span>
+      <span class="dev-text"><small>Desenvolvedor</small><strong>Paulo Lima</strong></span>
+    </div>
+  </div>
+</div>
+
+<!-- APLICAÇÃO PRINCIPAL -->
+<div class="app" id="appMain">
+  <div class="view-mode-banner" id="viewModeBanner">
+    <span>👁 Visualizando dados de <strong id="viewModeUserName"></strong> (modo administrador)</span>
+    <button id="viewModeExitBtn">Voltar para minha conta</button>
+  </div>
+  <div class="app-bg-scene" aria-hidden="true">
+    <div class="app-bg-grid"></div>
+    <svg class="app-bg-chart" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+      <path d="M 0.0,380 L 32.7,355.4 L 65.3,329.5 L 98.0,306.5 L 130.6,323.9 L 163.3,315.9 L 195.9,316.3 L 228.6,311.4 L 261.2,326.5 L 293.9,338.5 L 326.5,337.9 L 359.2,348.4 L 391.8,347.3 L 424.5,367.6 L 457.1,385.0 L 489.8,371.1 L 522.4,371.6 L 555.1,367.6 L 587.8,352.5 L 620.4,356.1 L 653.1,374.8 L 685.7,357.3 L 718.4,349.4 L 751.0,338.1 L 783.7,328.7 L 816.3,301.7 L 849.0,305.2 L 881.6,288.8 L 914.3,292.0 L 946.9,285.0 L 979.6,273.5 L 1012.2,279.4 L 1044.9,296.7 L 1077.6,294.6 L 1110.2,280.3 L 1142.9,272.4 L 1175.5,271.6 L 1208.2,261.1 L 1240.8,273.6 L 1273.5,286.3 L 1306.1,291.7 L 1338.8,272.5 L 1371.4,284.3 L 1404.1,300.2 L 1436.7,316.9 L 1469.4,336.5 L 1502.0,344.4 L 1534.7,337.3 L 1567.3,317.9 L 1600.0,323.0" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    <div class="app-blob a1"></div>
+    <div class="app-blob a2"></div>
+    <div class="app-blob a3"></div>
+  </div>
+  <div class="topheader">
+    <div class="topheader-row">
+      <div class="brand">
+        <div class="logo">N</div>
+        <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+      </div>
+      <div class="right" style="margin-left:auto;">
+        <div class="notif-wrap">
+          <div class="icon-btn" id="notifBtn">🔔<span class="dot" id="notifDot" style="display:none;"></span></div>
+          <div class="notif-panel" id="notifPanel">
+            <div class="notif-panel-head">
+              <h4>Notificações</h4>
+              <button class="notif-markall" id="notifMarkAllBtn">Marcar todas como lidas</button>
+            </div>
+            <div class="notif-list" id="notifList"></div>
+          </div>
+        </div>
+        <div class="icon-btn" id="miniThemeBtn">🌙</div>
+        <div class="user" id="userMenu" data-nav="config">
+          <div class="avatar" id="headerAvatar">PL</div>
+          <div><div class="uname" id="headerName">Administrador de TI</div><div class="urole" id="headerRole">Administrador</div></div>
+        </div>
+        <button class="btn-ghost" id="logoutBtn">Sair</button>
+      </div>
+    </div>
+    <nav class="menu" id="menu">
+      <!-- Menus Comuns para Usuários -->
+      <button data-page="dashboard" class="active" id="menuDashboardBtn"><span class="ic">▦</span> Dashboard</button>
+      <button data-page="transacoes" id="menuTransacoesBtn"><span class="ic">⇄</span> Transações</button>
+      <button data-page="cartoes" id="menuCartoesBtn"><span class="ic">▭</span> Cartões</button>
+      <button data-page="orcamentos" id="menuOrcamentosBtn"><span class="ic">◔</span> Orçamentos</button>
+      <button data-page="metas" id="menuMetasBtn"><span class="ic">◎</span> Metas</button>
+      <button data-page="relatorios" id="menuRelatoriosBtn"><span class="ic">▥</span> Relatórios</button>
+      <button data-page="recorrentes" id="menuRecorrentesBtn"><span class="ic">↻</span> Recorrentes</button>
+      <button data-page="importar" id="menuImportarBtn"><span class="ic">⇥</span> Importar</button>
+      <button data-page="anexos" id="menuAnexosBtn"><span class="ic">📎</span> Anexos</button>
+      <button data-page="config" id="menuConfigBtn"><span class="ic">⚙</span> Configurações</button>
+      
+      <!-- Menus Exclusivos de Administrador (Administrador de TI) -->
+      <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic">👥</span> Usuários Cadastrados</button>
+      <button data-page="paineladmin" id="menuAdminTotalBtn" style="display:none;"><span class="ic">⚡</span> Painel Administrador Geral</button>
+    </nav>
+  </div>
+
+  <main class="main">
+    <div id="pageContent"></div>
+  </main>
+  <div class="app-dev-credit">
+    <div class="dev-chip">
+      <span class="dev-avatar">PL</span>
+      <span class="dev-text"><small>Desenvolvedor</small><strong>Paulo Lima</strong></span>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Transação -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="close-x" id="closeModal">✕</button>
+    <h2 id="modalTitle">Nova Transação</h2>
+    <div class="toggle-type">
+      <button type="button" id="typeInBtn">↓ Receita</button>
+      <button type="button" id="typeOutBtn">↑ Despesa</button>
+    </div>
+    <div class="field"><label>Descrição</label><input id="fDesc" placeholder="Ex: Supermercado"></div>
+    <div class="field-row">
+      <div class="field"><label>Valor (R$)</label><input id="fValor" type="number" step="0.01" placeholder="0,00"></div>
+      <div class="field"><label>Data</label><input id="fData" type="date"></div>
+    </div>
+    <div class="field"><label>Categoria</label>
+      <div style="display:flex; gap:6px;">
+        <select id="fCategoria" style="flex:1;"></select>
+        <button type="button" id="fCategoriaAddBtn" title="Nova categoria" style="flex-shrink:0; width:40px; border:1px solid var(--card-border); background:var(--card); border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; color:var(--text);">+</button>
+      </div>
+    </div>
+    <div class="field"><label>Status</label>
+      <select id="fStatus"><option>Pago</option><option>Recebido</option><option>Pendente</option></select>
+    </div>
+    <div class="modal-actions">
+      <button id="cancelBtn">Cancelar</button>
+      <button class="save" id="saveBtn">Salvar Transação</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Conta -->
+<div class="overlay" id="overlayAccount">
+  <div class="modal">
+    <button class="close-x" id="closeAccModal">✕</button>
+    <h2 id="accModalTitle">Nova Conta</h2>
+    <div class="field"><label>Nome</label><input id="accName" placeholder="Ex: Nubank"></div>
+    <div class="field"><label>Tipo</label>
+      <select id="accType"><option>Conta Corrente</option><option>Conta Poupança</option><option>Cartão de Crédito</option><option>Investimento</option></select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Saldo (R$)</label><input id="accBalance" type="number" step="0.01" placeholder="0,00"></div>
+      <div class="field"><label>Cor</label><input id="accColor" type="color" value="#e8b04b"></div>
+    </div>
+    <div class="modal-actions">
+      <button id="accCancelBtn">Cancelar</button>
+      <button class="save" id="accSaveBtn">Salvar Conta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Categoria -->
+<div class="overlay" id="overlayCategory">
+  <div class="modal">
+    <button class="close-x" id="closeCatModal">✕</button>
+    <h2 id="catModalTitle">Nova Categoria</h2>
+    <div class="field"><label>Nome</label><input id="catName" placeholder="Ex: Educação"></div>
+    <div class="field"><label>Tipo</label>
+      <select id="catTipo"><option value="despesa">Despesa</option><option value="receita">Receita</option></select>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Ícone</label><input id="catIconInput" placeholder="📁" maxlength="4" style="text-align:center;font-size:17px;"></div>
+      <div class="field"><label>Cor</label><input id="catColor" type="color" value="#e8b04b"></div>
+    </div>
+    <div class="field"><label>Sugestões</label><div id="catIconPicker" class="icon-picker"></div></div>
+    <div class="modal-actions">
+      <button id="catCancelBtn">Cancelar</button>
+      <button class="save" id="catSaveBtn">Salvar Categoria</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Gerenciar Categorias -->
+<div class="overlay" id="overlayCatManage">
+  <div class="modal" style="max-width:600px;">
+    <button class="close-x" id="closeCatManageModal">✕</button>
+    <h2>Gerenciar Categorias</h2>
+    <div class="cat-manage-tabs">
+      <button type="button" class="cat-tab" data-cattab="despesa">↓ Despesas</button>
+      <button type="button" class="cat-tab" data-cattab="receita">↑ Receitas</button>
+    </div>
+    <div id="catManageList" class="cat-cards" style="margin-top:14px;"></div>
+    <div class="modal-actions">
+      <button id="catManageCloseBtn">Fechar</button>
+      <button class="save" id="catManageAddBtn">+ Nova Categoria</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Orçamento -->
+<div class="overlay" id="overlayBudget">
+  <div class="modal">
+    <button class="close-x" id="closeOrcModal">✕</button>
+    <h2 id="orcModalTitle">Novo Orçamento</h2>
+    <div class="field"><label>Categoria</label><select id="orcCategoria"></select></div>
+    <div class="field"><label>Limite mensal (R$)</label><input id="orcLimite" type="number" step="0.01" placeholder="0,00"></div>
+    <div class="modal-actions">
+      <button id="orcCancelBtn">Cancelar</button>
+      <button class="save" id="orcSaveBtn">Salvar Orçamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Meta -->
+<div class="overlay" id="overlayGoal">
+  <div class="modal">
+    <button class="close-x" id="closeGoalModal">✕</button>
+    <h2 id="goalModalTitle">Nova Meta</h2>
+    <div class="field"><label>Nome da meta</label><input id="goalName" placeholder="Ex: Reserva de Emergência"></div>
+    <div class="field-row">
+      <div class="field"><label>Valor Alvo (R$)</label><input id="goalTarget" type="number" step="0.01"></div>
+      <div class="field"><label>Valor Atual (R$)</label><input id="goalCurrent" type="number" step="0.01"></div>
+    </div>
+    <div class="field"><label>Prazo</label><input id="goalDeadline" type="date"></div>
+    <div class="modal-actions">
+      <button id="goalCancelBtn">Cancelar</button>
+      <button class="save" id="goalSaveBtn">Salvar Meta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Recorrente -->
+<div class="overlay" id="overlayRecurring">
+  <div class="modal">
+    <button class="close-x" id="closeRecModal">✕</button>
+    <h2 id="recModalTitle">Novo Lançamento Recorrente</h2>
+    <div class="toggle-type">
+      <button type="button" id="recTypeInBtn">↓ Receita</button>
+      <button type="button" id="recTypeOutBtn">↑ Despesa</button>
+    </div>
+    <div class="field"><label>Descrição</label><input id="recDesc" placeholder="Ex: Internet"></div>
+    <div class="field-row">
+      <div class="field"><label>Valor (R$)</label><input id="recVal" type="number" step="0.01"></div>
+      <div class="field"><label>Dia do mês</label><input id="recDay" type="number" min="1" max="31"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>Categoria</label><select id="recCategoria"></select></div>
+      <div class="field"><label>Conta</label><select id="recConta"></select></div>
+    </div>
+    <div class="field"><label>Frequência</label><select id="recFreq"><option>Mensal</option><option>Semanal</option><option>Anual</option></select></div>
+    <div class="modal-actions">
+      <button id="recCancelBtn">Cancelar</button>
+      <button class="save" id="recSaveBtn">Salvar Recorrente</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Alerta -->
+<div class="overlay" id="overlayAlert">
+  <div class="modal">
+    <button class="close-x" id="closeAlertModal">✕</button>
+    <h2 id="alertModalTitle">Novo Alerta</h2>
+    <div class="field"><label>Categoria</label><select id="alertCategoria"></select></div>
+    <div class="field"><label>Acionar ao atingir (%) do orçamento</label><input id="alertThreshold" type="number" min="1" max="200" value="90"></div>
+    <div class="modal-actions">
+      <button id="alertCancelBtn">Cancelar</button>
+      <button class="save" id="alertSaveBtn">Salvar Alerta</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Usuário (Admin) -->
+<div class="overlay" id="overlayUserAdmin">
+  <div class="modal">
+    <button class="close-x" id="closeUserAdminModal">✕</button>
+    <h2>Editar Usuário</h2>
+    <div class="field"><label>Nome</label><input id="userAdminName"></div>
+    <div class="field"><label>E-mail</label><input id="userAdminEmail" disabled style="opacity:0.6;"></div>
+    <div class="field"><label>Perfil de acesso</label>
+      <select id="userAdminRole"><option value="Usuário">Usuário</option><option value="Administrador">Administrador</option></select>
+    </div>
+    <div class="field">
+      <label>Nova senha</label>
+      <p class="cfg-hint" style="margin:-2px 0 8px;">Deixe em branco para manter a senha atual</p>
+      <div class="pass-field">
+        <input id="userAdminPassword" type="password" placeholder="••••••••">
+        <button type="button" class="pass-toggle" id="userAdminPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button id="userAdminCancelBtn">Cancelar</button>
+      <button class="save" id="userAdminSaveBtn">Salvar Usuário</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="d"></span><span id="toastMsg">Salvo com sucesso!</span></div>
+
+<div class="login-success-overlay" id="loginSuccessOverlay">
+  <div class="login-success-box">
+    <div class="login-success-check">
+      <svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" fill="none"/><path fill="none" d="M14 27l7 7 17-17"/></svg>
+    </div>
+    <h3>Login efetuado com sucesso!</h3>
+    <p id="loginSuccessMsg">Bem-vindo(a) de volta.</p>
+  </div>
+</div>
+
+<div class="login-success-overlay" id="accountDisabledOverlay">
+  <div class="login-success-box">
+    <div class="account-disabled-icon">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M8 8l8 8M16 8l-8 8"/></svg>
+    </div>
+    <h3>Usuário desativado</h3>
+    <p id="accountDisabledMsg">Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.</p>
+    <button type="button" class="account-disabled-btn" id="accountDisabledCloseBtn">Entendi</button>
+  </div>
+</div>
+
+<script>
+/* ==================== Prevenção de XSS & Chamadas de API Seguras ==================== */
+function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
 }
 
-setupCrudRoutes('accounts', 'accounts');
-setupCrudRoutes('cards', 'cards');
-setupCrudRoutes('transactions', 'transactions');
-setupCrudRoutes('investments', 'investments');
-setupCrudRoutes('budgets', 'budgets');
-setupCrudRoutes('goals', 'goals');
-setupCrudRoutes('debts', 'debts');
-setupCrudRoutes('recurring', 'recurring');
+async function apiRequest(endpoint, options = {}) {
+  const token = localStorage.getItem('nexus_token');
+  const headers = options.headers || {};
+  if (token) {
+    headers['Authorization'] = 'Bearer ' + token;
+  }
+  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(options.body);
+  }
+  options.headers = headers;
 
-app.listen(PORT, () => {
-    console.log(`🚀 PLP Financeiro rodando na porta ${PORT}`);
+  const res = await fetch(window.location.origin + endpoint, options);
+  if (res.status === 401) {
+    localStorage.removeItem('nexus_token');
+    localStorage.removeItem('nexus_session');
+    currentUser = null;
+    document.getElementById('appMain').classList.remove('show');
+    document.getElementById('authPage').classList.add('show');
+  }
+  return res;
+}
+
+function loadFromStorage(key, defaultVal) {
+  const data = localStorage.getItem(key);
+  return data ? JSON.parse(data) : defaultVal;
+}
+function saveToStorage(key, val) {
+  localStorage.setItem(key, JSON.stringify(val));
+}
+
+let registeredUsers = [];
+
+async function syncUsersWithServer() {
+  try {
+    const res = await apiRequest('/api/users');
+    if (res.ok) {
+      registeredUsers = await res.json();
+      saveToStorage('nexus_users', registeredUsers);
+    }
+  } catch(e) {
+    registeredUsers = loadFromStorage('nexus_users', []);
+  }
+}
+
+let currentUser = null;
+let isViewingOtherUser = false;
+let adminOriginalUser = null;
+
+// Formulários de Login/Cadastro
+document.getElementById('goRegister').onclick = () => {
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('registerBox').style.display = 'block';
+};
+document.getElementById('goLogin').onclick = () => {
+  document.getElementById('registerBox').style.display = 'none';
+  document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('loginBox').style.display = 'block';
+};
+
+// Esqueceu a senha - Enviar por E-mail
+document.getElementById('goForgot').onclick = async (e) => {
+  e.preventDefault();
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('registerBox').style.display = 'none';
+  document.getElementById('forgotBox').style.display = 'block';
+  document.getElementById('forgotStep1').reset();
+  document.getElementById('forgotSub').textContent = 'Informe seu e-mail para enviarmos sua nova senha temporária';
+};
+
+document.getElementById('goLoginFromForgot').onclick = () => {
+  document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('loginBox').style.display = 'block';
+};
+
+document.getElementById('forgotStep1').onsubmit = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('forgotEmail').value.trim();
+  const btn = document.getElementById('btnSendPassword');
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  try {
+    const res = await fetch(window.location.origin + '/api/send-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.error || 'Não encontramos nenhuma conta com esse e-mail ou falha no envio.');
+      return;
+    }
+
+    alert('Sua nova senha temporária foi enviada para o seu e-mail com sucesso!');
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('forgotBox').style.display = 'none';
+    document.getElementById('loginBox').style.display = 'block';
+  } catch(err) {
+    alert('Erro ao processar solicitação de e-mail. Verifique suas credenciais SMTP no Render.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enviar Senha por E-mail';
+  }
+};
+
+// Login Seguro
+document.getElementById('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+
+  try {
+    const res = await fetch(window.location.origin + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      if (res.status === 403) {
+        showAccountDisabledPopup(data.error);
+      } else {
+        alert(data.error || 'E-mail ou senha incorretos!');
+      }
+      return;
+    }
+
+    localStorage.setItem('nexus_token', data.token);
+    currentUser = data.user;
+    const initialPage = (currentUser.role === 'Administrador' && currentUser.email.toLowerCase() === 'paulodelima21@gmail.com') ? 'usuarios' : 'dashboard';
+    saveToStorage('nexus_session', { email: currentUser.email, page: initialPage });
+    await loadUserData();
+    document.getElementById('authPage').classList.remove('show');
+    document.getElementById('appMain').classList.add('show');
+    
+    currentPage = initialPage;
+
+    render();
+    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + currentUser.name.split(' ')[0] + '!');
+  } catch (err) {
+    alert('Erro ao conectar ao servidor. Verifique sua conexão.');
+  }
+};
+
+function showLoginSuccessPopup(msg){
+  const overlay = document.getElementById('loginSuccessOverlay');
+  document.getElementById('loginSuccessMsg').textContent = msg;
+  overlay.classList.add('show');
+  requestAnimationFrame(()=> overlay.classList.add('in'));
+  setTimeout(()=>{
+    overlay.classList.remove('in');
+    setTimeout(()=> overlay.classList.remove('show'), 250);
+  }, 1800);
+}
+
+function showAccountDisabledPopup(msg){
+  const overlay = document.getElementById('accountDisabledOverlay');
+  if(msg) document.getElementById('accountDisabledMsg').textContent = msg;
+  overlay.classList.add('show');
+  requestAnimationFrame(()=> overlay.classList.add('in'));
+}
+function hideAccountDisabledPopup(){
+  const overlay = document.getElementById('accountDisabledOverlay');
+  overlay.classList.remove('in');
+  setTimeout(()=> overlay.classList.remove('show'), 250);
+}
+
+// Cadastro Seguro
+document.getElementById('registerForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value.trim();
+
+  try {
+    const response = await fetch(window.location.origin + '/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password })
+    });
+    const data = await response.json();
+    
+    if (!response.ok || !data.success) {
+      alert(data.error || 'Falha ao registrar conta no servidor.');
+      return;
+    }
+
+    alert('Conta criada com sucesso! Faça login para continuar.');
+
+    document.getElementById('regName').value = '';
+    document.getElementById('regEmail').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('loginPassword').value = password;
+    document.getElementById('goLogin').click();
+  } catch (err) {
+    alert('Erro ao registrar no servidor. Verifique sua conexão e tente novamente.');
+  }
+};
+
+// Logout Seguro
+document.getElementById('logoutBtn').onclick = async () => {
+  try {
+    await apiRequest('/api/logout', { method: 'POST' });
+  } catch(e) {}
+  await saveUserData();
+  currentUser = null;
+  isViewingOtherUser = false;
+  adminOriginalUser = null;
+  localStorage.removeItem('nexus_token');
+  localStorage.removeItem('nexus_session');
+  categories = []; accounts = []; transactions = []; budgets = []; goals = []; recurringList = []; alerts = []; attachments = []; notifications = [];
+  document.getElementById('appMain').classList.remove('show');
+  document.getElementById('authPage').classList.add('show');
+  showToast('Sessão encerrada.');
+};
+
+/* ==================== Isolamento de Dados por Usuário ==================== */
+let categories = [];
+let accounts = [];
+let transactions = [];
+let budgets = [];
+let goals = [];
+let recurringList = [];
+let alerts = [];
+let attachments = [];
+let notifications = [];
+
+let nextAccId = 1, nextTxId = 1, nextBudgetId = 1, nextGoalId = 1, nextRecId = 1, nextAlertId = 1, nextAttId = 1, nextNotifId = 1;
+
+/* ==================== Migração: tipo de categoria ==================== */
+const RECEITA_NAME_HINTS = ['salário','salario','renda','freela','freelance','bônus','bonus','valor extra','extra','13º','decimo terceiro','décimo terceiro','rendimento','dividendo','investimento','reembolso'];
+const BASE_CATEGORIES = [
+  {name:'Alimentação', color:'#e8974b', type:'despesa', icon:'🍔'},
+  {name:'Supermercado', color:'#d8a34b', type:'despesa', icon:'🛒'},
+  {name:'Moradia', color:'#c98a3f', type:'despesa', icon:'🏠'},
+  {name:'Contas da Casa', color:'#f0a63a', type:'despesa', icon:'💡'},
+  {name:'Transporte', color:'#ef5a5a', type:'despesa', icon:'🚗'},
+  {name:'Saúde', color:'#5ac57e', type:'despesa', icon:'⚕️'},
+  {name:'Educação', color:'#4a90e2', type:'despesa', icon:'📚'},
+  {name:'Lazer', color:'#9b6bd8', type:'despesa', icon:'🎮'},
+  {name:'Vestuário', color:'#d85bb0', type:'despesa', icon:'👕'},
+  {name:'Assinaturas', color:'#6b7fd7', type:'despesa', icon:'📺'},
+  {name:'Cartão de Crédito', color:'#e8b04b', type:'despesa', icon:'💳'},
+  {name:'Pix Enviado', color:'#f0a63a', type:'despesa', icon:'📤'},
+  {name:'Cuidados Pessoais', color:'#e07bb0', type:'despesa', icon:'💆'},
+  {name:'Outros', color:'#8a93a3', type:'despesa', icon:'📦'},
+  {name:'Salário', color:'#e8b04b', type:'receita', icon:'💼'},
+  {name:'Freelance', color:'#4a90e2', type:'receita', icon:'💻'},
+  {name:'Investimentos', color:'#5ac57e', type:'receita', icon:'📈'},
+  {name:'Pix Recebido', color:'#3ec7c7', type:'receita', icon:'📥'},
+  {name:'Reembolso', color:'#6bcf9e', type:'receita', icon:'💵'},
+  {name:'Bônus / 13º', color:'#d8a34b', type:'receita', icon:'🎉'},
+  {name:'Outras Receitas', color:'#8a93a3', type:'receita', icon:'💰'}
+];
+function migrateCategories(){
+  let changed = false;
+  categories.forEach(c=>{
+    if(!c.type){
+      const lower = c.name.toLowerCase();
+      c.type = RECEITA_NAME_HINTS.some(h=>lower.includes(h)) ? 'receita' : 'despesa';
+      changed = true;
+    }
+    if(!c.icon){
+      c.icon = c.type==='receita' ? '💰' : '📁';
+      changed = true;
+    }
+    if(typeof c.count !== 'number'){
+      c.count = 0;
+      changed = true;
+    }
+  });
+  BASE_CATEGORIES.forEach(dc=>{
+    if(!categories.some(c=>c.name.toLowerCase()===dc.name.toLowerCase())){
+      categories.push({...dc, count:0});
+      changed = true;
+    }
+  });
+  if(changed) saveUserData();
+}
+
+async function loadUserData() {
+  if (!currentUser) return;
+  const userKey = 'nexus_data_' + currentUser.email;
+  let data = null;
+
+  try {
+    const res = await apiRequest('/api/data?email=' + encodeURIComponent(currentUser.email));
+    if (res.ok) {
+      const json = await res.json();
+      if (json && json.success) data = json.data;
+    }
+  } catch(e) {
+    data = loadFromStorage(userKey, null);
+  }
+
+  if (data) {
+    categories = data.categories || [];
+    accounts = data.accounts || [];
+    transactions = data.transactions || [];
+    budgets = data.budgets || [];
+    goals = data.goals || [];
+    recurringList = data.recurringList || [];
+    alerts = data.alerts || [];
+    attachments = data.attachments || [];
+    notifications = data.notifications || [];
+    nextAccId = data.nextAccId || 10;
+    nextTxId = data.nextTxId || 10;
+    nextBudgetId = data.nextBudgetId || 10;
+    nextGoalId = data.nextGoalId || 10;
+    nextRecId = data.nextRecId || 10;
+    nextAlertId = data.nextAlertId || 10;
+    nextAttId = data.nextAttId || 10;
+    nextNotifId = data.nextNotifId || 10;
+    migrateCategories();
+  } else {
+    categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
+    accounts = [];
+    transactions = [];
+    budgets = [];
+    goals = [];
+    recurringList = [];
+    alerts = [];
+    attachments = [];
+    notifications = [];
+    nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
+    await saveUserData();
+  }
+}
+
+async function saveUserData() {
+  if (!currentUser) return;
+  if (isViewingOtherUser) return;
+  const payloadData = {
+    categories, accounts, transactions, budgets, goals, recurringList, alerts, attachments, notifications,
+    nextAccId, nextTxId, nextBudgetId, nextGoalId, nextRecId, nextAlertId, nextAttId, nextNotifId
+  };
+  
+  const userKey = 'nexus_data_' + currentUser.email;
+  saveToStorage(userKey, payloadData);
+
+  try {
+    await apiRequest('/api/data', {
+      method: 'POST',
+      body: { email: currentUser.email, data: payloadData }
+    });
+  } catch(e) {}
+}
+
+/* ==================== Admin: Visualizar dados de outro usuário ==================== */
+async function viewUserData(email){
+  await syncUsersWithServer();
+  if(!currentUser || currentUser.role !== 'Administrador') return;
+  const target = registeredUsers.find(u => u.email === email);
+  if(!target || target.email === currentUser.email) return;
+
+  if(!isViewingOtherUser){
+    await saveUserData();
+    adminOriginalUser = currentUser;
+  }
+  currentUser = target;
+  isViewingOtherUser = true;
+  await loadUserData();
+  currentPage = 'dashboard';
+  render();
+  showToast('Visualizando dados de ' + target.name);
+}
+
+async function exitViewMode(){
+  if(!isViewingOtherUser || !adminOriginalUser) return;
+  currentUser = adminOriginalUser;
+  adminOriginalUser = null;
+  isViewingOtherUser = false;
+  await loadUserData();
+  currentPage = 'usuarios';
+  render();
+  showToast('Você voltou para sua conta.');
+}
+
+/* ==================== Admin: Ativar/Desativar usuário ==================== */
+async function toggleUserActive(email){
+  await syncUsersWithServer();
+  if(!currentUser || currentUser.role !== 'Administrador') return;
+  const u = registeredUsers.find(x => x.email === email);
+  if(!u || u.email === currentUser.email) return;
+
+  const willDeactivate = u.active !== false;
+  if(willDeactivate && u.role === 'Administrador' && registeredUsers.filter(x=>x.role==='Administrador' && x.active!==false).length <= 1){
+    showToast('É necessário manter ao menos um administrador ativo');
+    return;
+  }
+
+  u.active = willDeactivate ? false : true;
+  await saveUsersToServer();
+  showToast(willDeactivate ? 'Usuário desativado.' : 'Usuário ativado novamente.');
+  render();
+}
+
+/* ==================== Período ==================== */
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const YEARS = [2026,2027,2028,2029];
+const PERIOD_MIN = {year:2026, month:1};
+const PERIOD_MAX = {year:2029, month:12};
+const EYE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.22 4.44M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+
+function bindPasswordToggle(inputId, btnId){
+  const inp = document.getElementById(inputId);
+  const btn = document.getElementById(btnId);
+  if(!inp || !btn) return;
+  btn.innerHTML = EYE_ICON;
+  btn.onclick = ()=>{
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.innerHTML = show ? EYE_OFF_ICON : EYE_ICON;
+    btn.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
+  };
+}
+function getDefaultPeriod(){
+  const now = new Date();
+  let y = now.getFullYear(), m = now.getMonth()+1;
+  if(y < PERIOD_MIN.year || (y===PERIOD_MIN.year && m < PERIOD_MIN.month)) return {year:PERIOD_MIN.year, month:PERIOD_MIN.month};
+  if(y > PERIOD_MAX.year || (y===PERIOD_MAX.year && m > PERIOD_MAX.month)) return {year:PERIOD_MAX.year, month:PERIOD_MAX.month};
+  return {year:y, month:m};
+}
+let currentPeriod = getDefaultPeriod();
+
+function pdCustom(y,m,day){
+  const lastDay = new Date(y, m, 0).getDate();
+  const d = String(Math.min(day, lastDay)).padStart(2,'0');
+  return y + '-' + String(m).padStart(2,'0') + '-' + d;
+}
+function pd(day){ return pdCustom(currentPeriod.year, currentPeriod.month, day); }
+
+let editingId=null, editingAccId=null, editingCatName=null, editingBudgetId=null, editingGoalId=null, editingRecId=null, editingAlertId=null, editingUserEmail=null;
+let catManageType = 'despesa';
+let currentType='out', currentRecType='out';
+let currentPage='dashboard';
+let charts = {};
+
+const fmt = v => 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
+const catColor = name => (categories.find(c=>c.name===name)||{}).color || '#888';
+const catIcon = name => { const c = categories.find(c=>c.name===name); return (c && c.icon) || '📁'; };
+function catOptionsHTML(type, selected){
+  let list = type ? categories.filter(c=>(c.type||'despesa')===type) : categories.slice();
+  list = list.slice().sort((a,b)=> (b.count||0)-(a.count||0) || a.name.localeCompare(b.name,'pt-BR'));
+  return list.map(c=>'<option value="'+c.name+'"'+(selected===c.name?' selected':'')+'>'+(c.icon||'📁')+' '+c.name+'</option>').join('');
+}
+const periodLabel = ()=> MONTHS[currentPeriod.month-1] + ' / ' + currentPeriod.year;
+const inPeriod = t => { const d=new Date(t.date+'T00:00'); return (d.getMonth()+1)===currentPeriod.month && d.getFullYear()===currentPeriod.year; };
+
+/* ==================== Cálculos ==================== */
+function computeTotals(list=transactions){
+  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
+  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.val,0);
+  const saldo = accounts.reduce((s,a)=>s+a.balance,0);
+  return {receitas, despesas, saldo};
+}
+function txStatsCardsHTML(list){
+  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
+  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.val,0);
+  const saldo = receitas - despesas;
+  const saldoColor = saldo < 0 ? 'var(--red)' : 'var(--green)';
+  let html = '';
+  html += '<div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div><div class="val">' + fmt(receitas) + '</div><div class="sub">no filtro atual</div></div>';
+  html += '<div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div><div class="val">' + fmt(despesas) + '</div><div class="sub">no filtro atual</div></div>';
+  html += '<div class="kpi"><div class="row1">Saldo <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div><div class="val" style="color:' + saldoColor + '">' + fmt(saldo) + '</div><div class="sub" style="color:' + saldoColor + '">receitas − despesas</div></div>';
+  html += '<div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">' + list.length + '</div><div class="sub">registros no filtro</div></div>';
+  return html;
+}
+function despesasPorCategoria(list=transactions){
+  const map = {};
+  list.filter(t=>t.type==='out').forEach(t=>{ map[t.cat]=(map[t.cat]||0)+t.val; });
+  return Object.entries(map).map(([name,val])=>({name,val,color:catColor(name)})).sort((a,b)=>b.val-a.val);
+}
+function budgetStatus(list=budgets){
+  const periodTx = transactions.filter(inPeriod);
+  return list.map(b=>{
+    const spent = periodTx.filter(t=>t.cat===b.category && t.type==='out').reduce((s,t)=>s+t.val,0);
+    const pct = b.limit>0 ? Math.round(spent/b.limit*100) : 0;
+    return {...b, spent, pct};
+  });
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
+}
+
+function timeAgo(ts){
+  const diff = Math.max(0, Date.now() - ts);
+  const min = Math.floor(diff/60000);
+  if(min < 1) return 'agora mesmo';
+  if(min < 60) return 'há ' + min + ' min';
+  const hr = Math.floor(min/60);
+  if(hr < 24) return 'há ' + hr + 'h';
+  const day = Math.floor(hr/24);
+  if(day < 7) return 'há ' + day + 'd';
+  return new Date(ts).toLocaleDateString('pt-BR');
+}
+async function pushNotification(text, icon){
+  notifications.unshift({id: nextNotifId++, text, icon: icon || '🔔', time: Date.now(), read:false});
+  if(notifications.length > 40) notifications = notifications.slice(0,40);
+  await saveUserData();
+  renderNotifications();
+}
+function renderNotifications(){
+  const dot = document.getElementById('notifDot');
+  const list = document.getElementById('notifPanel');
+  if(!dot || !list) return;
+  const unread = notifications.filter(n=>!n.read).length;
+  dot.style.display = unread > 0 ? 'block' : 'none';
+  const listEl = document.getElementById('notifList');
+  if(listEl) {
+    listEl.innerHTML = notifications.length ? notifications.map(n=>\`
+      <div class="notif-item \${n.read?'':'unread'}">
+        \${n.read? '' : '<span class="unread-dot"></span>'}
+        <span class="ic">\${n.icon}</span>
+        <div class="body"><div class="txt">\${n.text}</div><div class="time">\${timeAgo(n.time)}</div></div>
+      </div>\`).join('') : \`<div class="notif-empty">Nenhuma notificação por aqui.</div>\`;
+  }
+}
+
+/* ==================== Atualização parcial da tabela de Transações (evita flicker) ==================== */
+function refreshTxTable(){
+  const search = document.getElementById('txSearch');
+  const fTipo = document.getElementById('txFiltroTipo');
+  const fCat = document.getElementById('txFiltroCat');
+  const fStatus = document.getElementById('txFiltroStatus');
+  const tableWrap = document.getElementById('txTableWrap');
+  if(!search || !tableWrap) return false;
+  let list = transactions.slice();
+  const q = search.value.toLowerCase();
+  if(q) list = list.filter(t=>t.desc.toLowerCase().includes(q));
+  if(fTipo.value) list = list.filter(t=>t.type===fTipo.value);
+  if(fCat.value) list = list.filter(t=>t.cat===fCat.value);
+  if(fStatus.value) list = list.filter(t=>t.status===fStatus.value);
+  list.sort((a,b)=>b.date.localeCompare(a.date));
+  tableWrap.innerHTML = transactionsTable(list, true);
+  const statsRow = document.getElementById('txStatsRow'); if(statsRow) statsRow.innerHTML = txStatsCardsHTML(list);
+  document.querySelectorAll('[data-edit]').forEach(el=>el.onclick = ()=>openModal(parseInt(el.getAttribute('data-edit'))));
+  document.querySelectorAll('[data-del]').forEach(el=>el.onclick = ()=>deleteTransaction(parseInt(el.getAttribute('data-del'))));
+  return true;
+}
+
+/* ==================== Render Suave sem Flickering ==================== */
+async function render(){
+  const el = document.getElementById('pageContent');
+  if (!el) return;
+
+  const isTiAdmin = currentUser && currentUser.role === 'Administrador' && currentUser.email.toLowerCase() === 'paulodelima21@gmail.com';
+
+  if(isTiAdmin) {
+    if(currentPage !== 'usuarios' && currentPage !== 'paineladmin') {
+      currentPage = 'usuarios';
+    }
+  }
+
+  let newHTML = '';
+  if(currentPage==='usuarios') {
+    await fetchAdminGlobalData();
+    newHTML = pageUsuarios();
+  }
+  else if(currentPage==='paineladmin') {
+    await fetchAdminGlobalData();
+    newHTML = pageAdminTotal();
+  }
+  else if(currentPage==='dashboard') newHTML = pageDashboard();
+  else if(currentPage==='transacoes') newHTML = pageTransacoes();
+  else if(currentPage==='cartoes') newHTML = pageContas();
+  else if(currentPage==='orcamentos') newHTML = pageOrcamentos();
+  else if(currentPage==='metas') newHTML = pageMetas();
+  else if(currentPage==='relatorios') newHTML = pageRelatorios();
+  else if(currentPage==='recorrentes') newHTML = pageRecorrentes();
+  else if(currentPage==='importar') newHTML = pageImportar();
+  else if(currentPage==='anexos') newHTML = pageAnexos();
+  else if(currentPage==='alertas') newHTML = pageAlertas();
+  else if(currentPage==='config') newHTML = pageConfig();
+
+  requestAnimationFrame(() => {
+    el.innerHTML = newHTML;
+    attachPageEvents();
+    updateHeaderUser();
+    renderNotifications();
+    updateViewModeBanner();
+    updateAdminMenuVisibility();
+    if(currentPage==='dashboard') drawDashboardCharts();
+  });
+}
+
+function updateAdminMenuVisibility(){
+  const isTiAdmin = currentUser && currentUser.role === 'Administrador' && currentUser.email.toLowerCase() === 'paulodelima21@gmail.com';
+
+  const commonMenuIds = [
+    'menuDashboardBtn', 'menuTransacoesBtn', 'menuCartoesBtn', 'menuOrcamentosBtn',
+    'menuMetasBtn', 'menuRelatoriosBtn', 'menuRecorrentesBtn', 'menuImportarBtn',
+    'menuAnexosBtn', 'menuConfigBtn'
+  ];
+
+  commonMenuIds.forEach(id => {
+    const btn = document.getElementById(id);
+    if(btn) btn.style.display = isTiAdmin ? 'none' : '';
+  });
+
+  const btnUsuarios = document.getElementById('menuUsuariosBtn');
+  const btnAdminTotal = document.getElementById('menuAdminTotalBtn');
+  
+  if(btnUsuarios) btnUsuarios.style.display = (isTiAdmin && !isViewingOtherUser) ? '' : 'none';
+  if(btnAdminTotal) btnAdminTotal.style.display = (isTiAdmin && !isViewingOtherUser) ? '' : 'none';
+}
+
+function updateViewModeBanner(){
+  const banner = document.getElementById('viewModeBanner');
+  if(!banner) return;
+  if(isViewingOtherUser && currentUser){
+    document.getElementById('viewModeUserName').textContent = currentUser.name;
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+function updateHeaderUser(){
+  if (!currentUser) return;
+  const unameEl = document.getElementById('headerName');
+  const avatarEl = document.getElementById('headerAvatar');
+  const roleEl = document.getElementById('headerRole');
+
+  if(unameEl) unameEl.textContent = currentUser.name;
+  if(roleEl) roleEl.textContent = currentUser.role || 'Usuário';
+  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
+}
+
+function periodPickerHTML(){
+  return \`
+  <div class="period-wrap">
+    <button type="button" class="period" id="periodBtn">
+      <span class="period-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><circle cx="8" cy="14" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.1" fill="currentColor" stroke="none"/></svg></span>
+      <span class="period-text">\${MONTHS[currentPeriod.month-1]} <span class="period-year">/ \${currentPeriod.year}</span></span>
+      <svg class="period-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="period-panel" id="periodPanel">
+      <button type="button" class="period-today-btn" id="periodTodayBtn">📍 Ir para o mês atual</button>
+      <div class="field"><label>Ano</label><select id="periodYearSel"></select></div>
+      <div class="field"><label>Mês</label><select id="periodMonthSel"></select></div>
+      <button class="btn-primary" id="periodApplyBtn" style="width:100%;justify-content:center">Aplicar</button>
+    </div>
+  </div>\`;
+}
+
+/* ==================== Dashboard ==================== */
+function pageDashboard(){
+  const periodTx = transactions.filter(inPeriod);
+  const {receitas,despesas,saldo} = computeTotals(periodTx);
+  const cats = despesasPorCategoria(periodTx);
+  const totalDesp = cats.reduce((s,c)=>s+c.val,0)||1;
+  const recPct = Math.round(receitas/(receitas+despesas||1)*100) || 0;
+  const despPct = 100-recPct;
+  const lastTx = periodTx.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  return \`
+  <div class="page-head">
+    <div><h1>Olá, \${currentUser ? currentUser.name.split(' ')[0] : 'Usuário'} 👋</h1><p>Aqui está o resumo da sua vida financeira</p></div>
+    <div class="head-actions">
+      \${periodPickerHTML()}
+      <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="row1">Saldo Total <span>👁</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
+    <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div><div class="val">\${fmt(despesas)}</div><div class="sub">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
+  </div>
+
+  <div class="grid3">
+    <div class="panel">
+      <div class="panel-head"><h3>Resumo Financeiro</h3><span class="tag">\${periodLabel()}</span></div>
+      <div class="donut-wrap">
+        <div class="donut-side">Receitas<b style="color:var(--green)">\${fmt(receitas)}</b></div>
+        <div class="donut-canvas"><canvas id="chartResumo"></canvas>
+          <div class="donut-center"><span>Saldo</span><b>\${fmt(saldo)}</b></div>
+        </div>
+        <div class="donut-side r">Despesas<b style="color:var(--red)">\${fmt(despesas)}</b></div>
+      </div>
+      <div class="bar-split"><div class="g" style="width:\${recPct}%"></div></div>
+      <div class="split-labels"><span>🟢 \${recPct}% Receitas</span><span>Despesas \${despPct}%</span></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Despesas por Categoria</h3><span class="tag">\${periodLabel()}</span></div>
+      <div class="cat-wrap">
+        <div class="donut-canvas" style="width:130px;height:130px;"><canvas id="chartCategorias"></canvas></div>
+        <div class="cat-legend">
+          \${cats.length? cats.map(c=>\`<div class="cat-row"><span class="lbl"><span class="dot" style="background:\${c.color}"></span>\${c.name}</span><span><span class="amt">\${fmt(c.val)}</span><span class="pct">\${Math.round(c.val/totalDesp*100)}%</span></span></div>\`).join('') : \`<p style="color:var(--text-faint);font-size:12px">Sem despesas neste período.</p>\`}
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Contas e Cartões</h3><button class="tag" data-nav="cartoes">Editar</button></div>
+      <div class="accounts-list">
+        \${accounts.map(a=>\`
+          <div class="acc-row">
+            <div class="acc-ic" style="background:\${a.color}">\${a.name.slice(0,2).toUpperCase()}</div>
+            <div class="acc-info"><div class="n">\${escapeHTML(a.name)}</div><div class="t">\${escapeHTML(a.type)}</div></div>
+            <div class="acc-val \${a.balance<0?'neg':''}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
+            <button class="acc-edit" data-editacc="\${a.id}">✎</button>
+          </div>\`).join('')}
+      </div>
+      <button class="btn-ghost" style="width:100%" data-nav="cartoes">Ver todas as contas</button>
+    </div>
+  </div>
+
+  <div class="table-panel">
+    <div class="panel-head"><h3>Últimas Transações</h3><span class="tag" data-nav="transacoes">Ver todas</span></div>
+    \${transactionsTable(lastTx, false)}
+  </div>
+  \`;
+}
+
+function transactionsTable(list, showActions){
+  if(list.length===0) return `<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>`;
+  return `
+  <table>
+    <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th>${showActions?'<th></th>':''}</tr></thead>
+    <tbody>
+      ${list.map(t=>`
+        <tr class="trow">
+          <td>${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
+          <td>${escapeHTML(t.desc)}</td>
+          <td><span class="pill" style="background:${catColor(t.cat)}22; color:${catColor(t.cat)}">${catIcon(t.cat)} ${escapeHTML(t.cat)}</span></td>
+          <td><span class="type-ic ${t.type}">${t.type==='in'?'↑':'↓'}</span></td>
+          <td class="${t.type==='in'?'val-in':'val-out'}">${t.type==='in'?'+':'-'}${fmt(t.val)}</td>
+          <td><span class="pill status-${(t.status||'').toLowerCase()}">${escapeHTML(t.status)}</span></td>
+          ${showActions?`<td><div class="row-actions"><button data-edit="${t.id}">✎</button><button data-del="${t.id}">🗑</button></div></td>`:''}
+        </tr>`).join('')}
+    </tbody>
+  </table>`;
+}
+
+function pageTransacoes(){
+  return \`
+  <div class="page-head">
+    <div><h1>Transações</h1><p>Gerencie todas as suas receitas e despesas</p></div>
+    <div class="head-actions">
+      <button class="btn-ghost" id="btnGerenciarCategorias">🏷️ Categorias</button>
+      <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
+    </div>
+  </div>
+  <div class="table-panel">
+    <div class="filters">
+      <input id="txSearch" placeholder="Buscar por descrição...">
+      <select id="txFiltroTipo"><option value="">Todos os tipos</option><option value="in">Receitas</option><option value="out">Despesas</option></select>
+      <select id="txFiltroCat"><option value="">Todas categorias</option>\${catOptionsHTML(null)}</select>
+      <select id="txFiltroStatus"><option value="">Todos status</option><option>Pago</option><option>Recebido</option><option>Pendente</option></select>
+    </div>
+    <div id="txTableWrap">\${transactionsTable(transactions.slice().sort((a,b)=>b.date.localeCompare(a.date)), true)}</div>
+  </div>\`;
+}
+
+function pageContas(){
+  const list = accounts;
+  return \`
+  <div class="page-head">
+    <div><h1>Cartões</h1><p>Cadastre suas contas e cartões — corrente, poupança, crédito, investimento</p></div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovaConta">+ Novo Cartão/Conta</button></div>
+  </div>
+  <div class="grid3" style="grid-template-columns:repeat(3,1fr);">
+    \${list.length? list.map(a=>\`
+      <div class="acc-card">
+        <div class="top">
+          <div class="id-group" style="display:flex;align-items:center;gap:10px;min-width:0;">
+            <span class="acc-ic" style="background:\${a.color};">\${a.name.slice(0,2).toUpperCase()}</span>
+            <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${a.name}</h3>
+          </div>
+          <div class="row-actions"><button data-editacc="\${a.id}" title="Editar">✎</button><button data-delacc="\${a.id}" title="Excluir">🗑</button></div>
+        </div>
+        <p style="color:var(--text-faint);font-size:12px;margin-bottom:8px;">\${a.type}</p>
+        <div class="val" style="font-size:22px;font-weight:700;color:\${a.balance<0?'var(--red)':'var(--green)'}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
+      </div>\`).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
+  </div>\`;
+}
+
+function pageOrcamentos(){
+  const list = budgetStatus();
+  return \`
+  <div class="page-head">
+    <div><h1>Orçamentos</h1><p>Limites de gastos por categoria — \${periodLabel()}</p></div>
+    <div class="head-actions">\${periodPickerHTML()}<button class="btn-primary" id="btnNovoOrcamento">+ Novo Orçamento</button></div>
+  </div>
+  <div class="cat-cards">
+    \${list.length? list.map(b=>{
+      const color = b.pct>=100?'var(--red)': b.pct>=80?'var(--orange)':'var(--green)';
+      return \`<div class="cat-card">
+        <div class="top">
+          <div class="id-group"><span class="dot" style="background:\${catColor(b.category)}"></span><h4>\${b.category}</h4></div>
+          <div class="row-actions"><button data-editorc="\${b.id}" title="Editar">✎</button><button data-delorc="\${b.id}" title="Excluir">🗑</button></div>
+        </div>
+        <span style="color:\${color};font-size:11.5px;font-weight:600">\${b.pct}% usado</span>
+        <div class="amt" style="margin-top:6px">\${fmt(b.spent)} <span style="color:var(--text-faint);font-size:12px;font-weight:400"> / \${fmt(b.limit)}</span></div>
+        <div class="bar-split" style="background:var(--card-border)"><div class="g" style="width:\${Math.min(b.pct,100)}%; background:\${color}"></div></div>
+      </div>\`;
+    }).join('') : \`<div class="placeholder"><div class="big">◔</div><h3>Nenhum orçamento definido</h3><p>Crie limites de gastos por categoria para acompanhar seu mês.</p></div>\`}
+  </div>\`;
+}
+
+function pageMetas(){
+  return \`
+  <div class="page-head">
+    <div><h1>Metas</h1><p>Acompanhe seus objetivos financeiros</p></div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovaMeta">+ Nova Meta</button></div>
+  </div>
+  <div class="cat-cards">
+    \${goals.length? goals.map(g=>{
+      const pct = Math.min(100, Math.round(g.current/g.target*100));
+      return \`<div class="acc-card">
+        <div class="top">
+          <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${g.name}</h3>
+          <div class="row-actions"><button data-editmeta="\${g.id}" title="Editar">✎</button><button data-delmeta="\${g.id}" title="Excluir">🗑</button></div>
+        </div>
+        <p style="color:var(--text-faint);font-size:11.5px;margin-bottom:10px;">Prazo: \${new Date(g.deadline+'T00:00').toLocaleDateString('pt-BR')}</p>
+        <div class="val" style="font-size:18px;">\${fmt(g.current)} <span style="color:var(--text-faint);font-size:12px;font-weight:400"> / \${fmt(g.target)}</span></div>
+        <div class="bar-split" style="background:var(--card-border);margin-top:10px"><div class="g" style="width:\${pct}%"></div></div>
+        <div class="split-labels" style="margin-top:6px"><span>\${pct}% concluído</span></div>
+        <button class="btn-ghost" style="width:100%;margin-top:12px" data-addcontrib="\${g.id}">+ Adicionar valor</button>
+      </div>\`;
+    }).join('') : \`<div class="placeholder"><div class="big">◎</div><h3>Nenhuma meta cadastrada</h3></div>\`}
+  </div>\`;
+}
+
+function pageRelatorios(){
+  const allCats = despesasPorCategoria(transactions);
+  const totalReceitas = transactions.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
+  const totalDespesas = transactions.filter(t=>t.type==='out').reduce((s,t)=>s+t.val,0);
+  return \`
+  <div class="page-head"><div><h1>Relatórios</h1><p>Consolidado geral de todas as transações cadastradas</p></div></div>
+  <div class="kpis" style="grid-template-columns:repeat(3,1fr);">
+    <div class="kpi"><div class="row1">Total de Receitas</div><div class="val" style="color:var(--green)">\${fmt(totalReceitas)}</div></div>
+    <div class="kpi"><div class="row1">Total de Despesas</div><div class="val" style="color:var(--red)">\${fmt(totalDespesas)}</div></div>
+    <div class="kpi"><div class="row1">Resultado</div><div class="val" style="color:\${(totalReceitas-totalDespesas)<0?'var(--red)':'var(--green)'}">\${fmt(totalReceitas-totalDespesas)}</div></div>
+  </div>
+  <div class="table-panel">
+    <div class="panel-head"><h3>Despesas por Categoria (geral)</h3></div>
+    \${allCats.length? \`<table><thead><tr><th>Categoria</th><th>Total Gasto</th><th>% do Total</th></tr></thead>
+    <tbody>\${allCats.map(c=>\`<tr class="trow"><td><span class="pill" style="background:\${c.color}22;color:\${c.color}">\${c.name}</span></td><td class="val-out">\${fmt(c.val)}</td><td>\${Math.round(c.val/(totalDespesas||1)*100)}%</td></tr>\`).join('')}</tbody></table>\`
+    : \`<div class="placeholder"><div class="big">▥</div><h3>Nenhum dado disponível</h3></div>\`}
+  </div>\`;
+}
+
+function pageRecorrentes(){
+  return \`
+  <div class="page-head">
+    <div><h1>Lançamentos Recorrentes</h1><p>Transações que se repetem automaticamente</p></div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovoRecorrente">+ Novo Recorrente</button></div>
+  </div>
+  <div class="table-panel">
+    \${recurringList.length? \`<table><thead><tr><th>Descrição</th><th>Categoria</th><th>Conta</th><th>Frequência</th><th>Dia</th><th>Tipo</th><th>Valor</th><th></th></tr></thead>
+    <tbody>\${recurringList.map(r=>\`<tr class="trow">
+      <td>\${r.desc}</td>
+      <td><span class="pill" style="background:\${catColor(r.cat)}22;color:\${catColor(r.cat)}">\${r.cat}</span></td>
+      <td>\${r.acc}</td><td>\${r.freq}</td><td>Dia \${r.day}</td>
+      <td><span class="type-ic \${r.type}">\${r.type==='in'?'↑':'↓'}</span></td>
+      <td class="\${r.type==='in'?'val-in':'val-out'}">\${r.type==='in'?'+':'-'}\${fmt(r.val)}</td>
+      <td><div class="row-actions"><button data-lancar="\${r.id}" title="Lançar agora">▶</button><button data-editrec="\${r.id}">✎</button><button data-delrec="\${r.id}">🗑</button></div></td>
+    </tr>\`).join('')}</tbody></table>\` : \`<div class="placeholder"><div class="big">↻</div><h3>Nenhum lançamento recorrente</h3></div>\`}
+  </div>\`;
+}
+
+function pageImportar(){
+  return \`
+  <div class="page-head"><div><h1>Importar OFX / CSV</h1><p>Importe extratos bancários em lote</p></div></div>
+  <div class="panel">
+    <p style="color:var(--text-dim);font-size:12.5px;margin-bottom:14px;">
+      Formato CSV esperado: <code>data,descricao,valor</code>. Arquivos <b>.ofx</b> também são aceitos.
+    </p>
+    <div class="field-row">
+      <div class="field"><label>Conta de destino</label><select id="impConta">\${accounts.map(a=>\`<option>\${a.name} — \${a.type}</option>\`).join('')}</select></div>
+      <div class="field"><label>Categoria padrão</label><select id="impCategoria">\${categories.map(c=>\`<option>\${c.name}</option>\`).join('')}</select></div>
+    </div>
+    <div class="field"><label>Arquivo</label><input type="file" id="importFile" accept=".csv,.ofx,.txt"></div>
+    <div id="importPreview"></div>
+  </div>\`;
+}
+
+function pageAnexos(){
+  const sortedTx = transactions.slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return \`
+  <div class="page-head"><div><h1>Anexos</h1><p>Comprovantes e recibos vinculados às transações</p></div></div>
+  <div class="panel">
+    <div class="field-row">
+      <div class="field"><label>Transação vinculada</label><select id="attTx">\${sortedTx.map(t=>\`<option value="\${t.id}">\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')} — \${t.desc}</option>\`).join('')}</select></div>
+      <div class="field"><label>Arquivo</label><input type="file" id="attFile" accept="image/*,.pdf"></div>
+    </div>
+    <button class="btn-primary" id="btnAddAnexo">+ Anexar</button>
+  </div>
+  <div class="cat-cards" style="margin-top:16px;">
+    \${attachments.length? attachments.map(a=>{
+      const t = transactions.find(x=>x.id===a.txId);
+      return \`<div class="cat-card">
+        <div class="row-actions"><button data-delatt="\${a.id}">🗑</button></div>
+        \${a.dataUrl ? \`<img src="\${a.dataUrl}" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;">\` : \`<div style="font-size:28px;margin-bottom:8px;">📎</div>\`}
+        <h4 style="font-size:12.5px;">\${a.name}</h4>
+        <p style="color:var(--text-faint);font-size:11px;margin-top:4px;">\${t? t.desc : 'Transação removida'}</p>
+      </div>\`;
+    }).join('') : \`<div class="placeholder"><div class="big">📎</div><h3>Nenhum anexo enviado</h3></div>\`}
+  </div>\`;
+}
+
+function pageAlertas(){
+  const bstat = budgetStatus();
+  return \`
+  <div class="page-head">
+    <div><h1>Alertas</h1><p>Avisos automáticos de orçamento — \${periodLabel()}</p></div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovoAlerta">+ Novo Alerta</button></div>
+  </div>
+  <div class="cat-cards">
+    \${alerts.length? alerts.map(al=>{
+      const b = bstat.find(x=>x.category===al.category);
+      const pct = b? b.pct : null;
+      const triggered = pct!==null && pct>=al.threshold;
+      return \`<div class="cat-card">
+        <div class="top">
+          <div class="id-group"><span class="dot" style="background:\${triggered?'var(--red)':'var(--green)'}"></span><h4>\${al.category}</h4></div>
+          <div class="row-actions"><button data-editalert="\${al.id}" title="Editar">✎</button><button data-delalert="\${al.id}" title="Excluir">🗑</button></div>
+        </div>
+        <span class="pill" style="background:\${triggered?'var(--red-soft)':'var(--green-soft)'};color:\${triggered?'var(--red)':'var(--green)'}">\${triggered?'⚠ Alerta ativo':'OK'}</span>
+        <p style="color:var(--text-faint);font-size:11.5px;margin-top:8px;">Aciona em \${al.threshold}% do orçamento</p>
+        <div class="amt" style="font-size:14px;margin-top:4px;">\${b? \`\${pct}% usado (\${fmt(b.spent)} / \${fmt(b.limit)})\` : 'Sem orçamento definido para esta categoria'}</div>
+      </div>\`;
+    }).join('') : \`<div class="placeholder"><div class="big">🔔</div><h3>Nenhum alerta configurado</h3><p>Crie alertas para ser avisado quando o gasto de uma categoria se aproximar do limite.</p></div>\`}
+  </div>\`;
+}
+
+function pageConfig(){
+  return \`
+  <div class="page-head"><div><h1>Configurações</h1><p>Preferências da conta e do sistema</p></div></div>
+  \${isViewingOtherUser ? \`
+  <div class="panel" style="margin-bottom:18px;">
+    <p class="cfg-hint" style="margin:0;">Você está em modo de visualização (somente leitura) dos dados de <strong style="color:var(--green);">\${currentUser.name}</strong>. Edições de conta ficam disponíveis apenas na sua própria conta.</p>
+  </div>\` : \`
+  <div class="cfg-grid">
+    <div class="panel">
+      <div class="panel-head"><h3>Minha Conta</h3></div>
+      <div class="field"><label>Nome</label><input id="cfgName" value="\${currentUser ? currentUser.name : ''}" placeholder="Seu nome completo"></div>
+      <div class="field"><label>E-mail</label><input id="cfgEmail" type="text" value="\${currentUser ? currentUser.email : ''}" placeholder="seu.email@exemplo.com"></div>
+      <div class="field" style="margin-bottom:0;"><label>Tema</label>
+        <select id="cfgTheme"><option value="dark">Escuro</option><option value="light">Claro</option></select>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Alterar Senha</h3></div>
+      <p class="cfg-hint">Deixe em branco para manter a senha atual</p>
+      <div class="field">
+        <label>Nova Senha</label>
+        <div class="pass-field">
+          <input id="cfgPassword" type="password" placeholder="••••••••" minlength="6">
+          <button type="button" class="pass-toggle" id="cfgPasswordToggle" tabindex="-1" aria-label="Mostrar senha">${EYE_ICON}</button>
+        </div>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Confirmar Nova Senha</label>
+        <div class="pass-field">
+          <input id="cfgPasswordConfirm" type="password" placeholder="••••••••" minlength="6">
+          <button type="button" class="pass-toggle" id="cfgPasswordConfirmToggle" tabindex="-1" aria-label="Mostrar senha">${EYE_ICON}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="cfg-save-bar"><button class="btn-primary" id="btnSalvarConfig">Salvar Alterações</button></div>`}`;
+}
+
+let adminGlobalAllUsers = [];
+
+async function fetchAdminGlobalData() {
+  try {
+    const res = await apiRequest('/api/admin/all-data');
+    if (res.ok) {
+      adminGlobalAllUsers = await res.json();
+    }
+  } catch(e) {
+    adminGlobalAllUsers = [];
+  }
+}
+
+/* ==================== Admin: Usuários Cadastrados ==================== */
+function getUserActivitySummary(email){
+  const target = adminGlobalAllUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+  if(!target || !target.dados) return { hasData:false, txCount:0, accCount:0, budCount:0, goalCount:0, lastDate:null };
+  const data = target.dados;
+  const txs = data.transactions || [];
+  let lastDate = null;
+  txs.forEach(t=>{ if(t.date && (!lastDate || t.date > lastDate)) lastDate = t.date; });
+  return {
+    hasData:true,
+    txCount: txs.length,
+    accCount: (data.accounts||[]).length,
+    budCount: (data.budgets||[]).length,
+    goalCount: (data.goals||[]).length,
+    lastDate
+  };
+}
+
+function pageUsuarios(){
+  const isAdmin = currentUser && currentUser.role === 'Administrador';
+  if(!isAdmin || isViewingOtherUser){
+    return `<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>`;
+  }
+  const usersList = adminGlobalAllUsers.length ? adminGlobalAllUsers : registeredUsers;
+  return `
+  <div class="page-head"><div><h1>Usuários Cadastrados</h1><p>Administre as contas do sistema e acompanhe a atividade de cada usuário</p></div></div>
+  <div class="panel" style="margin-bottom:0;">
+    <div class="panel-head"><h3>Todos os usuários</h3><span class="tag" style="cursor:default;">\${usersList.length} usuário\${usersList.length===1?'':'s'}</span></div>
+    <p class="cfg-hint" style="margin-bottom:14px;">Clique no ícone 👁 para entrar na conta de um usuário em modo de visualização e ver tudo que ele cadastrou (transações, cartões, orçamentos, metas, relatórios, anexos etc.).</p>
+    <div class="user-admin-list">
+      \${usersList.map(u=>{
+        const stats = getUserActivitySummary(u.email);
+        const nameEsc = escapeHTML(u.name);
+        const emailEsc = escapeHTML(u.email);
+        const roleEsc = escapeHTML(u.role);
+        return \`
+        <div class="user-row \${u.active===false?'inactive':''}">
+          <div class="user-ic">\${nameEsc.slice(0,2).toUpperCase()}</div>
+          <div class="user-info">
+            <div class="n">\${nameEsc}</div>
+            <div class="e">\${emailEsc}</div>
+            <div class="stats">\${stats.hasData ? \`\${stats.txCount} transaç\${stats.txCount===1?'ão':'ões'} · \${stats.accCount} conta\${stats.accCount===1?'':'s'} · \${stats.budCount} orçamento\${stats.budCount===1?'':'s'} · \${stats.goalCount} meta\${stats.goalCount===1?'':'s'}\${stats.lastDate ? \` · última mov. em \${new Date(stats.lastDate+'T00:00').toLocaleDateString('pt-BR')}\` : ''}\` : 'Ainda sem atividade registrada'}</div>
+          </div>
+          <span class="role-badge \${u.role==='Administrador'?'admin':'user'}">\${roleEsc}</span>
+          \${u.active===false ? '<span class="role-badge inactive">Desativado</span>' : ''}
+          \${u.email!==currentUser.email ? \`<button class="row-view" data-viewuser="\${emailEsc}" title="Visualizar tudo que este usuário fez">👁</button>\` : ''}
+          \${u.email!==currentUser.email ? \`<button class="row-toggle" data-toggleuser="\${emailEsc}" title="\${u.active===false?'Ativar usuário':'Desativar usuário'}">\${u.active===false?'✅':'🚫'}</button>\` : ''}
+          <button class="row-edit" data-edituser="\${emailEsc}" title="Editar usuário">✎</button>
+        </div>\`;
+      }).join('')}
+    </div>
+  </div>\`;
+}
+
+/* ==================== Painel Administrador Geral (Visão de Tudo e Correções de Tudo) ==================== */
+function pageAdminTotal(){
+  const isAdmin = currentUser && currentUser.role === 'Administrador';
+  if(!isAdmin || isViewingOtherUser){
+    return `<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>`;
+  }
+
+  let totalGlobalReceitas = 0;
+  let totalGlobalDespesas = 0;
+  let allGlobalTransactions = [];
+  let allGlobalAccounts = [];
+  let allGlobalBudgets = [];
+  let allGlobalGoals = [];
+
+  adminGlobalAllUsers.forEach(u => {
+    const data = u.dados || {};
+    const txs = data.transactions || [];
+    txs.forEach(t => {
+      allGlobalTransactions.push({...t, userName: u.name, userEmail: u.email});
+      if(t.type === 'in') totalGlobalReceitas += (t.val || 0);
+      if(t.type === 'out') totalGlobalDespesas += (t.val || 0);
+    });
+    const accs = data.accounts || [];
+    accs.forEach(a => {
+      allGlobalAccounts.push({...a, userName: u.name, userEmail: u.email});
+    });
+    const buds = data.budgets || [];
+    buds.forEach(b => {
+      allGlobalBudgets.push({...b, userName: u.name, userEmail: u.email});
+    });
+    const gols = data.goals || [];
+    gols.forEach(g => {
+      allGlobalGoals.push({...g, userName: u.name, userEmail: u.email});
+    });
+  });
+
+  allGlobalTransactions.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
+
+  return `
+  <div class="page-head">
+    <div><h1>Painel Administrador Geral</h1><p>Visão completa, consolidação e capacidade de correção de todos os dados de todos os usuários do sistema</p></div>
+    <div class="head-actions">
+      <button class="btn-primary" id="btnAdminAddAnyTx">+ Inserir Transação p/ Qualquer Usuário</button>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi"><div class="row1">Usuários no Sistema</div><div class="val">\${adminGlobalAllUsers.length}</div><div class="sub">cadastrados</div></div>
+    <div class="kpi"><div class="row1">Total Receitas (Geral)</div><div class="val" style="color:var(--green)">\${fmt(totalGlobalReceitas)}</div><div class="sub">somatório de todas as contas</div></div>
+    <div class="kpi"><div class="row1">Total Despesas (Geral)</div><div class="val" style="color:var(--red)">\${fmt(totalGlobalDespesas)}</div><div class="sub">somatório de todas as contas</div></div>
+    <div class="kpi"><div class="row1">Transações Totais</div><div class="val">\${allGlobalTransactions.length}</div><div class="sub">registros globais</div></div>
+    <div class="kpi"><div class="row1">Contas / Cartões Totais</div><div class="val">\${allGlobalAccounts.length}</div><div class="sub">contas globais</div></div>
+  </div>
+
+  <div class="panel" style="margin-bottom:20px;">
+    <div class="panel-head"><h3>Todas as Transações de Todos os Usuários (Correção Total)</h3><span class="tag">Administração Global</span></div>
+    <div class="table-panel" style="padding:0;background:transparent;border:none;">
+      \${allGlobalTransactions.length ? \`
+      <table>
+        <thead><tr><th>Usuário</th><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Ações Admin</th></tr></thead>
+        <tbody>
+          \${allGlobalTransactions.map(t=>{
+            const uNameEsc = escapeHTML(t.userName);
+            const uEmailEsc = escapeHTML(t.userEmail);
+            const descEsc = escapeHTML(t.desc);
+            const catEsc = escapeHTML(t.cat);
+            return \`
+            <tr class="trow">
+              <td><strong>\${uNameEsc}</strong><br><small style="color:var(--text-faint)">\${uEmailEsc}</small></td>
+              <td>\${t.date ? new Date(t.date+'T00:00').toLocaleDateString('pt-BR') : ''}</td>
+              <td>\${descEsc}</td>
+              <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${catEsc}</span></td>
+              <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
+              <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
+              <td><span class="pill status-\${(t.status||'').toLowerCase()}">\${escapeHTML(t.status)}</span></td>
+              <td>
+                <div class="row-actions">
+                  <button data-adm-edittx="\${uEmailEsc}:\${t.id}" title="Corrigir/Editar transação">✎</button>
+                  <button data-adm-deltx="\${uEmailEsc}:\${t.id}" title="Excluir transação">🗑</button>
+                </div>
+              </td>
+            </tr>\`;
+          }).join('')}
+        </tbody>
+      </table>\` : \`<div class="placeholder"><div class="big">📂</div><h3>Nenhuma transação cadastrada por nenhum usuário</h3></div>\`}
+    </div>
+  </div>
+
+  <div class="grid3" style="grid-template-columns:1fr 1fr;">
+    <div class="panel">
+      <div class="panel-head"><h3>Contas e Cartões de Todos os Usuários</h3></div>
+      <div class="accounts-list">
+        \${allGlobalAccounts.length ? allGlobalAccounts.map(a=>{
+          const aNameEsc = escapeHTML(a.name);
+          const uNameEsc = escapeHTML(a.userName);
+          const uEmailEsc = escapeHTML(a.userEmail);
+          const aTypeEsc = escapeHTML(a.type);
+          return \`
+          <div class="acc-row">
+            <div class="acc-ic" style="background:\${a.color}">\${aNameEsc.slice(0,2).toUpperCase()}</div>
+            <div class="acc-info"><div class="n">\${aNameEsc} <small style="color:var(--green)">(\${uNameEsc})</small></div><div class="t">\${aTypeEsc}</div></div>
+            <div class="acc-val \${a.balance<0?'neg':''}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
+            <button class="acc-edit" data-adm-editacc="\${uEmailEsc}:\${a.id}" title="Corrigir conta">✎</button>
+          </div>\`;
+        }).join('') : '<p style="color:var(--text-faint);font-size:12.5px;">Nenhuma conta cadastrada.</p>'}
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>Metas de Todos os Usuários</h3></div>
+      <div class="cat-cards" style="grid-template-columns:1fr;">
+        \${allGlobalGoals.length ? allGlobalGoals.map(g=>{
+          const gNameEsc = escapeHTML(g.name);
+          const uNameEsc = escapeHTML(g.userName);
+          const uEmailEsc = escapeHTML(g.userEmail);
+          return \`
+          <div class="acc-card" style="padding:12px;">
+            <div class="top" style="margin-bottom:4px;">
+              <h4 style="font-size:13.5px;">\${gNameEsc} <small style="color:var(--green)">(\${uNameEsc})</small></h4>
+              <div class="row-actions"><button data-adm-editgoal="\${uEmailEsc}:\${g.id}" title="Corrigir meta">✎</button></div>
+            </div>
+            <div style="font-size:13px;font-weight:700;">\${fmt(g.current)} / \${fmt(g.target)}</div>
+          </div>\`;
+        }).join('') : '<p style="color:var(--text-faint);font-size:12.5px;">Nenhuma meta cadastrada.</p>'}
+      </div>
+    </div>
+  </div>\`;
+}
+
+// Funções globais de correção de admin com sincronização direta no servidor PostgreSQL
+async function adminEditTransaction(userEmail, txId){
+  const targetUser = adminGlobalAllUsers.find(u => u.email.toLowerCase() === userEmail.toLowerCase());
+  if(!targetUser || !targetUser.dados || !targetUser.dados.transactions) return;
+  const data = targetUser.dados;
+  const t = data.transactions.find(x => x.id === parseInt(txId));
+  if(!t) return;
+
+  const newDesc = prompt('Corrigir Descrição:', t.desc);
+  if(newDesc === null) return;
+  const newValStr = prompt('Corrigir Valor (R$):', t.val);
+  if(newValStr === null) return;
+  const newVal = parseFloat(newValStr.replace(',','.'));
+  if(isNaN(newVal)){ showToast('Valor inválido'); return; }
+
+  t.desc = newDesc.trim();
+  t.val = newVal;
+
+  try {
+    await apiRequest('/api/data', {
+      method: 'POST',
+      body: { email: userEmail, data }
+    });
+    showToast('Transação corrigida com sucesso pelo Administrador!');
+    render();
+  } catch(e) {
+    showToast('Erro ao salvar no servidor.');
+  }
+}
+
+async function adminDeleteTransaction(userEmail, txId){
+  if(!confirm('Excluir esta transação do usuário ' + userEmail + '?')) return;
+  const data = loadFromStorage('nexus_data_' + userEmail, null);
+  if(!data || !data.transactions) return;
+  data.transactions = data.transactions.filter(x => x.id !== parseInt(txId));
+  saveToStorage('nexus_data_' + userEmail, data);
+
+  if(currentUser && currentUser.email === userEmail){
+    await loadUserData();
+  }
+  showToast('Transação excluída pelo Administrador!');
+  render();
+}
+
+/* ==================== Charts ==================== */
+function drawDashboardCharts(){
+  const periodTx = transactions.filter(inPeriod);
+  const {receitas,despesas} = computeTotals(periodTx);
+  Object.values(charts).forEach(c=>c && c.destroy && c.destroy());
+  const ctx1 = document.getElementById('chartResumo');
+  if(ctx1) charts.resumo = new Chart(ctx1, {
+    type:'doughnut',
+    data:{ datasets:[{data:[receitas||0.0001,despesas||0.0001], backgroundColor:['#e8b04b','#ef5a5a'], borderWidth:0}] },
+    options:{cutout:'72%', plugins:{legend:{display:false}}}
+  });
+  const cats = despesasPorCategoria(periodTx);
+  const ctx2 = document.getElementById('chartCategorias');
+  if(ctx2) charts.categorias = new Chart(ctx2, {
+    type:'doughnut',
+    data:{ labels:cats.map(c=>c.name), datasets:[{data: cats.length?cats.map(c=>c.val):[1], backgroundColor: cats.length?cats.map(c=>c.color):['#2a2f3a'], borderWidth:0}] },
+    options:{cutout:'62%', plugins:{legend:{display:false}}}
+  });
+}
+
+/* ==================== Modais e Ações de Dados ==================== */
+function openModal(id){
+  if(categories.length===0){ showToast('Cadastre uma categoria antes de lançar uma transação'); return; }
+  editingId = id || null;
+  document.getElementById('overlay').classList.add('show');
+  if(id){
+    const t = transactions.find(x=>x.id===id);
+    document.getElementById('modalTitle').textContent = 'Editar Transação';
+    document.getElementById('fDesc').value = t.desc;
+    document.getElementById('fValor').value = t.val;
+    document.getElementById('fData').value = t.date;
+    setType(t.type);
+    document.getElementById('fCategoria').value = t.cat;
+    document.getElementById('fStatus').value = t.status;
+  } else {
+    document.getElementById('modalTitle').textContent = 'Nova Transação';
+    document.getElementById('fDesc').value = '';
+    document.getElementById('fValor').value = '';
+    
+    const now = new Date();
+    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    document.getElementById('fData').value = todayStr;
+    document.getElementById('fStatus').value = 'Pago';
+    setType('out');
+  }
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+function populateCategoriaOptions(type){
+  const fCat = document.getElementById('fCategoria');
+  if(!fCat) return;
+  const wantType = type==='in' ? 'receita' : 'despesa';
+  const hasOfType = categories.some(c => (c.type||'despesa') === wantType);
+  const prev = fCat.value;
+  fCat.innerHTML = hasOfType ? catOptionsHTML(wantType) : catOptionsHTML(null);
+  const list = hasOfType ? categories.filter(c => (c.type||'despesa') === wantType) : categories;
+  if(list.some(c=>c.name===prev)) fCat.value = prev;
+}
+function setType(t){
+  currentType = t;
+  document.getElementById('typeInBtn').className = t==='in' ? 'sel-in' : '';
+  document.getElementById('typeOutBtn').className = t==='out' ? 'sel-out' : '';
+  populateCategoriaOptions(t);
+}
+async function saveTransaction(){
+  const desc = document.getElementById('fDesc').value.trim();
+  const val = parseFloat(document.getElementById('fValor').value);
+  const date = document.getElementById('fData').value;
+  const cat = document.getElementById('fCategoria').value;
+  const status = document.getElementById('fStatus').value;
+  if(!desc || isNaN(val) || val<=0 || !date){ showToast('Preencha todos os campos corretamente'); return; }
+
+  if(editingId){
+    const t = transactions.find(x=>x.id===editingId);
+    if(t.cat !== cat){
+      const newCatObj = categories.find(c=>c.name===cat);
+      if(newCatObj) newCatObj.count = (newCatObj.count||0)+1;
+    }
+    Object.assign(t, {desc, val, date, cat, status, type:currentType});
+    showToast('Transação atualizada!');
+  } else {
+    transactions.push({id: nextTxId++, desc, val, date, cat, status, type: currentType});
+    const catObj = categories.find(c=>c.name===cat);
+    if(catObj) catObj.count = (catObj.count||0)+1;
+    showToast('Transação adicionada!');
+    await pushNotification(\`Nova transação cadastrada: \${desc} — \${fmt(val)}\`, currentType==='in' ? '💰' : '💸');
+  }
+  await saveUserData();
+  closeModal();
+  if(currentPage!=='transacoes' || !refreshTxTable()) render();
+}
+async function deleteTransaction(id){
+  if(!confirm('Excluir esta transação?')) return;
+  transactions = transactions.filter(t=>t.id!==id);
+  await saveUserData();
+  showToast('Transação removida');
+  if(currentPage!=='transacoes' || !refreshTxTable()) render();
+}
+
+function openAccountModal(id){
+  editingAccId = id || null;
+  document.getElementById('overlayAccount').classList.add('show');
+  if(id){
+    const a = accounts.find(x=>x.id===id);
+    document.getElementById('accModalTitle').textContent = 'Editar Conta';
+    document.getElementById('accName').value = a.name;
+    document.getElementById('accType').value = a.type;
+    document.getElementById('accBalance').value = a.balance;
+    document.getElementById('accColor').value = a.color;
+  } else {
+    document.getElementById('accModalTitle').textContent = 'Nova Conta';
+    document.getElementById('accName').value = '';
+    document.getElementById('accType').value = 'Conta Corrente';
+    document.getElementById('accBalance').value = '';
+    document.getElementById('accColor').value = '#e8b04b';
+  }
+}
+function closeAccountModal(){ document.getElementById('overlayAccount').classList.remove('show'); }
+async function saveAccount(){
+  const name = document.getElementById('accName').value.trim();
+  const type = document.getElementById('accType').value;
+  const balance = parseFloat(document.getElementById('accBalance').value);
+  const color = document.getElementById('accColor').value;
+  if(!name || isNaN(balance)){ showToast('Preencha nome e saldo corretamente'); return; }
+  if(editingAccId){
+    const a = accounts.find(x=>x.id===editingAccId);
+    const oldName = a.name;
+    Object.assign(a, {name, type, balance, color});
+    if(oldName!==name) transactions.forEach(t=>{ if(t.acc===oldName) t.acc = name; });
+    showToast('Conta atualizada!');
+  } else {
+    accounts.push({id: nextAccId++, name, type, balance, color});
+    showToast('Conta adicionada!');
+    await pushNotification(\`Nova conta/cartão cadastrado: \${name} (\${type})\`, '🏦');
+  }
+  await saveUserData();
+  closeAccountModal();
+  render();
+}
+async function deleteAccount(id){
+  if(!confirm('Excluir esta conta/cartão?')) return;
+  accounts = accounts.filter(a=>a.id!==id);
+  await saveUserData();
+  showToast('Conta removida');
+  render();
+}
+
+const ICON_SUGGESTIONS = ['🍔','🛒','🏠','💡','🚗','⚕️','📚','🎮','👕','📺','💳','📤','💆','📦','💼','💻','📈','📥','💵','🎉','💰','🐾','🎁','🏛️','✈️','☕','🍕','⛽','🧾','📱','🎵','🏋️','📁'];
+function renderCatIconPicker(selected){
+  const wrap = document.getElementById('catIconPicker');
+  if(!wrap) return;
+  wrap.innerHTML = ICON_SUGGESTIONS.map(ic=>'<button type="button" data-icon="'+ic+'" class="'+(ic===selected?'sel':'')+'">'+ic+'</button>').join('');
+  wrap.querySelectorAll('button').forEach(btn=>{
+    btn.onclick = ()=>{
+      document.getElementById('catIconInput').value = btn.getAttribute('data-icon');
+      wrap.querySelectorAll('button').forEach(b=>b.classList.remove('sel'));
+      btn.classList.add('sel');
+    };
+  });
+}
+function openCategoryModal(name, defaultType){
+  editingCatName = name || null;
+  document.getElementById('overlayCategory').classList.add('show');
+  if(name){
+    const c = categories.find(x=>x.name===name);
+    document.getElementById('catModalTitle').textContent = 'Editar Categoria';
+    document.getElementById('catName').value = c.name;
+    document.getElementById('catTipo').value = c.type || 'despesa';
+    document.getElementById('catColor').value = c.color;
+    document.getElementById('catIconInput').value = c.icon || '📁';
+    renderCatIconPicker(c.icon || '📁');
+  } else {
+    document.getElementById('catModalTitle').textContent = 'Nova Categoria';
+    document.getElementById('catName').value = '';
+    document.getElementById('catTipo').value = defaultType==='in' ? 'receita' : 'despesa';
+    document.getElementById('catColor').value = '#e8b04b';
+    const defaultIcon = defaultType==='in' ? '💰' : '📁';
+    document.getElementById('catIconInput').value = defaultIcon;
+    renderCatIconPicker(defaultIcon);
+  }
+}
+function closeCategoryModal(){ document.getElementById('overlayCategory').classList.remove('show'); }
+async function saveCategory(){
+  const name = document.getElementById('catName').value.trim();
+  const type = document.getElementById('catTipo').value;
+  const color = document.getElementById('catColor').value;
+  const icon = document.getElementById('catIconInput').value.trim() || (type==='receita' ? '💰' : '📁');
+  if(!name){ showToast('Informe um nome para a categoria'); return; }
+  let isNew = false;
+  if(editingCatName){
+    const c = categories.find(x=>x.name===editingCatName);
+    const oldName = c.name;
+    if(oldName!==name && categories.some(x=>x.name===name)){ showToast('Já existe uma categoria com esse nome'); return; }
+    c.name = name; c.color = color; c.type = type; c.icon = icon;
+    if(oldName!==name){
+      transactions.forEach(t=>{ if(t.cat===oldName) t.cat = name; });
+      budgets.forEach(b=>{ if(b.category===oldName) b.category = name; });
+      alerts.forEach(a=>{ if(a.category===oldName) a.category = name; });
+      recurringList.forEach(r=>{ if(r.cat===oldName) r.cat = name; });
+    }
+    showToast('Categoria atualizada!');
+  } else {
+    if(categories.some(x=>x.name===name)){ showToast('Já existe uma categoria com esse nome'); return; }
+    categories.push({name, color, type, icon, count:0});
+    showToast('Categoria adicionada!');
+    isNew = true;
+  }
+  await saveUserData();
+  closeCategoryModal();
+  const txOverlay = document.getElementById('overlay');
+  if(txOverlay && txOverlay.classList.contains('show')){
+    populateCategoriaOptions(currentType);
+    if(isNew) document.getElementById('fCategoria').value = name;
+  }
+  const catManageOverlay = document.getElementById('overlayCatManage');
+  if(catManageOverlay && catManageOverlay.classList.contains('show')) renderCatManageList(catManageType);
+  render();
+}
+async function deleteCategory(name){
+  if(!confirm('Excluir esta categoria? Transações vinculadas serão movidas para a categoria padrão.')) return;
+  const removed = categories.find(c=>c.name===name);
+  const isReceita = removed && removed.type==='receita';
+  const fallbackName = isReceita ? 'Outras Receitas' : 'Outros';
+  categories = categories.filter(c=>c.name!==name);
+  if(!categories.some(c=>c.name===fallbackName)){
+    categories.push(isReceita ? {name:'Outras Receitas', color:'#3ec7c7', type:'receita', icon:'💰', count:0} : {name:'Outros', color:'#3ec7c7', type:'despesa', icon:'📦', count:0});
+  }
+  transactions.forEach(t=>{ if(t.cat===name) t.cat = fallbackName; });
+  budgets = budgets.filter(b=>b.category!==name);
+  alerts = alerts.filter(a=>a.category!==name);
+  await saveUserData();
+  showToast('Categoria removida');
+  const catManageOverlay = document.getElementById('overlayCatManage');
+  if(catManageOverlay && catManageOverlay.classList.contains('show')) renderCatManageList(catManageType);
+  render();
+}
+
+function renderCatManageList(type){
+  catManageType = type;
+  document.querySelectorAll('.cat-manage-tabs .cat-tab').forEach(b=>b.classList.toggle('active', b.getAttribute('data-cattab')===type));
+  const list = categories.filter(c=>(c.type||'despesa')===type).slice().sort((a,b)=>(b.count||0)-(a.count||0) || a.name.localeCompare(b.name,'pt-BR'));
+  const wrap = document.getElementById('catManageList');
+  if(!wrap) return;
+  let html = list.map(c=>
+    '<div class="cat-card"><div class="cat-manage-row">'
+    + '<span class="cat-badge" style="background:'+c.color+'22;color:'+c.color+'">'+(c.icon||'📁')+'</span>'
+    + '<div class="info"><div class="n">'+c.name+'</div><div class="u">'+(c.count||0)+' uso'+((c.count||0)===1?'':'s')+'</div></div>'
+    + '<div class="row-actions"><button data-mgedit="'+c.name+'" title="Editar">✎</button><button data-mgdel="'+c.name+'" title="Excluir">🗑</button></div>'
+    + '</div></div>'
+  ).join('');
+  html += '<button type="button" class="cat-card cat-card-add" id="catManageAddInline"><span class="plus">+</span>Nova categoria</button>';
+  wrap.innerHTML = html;
+  wrap.querySelectorAll('[data-mgedit]').forEach(el=>el.onclick = ()=>openCategoryModal(el.getAttribute('data-mgedit')));
+  wrap.querySelectorAll('[data-mgdel]').forEach(el=>el.onclick = ()=>deleteCategory(el.getAttribute('data-mgdel')));
+  const addInline = document.getElementById('catManageAddInline');
+  if(addInline) addInline.onclick = ()=>openCategoryModal(null, type==='receita' ? 'in' : 'out');
+}
+function openCatManageModal(){
+  document.getElementById('overlayCatManage').classList.add('show');
+  renderCatManageList(catManageType || 'despesa');
+}
+function closeCatManageModal(){ document.getElementById('overlayCatManage').classList.remove('show'); }
+
+function openBudgetModal(id){
+  if(categories.length===0){ showToast('Cadastre uma categoria antes de criar um orçamento'); return; }
+  editingBudgetId = id || null;
+  document.getElementById('overlayBudget').classList.add('show');
+  const sel = document.getElementById('orcCategoria');
+  const used = budgets.filter(b=>b.id!==id).map(b=>b.category);
+  const opts = categories.filter(c=>!used.includes(c.name));
+  sel.innerHTML = (opts.length?opts:categories).map(c=>\`<option>\${c.name}</option>\`).join('');
+  if(id){
+    const b = budgets.find(x=>x.id===id);
+    document.getElementById('orcModalTitle').textContent = 'Editar Orçamento';
+    sel.value = b.category;
+    document.getElementById('orcLimite').value = b.limit;
+  } else {
+    document.getElementById('orcModalTitle').textContent = 'Novo Orçamento';
+    document.getElementById('orcLimite').value = '';
+  }
+}
+function closeBudgetModal(){ document.getElementById('overlayBudget').classList.remove('show'); }
+async function saveBudget(){
+  const category = document.getElementById('orcCategoria').value;
+  const limit = parseFloat(document.getElementById('orcLimite').value);
+  if(!category || isNaN(limit) || limit<=0){ showToast('Informe categoria e limite válidos'); return; }
+  if(editingBudgetId){
+    Object.assign(budgets.find(b=>b.id===editingBudgetId), {category, limit});
+    showToast('Orçamento atualizado!');
+  } else {
+    budgets.push({id: nextBudgetId++, category, limit});
+    showToast('Orçamento criado!');
+  }
+  await saveUserData();
+  closeBudgetModal();
+  render();
+}
+async function deleteBudget(id){
+  if(!confirm('Excluir este orçamento?')) return;
+  budgets = budgets.filter(b=>b.id!==id);
+  await saveUserData();
+  showToast('Orçamento removido');
+  render();
+}
+
+function openGoalModal(id){
+  editingGoalId = id || null;
+  document.getElementById('overlayGoal').classList.add('show');
+  if(id){
+    const g = goals.find(x=>x.id===id);
+    document.getElementById('goalModalTitle').textContent = 'Editar Meta';
+    document.getElementById('goalName').value = g.name;
+    document.getElementById('goalTarget').value = g.target;
+    document.getElementById('goalCurrent').value = g.current;
+    document.getElementById('goalDeadline').value = g.deadline;
+  } else {
+    document.getElementById('goalModalTitle').textContent = 'Nova Meta';
+    document.getElementById('goalName').value = '';
+    document.getElementById('goalTarget').value = '';
+    document.getElementById('goalCurrent').value = '0';
+    document.getElementById('goalDeadline').value = '2026-12-31';
+  }
+}
+function closeGoalModal(){ document.getElementById('overlayGoal').classList.remove('show'); }
+async function saveGoal(){
+  const name = document.getElementById('goalName').value.trim();
+  const target = parseFloat(document.getElementById('goalTarget').value);
+  const current = parseFloat(document.getElementById('goalCurrent').value) || 0;
+  const deadline = document.getElementById('goalDeadline').value;
+  if(!name || isNaN(target) || target<=0 || !deadline){ showToast('Preencha os campos da meta corretamente'); return; }
+  if(editingGoalId){
+    Object.assign(goals.find(g=>g.id===editingGoalId), {name,target,current,deadline});
+    showToast('Meta atualizada!');
+  } else {
+    goals.push({id: nextGoalId++, name,target,current,deadline});
+    showToast('Meta criada!');
+  }
+  await saveUserData();
+  closeGoalModal();
+  render();
+}
+async function deleteGoal(id){
+  if(!confirm('Excluir esta meta?')) return;
+  goals = goals.filter(g=>g.id!==id);
+  await saveUserData();
+  showToast('Meta removida');
+  render();
+}
+async function addContribution(id){
+  const g = goals.find(x=>x.id===id);
+  const v = prompt(\`Adicionar quanto à meta "\${g.name}"? (R$)\`);
+  if(v===null) return;
+  const val = parseFloat(v.replace(',','.'));
+  if(isNaN(val) || val<=0){ showToast('Valor inválido'); return; }
+  g.current += val;
+  await saveUserData();
+  showToast('Valor adicionado à meta!');
+  render();
+}
+
+function openRecurringModal(id){
+  if(categories.length===0){ showToast('Cadastre uma categoria antes de criar um recorrente'); return; }
+  if(accounts.length===0){ showToast('Cadastre uma conta antes de criar um recorrente'); return; }
+  editingRecId = id || null;
+  document.getElementById('overlayRecurring').classList.add('show');
+  const cSel = document.getElementById('recCategoria'); cSel.innerHTML = categories.map(c=>\`<option>\${c.name}</option>\`).join('');
+  const aSel = document.getElementById('recConta'); aSel.innerHTML = accounts.map(a=>\`<option>\${a.name} — \${a.type}</option>\`).join('');
+  if(id){
+    const r = recurringList.find(x=>x.id===id);
+    document.getElementById('recModalTitle').textContent = 'Editar Recorrente';
+    document.getElementById('recDesc').value = r.desc;
+    document.getElementById('recVal').value = r.val;
+    document.getElementById('recDay').value = r.day;
+    cSel.value = r.cat;
+    const am = accounts.find(a=>a.name===r.acc);
+    aSel.value = am ? \`\${r.acc} — \${am.type}\` : (aSel.options[0] ? aSel.options[0].value : '');
+    document.getElementById('recFreq').value = r.freq;
+    setRecType(r.type);
+  } else {
+    document.getElementById('recModalTitle').textContent = 'Novo Lançamento Recorrente';
+    document.getElementById('recDesc').value = '';
+    document.getElementById('recVal').value = '';
+    document.getElementById('recDay').value = '5';
+    document.getElementById('recFreq').value = 'Mensal';
+    setRecType('out');
+  }
+}
+function closeRecurringModal(){ document.getElementById('overlayRecurring').classList.remove('show'); }
+function setRecType(t){
+  currentRecType = t;
+  document.getElementById('recTypeInBtn').className = t==='in'?'sel-in':'';
+  document.getElementById('recTypeOutBtn').className = t==='out'?'sel-out':'';
+}
+async function saveRecurring(){
+  const desc = document.getElementById('recDesc').value.trim();
+  const val = parseFloat(document.getElementById('recVal').value);
+  const day = parseInt(document.getElementById('recDay').value);
+  const cat = document.getElementById('recCategoria').value;
+  const accSel = document.getElementById('recConta').value.split(' — ')[0];
+  const freq = document.getElementById('recFreq').value;
+  if(!desc || isNaN(val) || val<=0 || isNaN(day) || day<1 || day>31){ showToast('Preencha os campos corretamente'); return; }
+  if(editingRecId){
+    Object.assign(recurringList.find(r=>r.id===editingRecId), {desc,val,day,cat,acc:accSel,freq,type:currentRecType});
+    showToast('Recorrente atualizado!');
+  } else {
+    recurringList.push({id: nextRecId++, desc,val,day,cat,acc:accSel,freq,type:currentRecType});
+    showToast('Recorrente criado!');
+  }
+  await saveUserData();
+  closeRecurringModal();
+  render();
+}
+async function deleteRecurring(id){
+  if(!confirm('Excluir este lançamento recorrente?')) return;
+  recurringList = recurringList.filter(r=>r.id!==id);
+  await saveUserData();
+  showToast('Recorrente removido');
+  render();
+}
+async function lancarRecorrente(id){
+  const r = recurringList.find(x=>x.id===id);
+  const date = pdCustom(currentPeriod.year, currentPeriod.month, r.day);
+  transactions.push({id: nextTxId++, desc:r.desc, val:r.val, date, cat:r.cat, acc:r.acc, status: r.type==='in'?'Recebido':'Pago', type:r.type});
+  await saveUserData();
+  showToast(\`Lançamento gerado em \${periodLabel()}!\`);
+  render();
+}
+
+function openAlertModal(id){
+  if(categories.length===0){ showToast('Cadastre uma categoria antes de criar um alerta'); return; }
+  editingAlertId = id || null;
+  document.getElementById('overlayAlert').classList.add('show');
+  const sel = document.getElementById('alertCategoria');
+  sel.innerHTML = categories.map(c=>\`<option>\${c.name}</option>\`).join('');
+  if(id){
+    const al = alerts.find(x=>x.id===id);
+    document.getElementById('alertModalTitle').textContent = 'Editar Alerta';
+    sel.value = al.category;
+    document.getElementById('alertThreshold').value = al.threshold;
+  } else {
+    document.getElementById('alertModalTitle').textContent = 'Novo Alerta';
+    document.getElementById('alertThreshold').value = '90';
+  }
+}
+function closeAlertModal(){ document.getElementById('overlayAlert').classList.remove('show'); }
+async function saveAlert(){
+  const category = document.getElementById('alertCategoria').value;
+  const threshold = parseInt(document.getElementById('alertThreshold').value);
+  if(!category || isNaN(threshold) || threshold<=0){ showToast('Preencha os campos corretamente'); return; }
+  if(editingAlertId){
+    Object.assign(alerts.find(a=>a.id===editingAlertId), {category, threshold});
+    showToast('Alerta atualizado!');
+  } else {
+    alerts.push({id: nextAlertId++, category, threshold});
+    showToast('Alerta criado!');
+  }
+  await saveUserData();
+  closeAlertModal();
+  render();
+}
+async function deleteAlert(id){
+  if(!confirm('Excluir este alerta?')) return;
+  alerts = alerts.filter(a=>a.id!==id);
+  await saveUserData();
+  showToast('Alerta removido');
+  render();
+}
+
+async function openUserAdminModal(email){
+  await syncUsersWithServer();
+  if(!currentUser || currentUser.role !== 'Administrador') return;
+  const u = registeredUsers.find(x=>x.email===email);
+  if(!u) return;
+  editingUserEmail = email;
+  document.getElementById('userAdminName').value = u.name;
+  document.getElementById('userAdminEmail').value = u.email;
+  document.getElementById('userAdminRole').value = u.role;
+  document.getElementById('userAdminPassword').value = '';
+  document.getElementById('userAdminPassword').type = 'password';
+  bindPasswordToggle('userAdminPassword', 'userAdminPasswordToggle');
+  document.getElementById('overlayUserAdmin').classList.add('show');
+}
+function closeUserAdminModal(){ document.getElementById('overlayUserAdmin').classList.remove('show'); editingUserEmail = null; }
+async function saveUserAdmin(){
+  if(!editingUserEmail) return;
+  await syncUsersWithServer();
+  const u = registeredUsers.find(x=>x.email===editingUserEmail);
+  if(!u) return;
+  const name = document.getElementById('userAdminName').value.trim();
+  const role = document.getElementById('userAdminRole').value;
+  const newPass = document.getElementById('userAdminPassword').value.trim();
+  if(!name){ showToast('Informe um nome para o usuário'); return; }
+  if(u.role === 'Administrador' && role !== 'Administrador' && registeredUsers.filter(x=>x.role==='Administrador').length <= 1){
+    showToast('É necessário manter ao menos um administrador');
+    return;
+  }
+  u.name = name;
+  u.role = role;
+  if(newPass) u.password = newPass;
+  await saveUsersToServer();
+  if(currentUser && currentUser.email === u.email){
+    currentUser.name = u.name;
+    currentUser.role = u.role;
+  }
+  showToast('Usuário atualizado!');
+  closeUserAdminModal();
+  render();
+}
+
+function handleImportFile(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{
+    const text = reader.result;
+    let rows = [];
+    if(/\\.ofx$/i.test(file.name)){
+      const re = /<STMTTRN>([\\s\\S]*?)<\\/STMTTRN>/gi;
+      let m;
+      while((m = re.exec(text))){
+        const block = m[1];
+        const amt = (block.match(/<TRNAMT>([-\\d.,]+)/i)||[])[1];
+        const dtRaw = (block.match(/<DTPOSTED>(\\d{8})/i)||[])[1];
+        const memo = ((block.match(/<MEMO>([^\\n<]*)/i)||[])[1] || (block.match(/<NAME>([^\\n<]*)/i)||[])[1] || 'Importado').trim();
+        if(amt && dtRaw){
+          const date = \`\${dtRaw.slice(0,4)}-\${dtRaw.slice(4,6)}-\${dtRaw.slice(6,8)}\`;
+          rows.push({date, desc:memo, val:parseFloat(amt.replace(',','.'))});
+        }
+      }
+    } else {
+      const lines = text.split(/\\r?\\n/).filter(l=>l.trim());
+      lines.forEach(line=>{
+        const parts = line.split(',');
+        if(parts.length<3) return;
+        const [d,desc,val] = parts;
+        const dt = (d||'').trim();
+        const v = parseFloat((val||'').replace(',','.'));
+        if(!dt || isNaN(v) || /data/i.test(dt)) return;
+        rows.push({date:dt, desc:(desc||'').trim(), val:v});
+      });
+    }
+    pendingImport = rows;
+    renderImportPreview();
+  };
+  reader.readAsText(file);
+}
+function renderImportPreview(){
+  const el = document.getElementById('importPreview');
+  if(!el) return;
+  if(pendingImport.length===0){ el.innerHTML = '<p style="color:var(--text-faint);font-size:12.5px;margin-top:12px;">Nenhuma transação reconhecida no arquivo.</p>'; return; }
+  el.innerHTML = \`
+    <p style="font-size:12.5px;color:var(--text-dim);margin:14px 0 8px;">\${pendingImport.length} transações encontradas:</p>
+    <table><thead><tr><th>Data</th><th>Descrição</th><th>Valor</th></tr></thead><tbody>
+    \${pendingImport.slice(0,50).map(r=>\`<tr class="trow"><td>\${r.date}</td><td>\${r.desc}</td><td class="\${r.val>=0?'val-in':'val-out'}">\${fmt(Math.abs(r.val))}</td></tr>\`).join('')}
+    </tbody></table>
+    <button class="btn-primary" id="btnConfirmarImport" style="margin-top:14px">Confirmar Importação (\${pendingImport.length})</button>\`;
+  document.getElementById('btnConfirmarImport').onclick = confirmImport;
+}
+async function confirmImport(){
+  const accSel = document.getElementById('impConta').value.split(' — ')[0];
+  const cat = document.getElementById('impCategoria').value;
+  let added = 0;
+  pendingImport.forEach(r=>{
+    let date = r.date;
+    transactions.push({ id: nextTxId++, date, desc:r.desc||'Importado', cat, acc:accSel, type: r.val>=0?'in':'out', val: Math.abs(r.val), status: r.val>=0?'Recebido':'Pago' });
+    added++;
+  });
+  pendingImport = [];
+  await saveUserData();
+  showToast(\`\${added} transações importadas!\`);
+  navigate('transacoes');
+}
+
+function addAttachment(){
+  const txId = parseInt(document.getElementById('attTx').value);
+  const fileInput = document.getElementById('attFile');
+  const file = fileInput.files[0];
+  if(!file){ showToast('Selecione um arquivo'); return; }
+  const isImage = file.type.startsWith('image/');
+  const finish = async (dataUrl)=>{
+    attachments.push({id: nextAttId++, txId, name:file.name, dataUrl});
+    await saveUserData();
+    showToast('Anexo adicionado!');
+    render();
+  };
+  if(isImage){
+    const reader = new FileReader();
+    reader.onload = ()=>finish(reader.result);
+    reader.readAsDataURL(file);
+  } else {
+    finish(null);
+  }
+}
+async function deleteAttachment(id){
+  if(!confirm('Remover este anexo?')) return;
+  attachments = attachments.filter(a=>a.id!==id);
+  await saveUserData();
+  showToast('Anexo removido');
+  render();
+}
+
+/* ==================== Eventos de página ==================== */
+function attachPageEvents(){
+  document.querySelectorAll('[data-nav]').forEach(el=>el.onclick = ()=>{ navigate(el.getAttribute('data-nav')); });
+
+  const nova = document.getElementById('btnNovaTransacao'); if(nova) nova.onclick = ()=>openModal(null);
+  const gerCat = document.getElementById('btnGerenciarCategorias'); if(gerCat) gerCat.onclick = openCatManageModal;
+  document.querySelectorAll('[data-edit]').forEach(el=>el.onclick = ()=>openModal(parseInt(el.getAttribute('data-edit'))));
+  document.querySelectorAll('[data-del]').forEach(el=>el.onclick = ()=>deleteTransaction(parseInt(el.getAttribute('data-del'))));
+
+  // Eventos do Painel Administrador Geral
+  document.querySelectorAll('[data-adm-edittx]').forEach(el => {
+    el.onclick = () => {
+      const parts = el.getAttribute('data-adm-edittx').split(':');
+      adminEditTransaction(parts[0], parts[1]);
+    };
+  });
+  document.querySelectorAll('[data-adm-deltx]').forEach(el => {
+    el.onclick = () => {
+      const parts = el.getAttribute('data-adm-deltx').split(':');
+      adminDeleteTransaction(parts[0], parts[1]);
+    };
+  });
+  const btnAddAny = document.getElementById('btnAdminAddAnyTx');
+  if(btnAddAny){
+    btnAddAny.onclick = () => {
+      if(registeredUsers.length === 0){ showToast('Nenhum usuário cadastrado'); return; }
+      const email = prompt('Informe o e-mail do usuário para o qual deseja adicionar a transação:', registeredUsers[0].email);
+      if(!email) return;
+      const targetUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
+      if(!targetUser){ showToast('Usuário não encontrado'); return; }
+      
+      const desc = prompt('Descrição da Transação:');
+      if(!desc) return;
+      const valStr = prompt('Valor (R$):');
+      const val = parseFloat((valStr||'').replace(',','.'));
+      if(isNaN(val) || val <= 0){ showToast('Valor inválido'); return; }
+      const type = prompt('Tipo (in para receita, out para despesa):', 'out') || 'out';
+
+      const data = loadFromStorage('nexus_data_' + targetUser.email, {transactions: [], nextTxId: 1});
+      if(!data.transactions) data.transactions = [];
+      const now = new Date();
+      const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+      
+      data.transactions.push({
+        id: data.nextTxId || Date.now(),
+        desc: desc.trim(),
+        val,
+        date: todayStr,
+        cat: 'Outros',
+        status: type === 'in' ? 'Recebido' : 'Pago',
+        type: type === 'in' ? 'in' : 'out'
+      });
+      data.nextTxId = (data.nextTxId || 1) + 1;
+      saveToStorage('nexus_data_' + targetUser.email, data);
+      
+      if(currentUser && currentUser.email === targetUser.email) loadUserData();
+      showToast('Transação adicionada com sucesso pelo Admin!');
+      render();
+    };
+  }
+
+  const novaConta = document.getElementById('btnNovaConta'); if(novaConta) novaConta.onclick = ()=>openAccountModal(null);
+  document.querySelectorAll('[data-editacc]').forEach(el=>el.onclick = ()=>openAccountModal(parseInt(el.getAttribute('data-editacc'))));
+  document.querySelectorAll('[data-delacc]').forEach(el=>el.onclick = ()=>deleteAccount(parseInt(el.getAttribute('data-delacc'))));
+
+  const novaCat = document.getElementById('btnNovaCategoria'); if(novaCat) novaCat.onclick = ()=>openCategoryModal(null);
+  document.querySelectorAll('[data-editcat]').forEach(el=>el.onclick = ()=>openCategoryModal(el.getAttribute('data-editcat')));
+  document.querySelectorAll('[data-delcat]').forEach(el=>el.onclick = ()=>deleteCategory(el.getAttribute('data-delcat')));
+
+  const novoOrc = document.getElementById('btnNovoOrcamento'); if(novoOrc) novoOrc.onclick = ()=>openBudgetModal(null);
+  document.querySelectorAll('[data-editorc]').forEach(el=>el.onclick = ()=>openBudgetModal(parseInt(el.getAttribute('data-editorc'))));
+  document.querySelectorAll('[data-delorc]').forEach(el=>el.onclick = ()=>deleteBudget(parseInt(el.getAttribute('data-delorc'))));
+
+  const novaMeta = document.getElementById('btnNovaMeta'); if(novaMeta) novaMeta.onclick = ()=>openGoalModal(null);
+  document.querySelectorAll('[data-editmeta]').forEach(el=>el.onclick = ()=>openGoalModal(parseInt(el.getAttribute('data-editmeta'))));
+  document.querySelectorAll('[data-delmeta]').forEach(el=>el.onclick = ()=>deleteGoal(parseInt(el.getAttribute('data-delmeta'))));
+  document.querySelectorAll('[data-addcontrib]').forEach(el=>el.onclick = ()=>addContribution(parseInt(el.getAttribute('data-addcontrib'))));
+
+  const novoRec = document.getElementById('btnNovoRecorrente'); if(novoRec) novoRec.onclick = ()=>openRecurringModal(null);
+  document.querySelectorAll('[data-editrec]').forEach(el=>el.onclick = ()=>openRecurringModal(parseInt(el.getAttribute('data-editrec'))));
+  document.querySelectorAll('[data-delrec]').forEach(el=>el.onclick = ()=>deleteRecurring(parseInt(el.getAttribute('data-delrec'))));
+  document.querySelectorAll('[data-lancar]').forEach(el=>el.onclick = ()=>lancarRecorrente(parseInt(el.getAttribute('data-lancar'))));
+
+  const novoAlerta = document.getElementById('btnNovoAlerta'); if(novoAlerta) novoAlerta.onclick = ()=>openAlertModal(null);
+  document.querySelectorAll('[data-editalert]').forEach(el=>el.onclick = ()=>openAlertModal(parseInt(el.getAttribute('data-editalert'))));
+  document.querySelectorAll('[data-delalert]').forEach(el=>el.onclick = ()=>deleteAlert(parseInt(el.getAttribute('data-delalert'))));
+
+  document.querySelectorAll('[data-edituser]').forEach(el=>el.onclick = ()=>openUserAdminModal(el.getAttribute('data-edituser')));
+  document.querySelectorAll('[data-viewuser]').forEach(el=>el.onclick = ()=>viewUserData(el.getAttribute('data-viewuser')));
+  document.querySelectorAll('[data-toggleuser]').forEach(el=>el.onclick = ()=>toggleUserActive(el.getAttribute('data-toggleuser')));
+
+  const importFile = document.getElementById('importFile'); if(importFile) importFile.onchange = handleImportFile;
+
+  const addAtt = document.getElementById('btnAddAnexo'); if(addAtt) addAtt.onclick = addAttachment;
+  document.querySelectorAll('[data-delatt]').forEach(el=>el.onclick = ()=>deleteAttachment(parseInt(el.getAttribute('data-delatt'))));
+
+  const saveCfg = document.getElementById('btnSalvarConfig');
+  if(saveCfg){
+    bindPasswordToggle('cfgPassword', 'cfgPasswordToggle');
+    bindPasswordToggle('cfgPasswordConfirm', 'cfgPasswordConfirmToggle');
+    document.getElementById('cfgTheme').value = document.body.classList.contains('light') ? 'light' : 'dark';
+    saveCfg.onclick = async ()=>{
+      if (currentUser) {
+        await syncUsersWithServer();
+        const newName = document.getElementById('cfgName').value.trim();
+        const newEmail = document.getElementById('cfgEmail').value.trim();
+        const newPass = document.getElementById('cfgPassword').value;
+        const newPassConfirm = document.getElementById('cfgPasswordConfirm').value;
+
+        if(!newName){ showToast('Informe um nome válido'); return; }
+        if(!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)){ showToast('Informe um e-mail válido'); return; }
+        const emailTaken = registeredUsers.some(u => u.email.toLowerCase()===newEmail.toLowerCase() && u.email.toLowerCase()!==currentUser.email.toLowerCase());
+        if(emailTaken){ showToast('Este e-mail já está em uso por outro usuário'); return; }
+        if(newPass || newPassConfirm){
+          if(newPass.length < 6){ showToast('A nova senha deve ter ao menos 6 caracteres'); return; }
+          if(newPass !== newPassConfirm){ showToast('As senhas não coincidem'); return; }
+        }
+
+        const oldEmail = currentUser.email;
+        const u = registeredUsers.find(x => x.email === oldEmail);
+        if (u) {
+          u.name = newName;
+          u.email = newEmail;
+          if(newPass) u.password = newPass;
+        }
+        await saveUsersToServer();
+
+        if(newEmail.toLowerCase() !== oldEmail.toLowerCase()){
+          const oldKey = 'nexus_data_' + oldEmail;
+          const dataBackup = loadFromStorage(oldKey, null);
+          currentUser.email = newEmail;
+          if(dataBackup) saveToStorage('nexus_data_' + newEmail, dataBackup);
+          localStorage.removeItem(oldKey);
+        }
+        currentUser.name = newName;
+        await saveUserData();
+
+        document.getElementById('cfgPassword').value = '';
+        document.getElementById('cfgPasswordConfirm').value = '';
+      }
+      const wantLight = document.getElementById('cfgTheme').value === 'light';
+      const isLight = document.body.classList.contains('light');
+      if(wantLight !== isLight) toggleTheme();
+      showToast('Configurações salvas!');
+      render();
+    };
+  }
+
+  const periodBtn = document.getElementById('periodBtn');
+  if(periodBtn){
+    periodBtn.onclick = (e)=>{
+      e.stopPropagation();
+      const willShow = !document.getElementById('periodPanel').classList.contains('show');
+      document.getElementById('periodPanel').classList.toggle('show', willShow);
+      periodBtn.classList.toggle('open', willShow);
+    };
+    const yearSel = document.getElementById('periodYearSel');
+    yearSel.innerHTML = YEARS.map(y=>\`<option value="\${y}">\${y}</option>\`).join('');
+    yearSel.value = currentPeriod.year;
+    const buildMonths = ()=>{
+      const y = parseInt(yearSel.value);
+      let start=1, end=12;
+      if(y===PERIOD_MIN.year) start = PERIOD_MIN.month;
+      if(y===PERIOD_MAX.year) end = PERIOD_MAX.month;
+      const monthSel = document.getElementById('periodMonthSel');
+      const opts = [];
+      for(let m=start; m<=end; m++) opts.push(m);
+      monthSel.innerHTML = opts.map(m=>\`<option value="\${m}">\${MONTHS[m-1]}</option>\`).join('');
+      monthSel.value = (opts.includes(currentPeriod.month) && y===currentPeriod.year) ? currentPeriod.month : opts[0];
+    };
+    buildMonths();
+    yearSel.onchange = buildMonths;
+    document.getElementById('periodApplyBtn').onclick = ()=>{
+      currentPeriod = { year: parseInt(yearSel.value), month: parseInt(document.getElementById('periodMonthSel').value) };
+      document.getElementById('periodPanel').classList.remove('show');
+      periodBtn.classList.remove('open');
+      render();
+    };
+    document.getElementById('periodTodayBtn').onclick = ()=>{
+      const def = getDefaultPeriod();
+      currentPeriod = { year: def.year, month: def.month };
+      document.getElementById('periodPanel').classList.remove('show');
+      periodBtn.classList.remove('open');
+      render();
+    };
+  }
+
+  const search = document.getElementById('txSearch');
+  const fTipo = document.getElementById('txFiltroTipo');
+  const fCat = document.getElementById('txFiltroCat');
+  const fStatus = document.getElementById('txFiltroStatus');
+  if(search){
+    [search,fTipo,fCat,fStatus].forEach(el=>el.addEventListener('input', refreshTxTable));
+  }
+}
+
+function navigate(page){
+  currentPage = page;
+  const session = loadFromStorage('nexus_session', null);
+  if(session){
+    session.page = page;
+    saveToStorage('nexus_session', session);
+  }
+  document.querySelectorAll('.menu button').forEach(b=>b.classList.toggle('active', b.dataset.page===page));
+  render();
+}
+
+/* ==================== Eventos Globais ==================== */
+document.getElementById('menu').addEventListener('click', e=>{
+  const btn = e.target.closest('button[data-page]');
+  if(btn) navigate(btn.dataset.page);
 });
+document.addEventListener('click', e=>{
+  const panel = document.getElementById('periodPanel');
+  if(panel && panel.classList.contains('show') && !e.target.closest('.period-wrap')){
+    panel.classList.remove('show');
+    const pBtn = document.getElementById('periodBtn'); if(pBtn) pBtn.classList.remove('open');
+  }
+  const notifPanel = document.getElementById('notifPanel');
+  if(notifPanel && notifPanel.classList.contains('show') && !e.target.closest('.notif-wrap')) notifPanel.classList.remove('show');
+});
+
+document.getElementById('notifBtn').onclick = async (e)=>{
+  e.stopPropagation();
+  const panel = document.getElementById('notifPanel');
+  panel.classList.toggle('show');
+  if(panel.classList.contains('show') && notifications.some(n=>!n.read)){
+    notifications.forEach(n=>n.read=true);
+    await saveUserData();
+    renderNotifications();
+  }
+};
+document.getElementById('notifMarkAllBtn').onclick = async (e)=>{
+  e.stopPropagation();
+  notifications.forEach(n=>n.read=true);
+  await saveUserData();
+  renderNotifications();
+};
+
+document.getElementById('closeModal').onclick = closeModal;
+document.getElementById('cancelBtn').onclick = closeModal;
+document.getElementById('saveBtn').onclick = saveTransaction;
+document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+document.getElementById('typeInBtn').onclick = ()=>setType('in');
+document.getElementById('typeOutBtn').onclick = ()=>setType('out');
+document.getElementById('fCategoriaAddBtn').onclick = ()=>openCategoryModal(null, currentType);
+
+document.getElementById('closeAccModal').onclick = closeAccountModal;
+document.getElementById('accCancelBtn').onclick = closeAccountModal;
+document.getElementById('accSaveBtn').onclick = saveAccount;
+document.getElementById('overlayAccount').addEventListener('click', e=>{ if(e.target.id==='overlayAccount') closeAccountModal(); });
+
+document.getElementById('closeCatModal').onclick = closeCategoryModal;
+document.getElementById('catCancelBtn').onclick = closeCategoryModal;
+document.getElementById('catSaveBtn').onclick = saveCategory;
+document.getElementById('overlayCategory').addEventListener('click', e=>{ if(e.target.id==='overlayCategory') closeCategoryModal(); });
+
+document.getElementById('closeCatManageModal').onclick = closeCatManageModal;
+document.getElementById('catManageCloseBtn').onclick = closeCatManageModal;
+document.getElementById('catManageAddBtn').onclick = ()=>openCategoryModal(null, catManageType==='receita' ? 'in' : 'out');
+document.getElementById('overlayCatManage').addEventListener('click', e=>{ if(e.target.id==='overlayCatManage') closeCatManageModal(); });
+document.querySelectorAll('.cat-manage-tabs .cat-tab').forEach(btn=>{
+  btn.onclick = ()=>{ catManageType = btn.getAttribute('data-cattab'); renderCatManageList(catManageType); };
+});
+
+
+document.getElementById('closeOrcModal').onclick = closeBudgetModal;
+document.getElementById('orcCancelBtn').onclick = closeBudgetModal;
+document.getElementById('orcSaveBtn').onclick = saveBudget;
+document.getElementById('overlayBudget').addEventListener('click', e=>{ if(e.target.id==='overlayBudget') closeBudgetModal(); });
+
+document.getElementById('closeGoalModal').onclick = closeGoalModal;
+document.getElementById('goalCancelBtn').onclick = closeGoalModal;
+document.getElementById('goalSaveBtn').onclick = saveGoal;
+document.getElementById('overlayGoal').addEventListener('click', e=>{ if(e.target.id==='overlayGoal') closeGoalModal(); });
+
+document.getElementById('closeRecModal').onclick = closeRecurringModal;
+document.getElementById('recCancelBtn').onclick = closeRecurringModal;
+document.getElementById('recSaveBtn').onclick = saveRecurring;
+document.getElementById('overlayRecurring').addEventListener('click', e=>{ if(e.target.id==='overlayRecurring') closeRecurringModal(); });
+document.getElementById('recTypeInBtn').onclick = ()=>setRecType('in');
+document.getElementById('recTypeOutBtn').onclick = ()=>setRecType('out');
+
+document.getElementById('closeAlertModal').onclick = closeAlertModal;
+document.getElementById('alertCancelBtn').onclick = closeAlertModal;
+document.getElementById('alertSaveBtn').onclick = saveAlert;
+document.getElementById('overlayAlert').addEventListener('click', e=>{ if(e.target.id==='overlayAlert') closeAlertModal(); });
+
+document.getElementById('closeUserAdminModal').onclick = closeUserAdminModal;
+document.getElementById('userAdminCancelBtn').onclick = closeUserAdminModal;
+document.getElementById('userAdminSaveBtn').onclick = saveUserAdmin;
+document.getElementById('overlayUserAdmin').addEventListener('click', e=>{ if(e.target.id==='overlayUserAdmin') closeUserAdminModal(); });
+
+function toggleTheme(){
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  document.getElementById('miniThemeBtn').textContent = isLight ? '☀️' : '🌙';
+  if(currentPage==='dashboard') drawDashboardCharts();
+}
+document.getElementById('miniThemeBtn').onclick = toggleTheme;
+document.getElementById('viewModeExitBtn').onclick = exitViewMode;
+document.getElementById('accountDisabledCloseBtn').onclick = hideAccountDisabledPopup;
+bindPasswordToggle('loginPassword', 'loginPasswordToggle');
+
+/* ==================== Restaurar sessão ao atualizar a página ==================== */
+(async function restoreSession(){
+  const token = localStorage.getItem('nexus_token');
+  if (!token) {
+    document.getElementById('authPage').classList.add('show');
+    return;
+  }
+  try {
+    const res = await apiRequest('/api/me');
+    if (!res.ok) throw new Error('Sessão inválida');
+    const data = await res.json();
+    if (!data.success || !data.user) throw new Error('Usuário inválido');
+
+    currentUser = data.user;
+    if (currentUser.active === false) {
+      localStorage.removeItem('nexus_token');
+      localStorage.removeItem('nexus_session');
+      document.getElementById('authPage').classList.add('show');
+      showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
+      return;
+    }
+
+    const session = loadFromStorage('nexus_session', {});
+    await loadUserData();
+
+    const isTiAdmin = currentUser.role === 'Administrador' && currentUser.email.toLowerCase() === 'paulodelima21@gmail.com';
+    if (isTiAdmin) {
+      if (session.page && (session.page === 'usuarios' || session.page === 'paineladmin')) {
+        currentPage = session.page;
+      } else {
+        currentPage = 'usuarios';
+      }
+    } else {
+      if (session.page && session.page !== 'usuarios' && session.page !== 'paineladmin') {
+        currentPage = session.page;
+      } else {
+        currentPage = 'dashboard';
+      }
+    }
+
+    document.getElementById('authPage').classList.remove('show');
+    document.getElementById('appMain').classList.add('show');
+    render();
+  } catch(e) {
+    localStorage.removeItem('nexus_token');
+    localStorage.removeItem('nexus_session');
+    document.getElementById('authPage').classList.add('show');
+  }
+})();
+</script>
+</body>
+</html>`;
+
+// Servidor HTTP com suporte para cargas de dados pesadas (JSON), agora com PostgreSQL e segurança por Token
+const server = http.createServer((req, res) => {
+  const parsedUrl = url.parse(req.url, true);
+
+  // Helper para resposta JSON
+  const sendJSON = (statusCode, payload) => {
+    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(payload));
+  };
+
+  // Rota POST /api/login (Autenticação Segura)
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/login') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { email, password } = JSON.parse(body || '{}');
+        if (!email || !password) {
+          return sendJSON(400, { success: false, error: 'E-mail e senha são obrigatórios' });
+        }
+
+        const result = await pool.query(
+          'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
+          [email.trim()]
+        );
+
+        if (result.rows.length === 0) {
+          return sendJSON(401, { success: false, error: 'E-mail ou senha incorretos!' });
+        }
+
+        const user = result.rows[0];
+
+        if (!verifyPassword(password, user.password)) {
+          return sendJSON(401, { success: false, error: 'E-mail ou senha incorretos!' });
+        }
+
+        if (user.active === false) {
+          return sendJSON(403, { success: false, error: 'Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.' });
+        }
+
+        // Migração transparente de senha legada em texto puro para hash seguro
+        if (!user.password.includes(':')) {
+          const hashedPass = hashPassword(password);
+          await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [hashedPass, user.id]);
+        }
+
+        const token = createSessionToken(user);
+        return sendJSON(200, {
+          success: true,
+          token,
+          user: { name: user.name, email: user.email, role: user.role, active: user.active }
+        });
+      } catch (err) {
+        console.error('Erro no login:', err);
+        return sendJSON(500, { success: false, error: 'Erro interno ao realizar login' });
+      }
+    });
+    return;
+  }
+
+  // Rota POST /api/register (Registro de Conta)
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/register') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { name, email, password } = JSON.parse(body || '{}');
+        if (!name || !email || !password) {
+          return sendJSON(400, { success: false, error: 'Preencha todos os campos obrigatórios' });
+        }
+
+        const checkResult = await pool.query(
+          'SELECT id FROM usuarios WHERE LOWER(email) = LOWER($1)',
+          [email.trim()]
+        );
+
+        if (checkResult.rows.length > 0) {
+          return sendJSON(400, { success: false, error: 'Este e-mail já está cadastrado!' });
+        }
+
+        const hashedPassword = hashPassword(password);
+        const userInsert = await pool.query(
+          `INSERT INTO usuarios (name, email, password, role, active)
+           VALUES ($1, $2, $3, 'Usuário', true)
+           RETURNING name, email, role, active`,
+          [name.trim(), email.trim(), hashedPassword]
+        );
+
+        const newUser = userInsert.rows[0];
+
+        // Cria registro inicial em dados_financeiros
+        await pool.query(
+          `INSERT INTO dados_financeiros (email, dados, updated_at)
+           VALUES ($1, '{}'::jsonb, now())
+           ON CONFLICT (email) DO NOTHING`,
+          [newUser.email]
+        );
+
+        const token = createSessionToken(newUser);
+        return sendJSON(200, { success: true, token, user: newUser });
+      } catch (err) {
+        console.error('Erro no registro:', err);
+        return sendJSON(500, { success: false, error: 'Erro ao cadastrar usuário' });
+      }
+    });
+    return;
+  }
+
+  // Rota GET /api/me (Verificar sessão atual)
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/me') {
+    const authUser = getAuthUser(req);
+    if (!authUser) {
+      return sendJSON(401, { success: false, error: 'Sessão inválida ou expirada' });
+    }
+    return sendJSON(200, { success: true, user: authUser });
+  }
+
+  // Rota POST /api/logout
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/logout') {
+    const authHeader = req.headers['authorization'] || '';
+    if (authHeader.startsWith('Bearer ')) {
+      const token = authHeader.substring(7).trim();
+      activeSessions.delete(token);
+    }
+    return sendJSON(200, { success: true });
+  }
+
+  // Rota POST /api/send-password (Recuperação de Senha Segura)
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/send-password') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { email } = JSON.parse(body || '{}');
+        if (!email) {
+          return sendJSON(400, { success: false, error: 'E-mail é obrigatório' });
+        }
+
+        const result = await pool.query(
+          'SELECT id, name, email FROM usuarios WHERE LOWER(email) = LOWER($1)',
+          [email.trim()]
+        );
+
+        if (result.rows.length === 0) {
+          return sendJSON(404, { success: false, error: 'E-mail não cadastrado.' });
+        }
+
+        const user = result.rows[0];
+        const tempPassword = crypto.randomBytes(4).toString('hex'); // Senha temporária de 8 caracteres
+        const hashedTemp = hashPassword(tempPassword);
+
+        await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [hashedTemp, user.id]);
+
+        const emailSent = await sendPasswordEmail(user.email, user.name, tempPassword);
+
+        if (!emailSent) {
+          return sendJSON(500, { success: false, error: 'Falha ao enviar e-mail. Verifique as credenciais SMTP no Render.' });
+        }
+
+        return sendJSON(200, { success: true });
+      } catch (err) {
+        console.error('Erro ao enviar e-mail com senha:', err);
+        return sendJSON(500, { success: false, error: 'Falha ao enviar e-mail.' });
+      }
+    });
+    return;
+  }
+
+  // Rota GET /api/users (Listar Usuários - Protegido por Token Admin)
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/users') {
+    const authUser = getAuthUser(req);
+    if (!authUser || authUser.role !== 'Administrador') {
+      return sendJSON(403, { success: false, error: 'Acesso restrito a administradores' });
+    }
+
+    pool.query('SELECT name, email, role, active, created_at FROM usuarios ORDER BY id ASC')
+      .then(result => sendJSON(200, result.rows))
+      .catch(err => {
+        console.error('Erro ao buscar usuários:', err);
+        sendJSON(500, { success: false, error: 'Erro no banco de dados' });
+      });
+    return;
+  }
+
+  // Rota POST /api/admin/toggle-user (Ativar/Desativar Usuário)
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/admin/toggle-user') {
+    const authUser = getAuthUser(req);
+    if (!authUser || authUser.role !== 'Administrador') {
+      return sendJSON(403, { success: false, error: 'Acesso negado' });
+    }
+
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { email, active } = JSON.parse(body || '{}');
+        if (!email) return sendJSON(400, { success: false, error: 'E-mail obrigatório' });
+
+        await pool.query('UPDATE usuarios SET active = $1 WHERE LOWER(email) = LOWER($2)', [active !== false, email.trim()]);
+        return sendJSON(200, { success: true });
+      } catch (e) {
+        return sendJSON(500, { success: false, error: 'Erro ao atualizar status' });
+      }
+    });
+    return;
+  }
+
+  // Rota POST /api/admin/edit-user (Editar Dados do Usuário pelo Admin)
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/admin/edit-user') {
+    const authUser = getAuthUser(req);
+    if (!authUser || authUser.role !== 'Administrador') {
+      return sendJSON(403, { success: false, error: 'Acesso negado' });
+    }
+
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { email, name, role } = JSON.parse(body || '{}');
+        if (!email || !name || !role) return sendJSON(400, { success: false, error: 'Campos obrigatórios ausentes' });
+
+        await pool.query('UPDATE usuarios SET name = $1, role = $2 WHERE LOWER(email) = LOWER($3)', [name.trim(), role.trim(), email.trim()]);
+        return sendJSON(200, { success: true });
+      } catch (e) {
+        return sendJSON(500, { success: false, error: 'Erro ao editar usuário' });
+      }
+    });
+    return;
+  }
+
+  // Rota GET /api/admin/all-data (Buscar Dados de Todos os Usuários para Consolidação Geral)
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/admin/all-data') {
+    const authUser = getAuthUser(req);
+    if (!authUser || authUser.role !== 'Administrador') {
+      return sendJSON(403, { success: false, error: 'Acesso restrito a administradores' });
+    }
+
+    pool.query(`
+      SELECT u.name, u.email, u.role, u.active, u.created_at, d.dados
+      FROM usuarios u
+      LEFT JOIN dados_financeiros d ON LOWER(u.email) = LOWER(d.email)
+      ORDER BY u.id ASC
+    `)
+      .then(result => sendJSON(200, result.rows))
+      .catch(err => {
+        console.error('Erro ao buscar dados globais:', err);
+        sendJSON(500, { success: false, error: 'Erro ao buscar dados no banco' });
+      });
+    return;
+  }
+
+  // Rota GET /api/data (Buscar Dados Financeiros do Usuário - Protegida por Token)
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/data') {
+    const authUser = getAuthUser(req);
+    if (!authUser) {
+      return sendJSON(401, { success: false, error: 'Não autorizado' });
+    }
+
+    const email = (parsedUrl.query.email || authUser.email).toLowerCase();
+    if (email !== authUser.email.toLowerCase() && authUser.role !== 'Administrador') {
+      return sendJSON(403, { success: false, error: 'Acesso negado aos dados de outro usuário' });
+    }
+
+    pool.query('SELECT dados FROM dados_financeiros WHERE LOWER(email) = LOWER($1)', [email])
+      .then(result => sendJSON(200, { success: true, data: result.rows[0] ? result.rows[0].dados : null }))
+      .catch(err => {
+        console.error('Erro ao buscar dados financeiros:', err);
+        sendJSON(500, { success: false, error: 'Erro no banco de dados' });
+      });
+    return;
+  }
+
+  // Rota POST /api/data (Salvar Dados Financeiros do Usuário - Protegida por Token)
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/data') {
+    const authUser = getAuthUser(req);
+    if (!authUser) {
+      return sendJSON(401, { success: false, error: 'Não autorizado' });
+    }
+
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', () => {
+      let payload;
+      try {
+        payload = JSON.parse(body);
+      } catch (e) {
+        return sendJSON(400, { success: false, error: 'JSON inválido' });
+      }
+
+      if (!payload.email || !payload.data) {
+        return sendJSON(400, { success: false, error: 'Payload incompleto' });
+      }
+
+      const email = payload.email.toLowerCase();
+      if (email !== authUser.email.toLowerCase() && authUser.role !== 'Administrador') {
+        return sendJSON(403, { success: false, error: 'Acesso negado para modificar dados de outro usuário' });
+      }
+
+      pool.query(
+        `INSERT INTO dados_financeiros (email, dados, updated_at)
+         VALUES ($1, $2, now())
+         ON CONFLICT (email) DO UPDATE
+         SET dados = EXCLUDED.dados, updated_at = now();`,
+        [email, payload.data]
+      )
+        .then(() => sendJSON(200, { success: true }))
+        .catch(err => {
+          console.error('Erro ao salvar dados financeiros:', err);
+          sendJSON(500, { success: false, error: 'Erro ao salvar no banco de dados' });
+        });
+    });
+    return;
+  }
+
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(htmlContent);
+});
+
+initDatabase()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+      console.log(`Conectado ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
+    });
+  })
+  .catch(err => {
+    console.error('Falha ao conectar/inicializar o banco de dados PostgreSQL:', err);
+    process.exit(1);
+  });

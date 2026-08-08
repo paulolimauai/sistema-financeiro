@@ -1,14 +1,2 @@
-<<<<<<< HEAD
 node_modules/
 .env
-database.json
-package-lock.json
-.DS_Store
-=======
-node_modules/
-.env
-database.json
-package-lock.json
-.DS_Store
->>>>>>> 2134af739fde8cc5571ef6aebf43ec8e24e4acfb
-
