@@ -88,15 +88,16 @@ const DEFAULT_ADMIN = {
   active: true
 };
 
-// Disparo real de e-mail de redefinição de senha via Resend API (Dominio: nexusfinanceirohub.com.br) ou SMTP
+// Disparo real de e-mail de redefinição de senha via Resend API (Dominio: nexusfinanceirohub.com.br ou onboarding@resend.dev) ou SMTP
 function sendPasswordEmail(toEmail, userName, userPassword) {
   return new Promise((resolve) => {
     const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
-    const resendFrom = process.env.RESEND_FROM || 'Nexus Financeiro <suporte@nexusfinanceirohub.com.br>';
+    const primaryFrom = process.env.RESEND_FROM || 'Nexus Financeiro <suporte@nexusfinanceirohub.com.br>';
+    const fallbackFrom = 'Nexus Financeiro <onboarding@resend.dev>';
 
-    // 1. Envio via Resend API (Dominio nexusfinanceirohub.com.br)
+    // 1. Envio via Resend API
     if (resendApiKey) {
-      console.log(`[Resend] Enviando e-mail de redefinição para ${toEmail} via Resend API (${resendFrom})...`);
+      console.log(`[Resend] Enviando e-mail de redefinição para ${toEmail} via Resend API (${primaryFrom})...`);
 
       const htmlBody = `
       <!DOCTYPE html>
@@ -137,53 +138,70 @@ function sendPasswordEmail(toEmail, userName, userPassword) {
 
           <div class="footer">
             Nexus Financeiro Hub • nexusfinanceirohub.com.br<br>
-            Domínio Verificado no Resend • Mensagem Automática
+            Mensagem Automática de Segurança
           </div>
         </div>
       </body>
       </html>
       `;
 
-      const postData = JSON.stringify({
-        from: resendFrom,
-        to: [toEmail],
-        subject: '🔐 Sua Nova Senha Temporária — Nexus Financeiro Hub',
-        html: htmlBody
-      });
+      const dispatch = (senderEmail) => {
+        return new Promise((subResolve) => {
+          const postData = JSON.stringify({
+            from: senderEmail,
+            to: [toEmail],
+            subject: '🔐 Sua Nova Senha Temporária — Nexus Financeiro Hub',
+            html: htmlBody
+          });
 
-      const reqOptions = {
-        hostname: 'api.resend.com',
-        port: 443,
-        path: '/emails',
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendApiKey}`,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(postData)
-        }
+          const reqOptions = {
+            hostname: 'api.resend.com',
+            port: 443,
+            path: '/emails',
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendApiKey}`,
+              'Content-Type': 'application/json',
+              'Content-Length': Buffer.byteLength(postData)
+            }
+          };
+
+          const req = https.request(reqOptions, (res) => {
+            let respData = '';
+            res.on('data', chunk => respData += chunk);
+            res.on('end', () => {
+              if (res.statusCode >= 200 && res.statusCode < 300) {
+                console.log(`[Resend OK] E-mail enviado com sucesso via (${senderEmail}) para ${toEmail}`);
+                subResolve(true);
+              } else {
+                console.error(`[Resend Erro ${res.statusCode}] (${senderEmail}):`, respData);
+                subResolve(false);
+              }
+            });
+          });
+
+          req.on('error', (e) => {
+            console.error(`[Resend Erro de Rede] (${senderEmail}):`, e.message);
+            subResolve(false);
+          });
+
+          req.write(postData);
+          req.end();
+        });
       };
 
-      const req = https.request(reqOptions, (res) => {
-        let respData = '';
-        res.on('data', chunk => respData += chunk);
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            console.log(`[Resend OK] E-mail enviado com sucesso para ${toEmail}`);
-            resolve(true);
-          } else {
-            console.error(`[Resend Erro ${res.statusCode}]`, respData);
-            resolve(false);
-          }
-        });
+      // Tenta primeiro com o domínio próprio (suporte@nexusfinanceirohub.com.br)
+      dispatch(primaryFrom).then(success => {
+        if (success) {
+          resolve(true);
+        } else {
+          console.log(`[Resend Fallback] Tentando via remetente padrão de testes (${fallbackFrom})...`);
+          // Fallback via onboarding@resend.dev (para envio imediato antes da verificação DNS terminar)
+          dispatch(fallbackFrom).then(fallbackSuccess => {
+            resolve(fallbackSuccess);
+          });
+        }
       });
-
-      req.on('error', (e) => {
-        console.error('[Resend Erro de Rede]', e.message);
-        resolve(false);
-      });
-
-      req.write(postData);
-      req.end();
       return;
     }
 
