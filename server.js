@@ -309,6 +309,16 @@ const htmlContent = `<!DOCTYPE html>
   } catch(e){}
 })();
 
+function escapeHTML(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 window.switchAuthTab = function(tabName) {
   var loginBox = document.getElementById('loginBox');
   var registerBox = document.getElementById('registerBox');
@@ -335,6 +345,115 @@ window.switchAuthTab = function(tabName) {
     if (loginBox) loginBox.style.display = 'block';
     if (tabLogin) tabLogin.classList.add('active');
   }
+};
+
+window.fillLoginAndSwitch = function(email, password) {
+  if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
+  if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = password;
+  window.switchAuthTab('login');
+};
+
+window.handleForgotSubmit = async function(e) {
+  if (e) {
+    if (typeof e.preventDefault === 'function') e.preventDefault();
+    if (typeof e.stopPropagation === 'function') e.stopPropagation();
+  }
+  var emailInput = document.getElementById('forgotEmail');
+  var email = emailInput ? emailInput.value.trim() : '';
+  var btn = document.getElementById('btnSendPassword');
+  var resultBox = document.getElementById('forgotResultBox');
+
+  if (!email) {
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
+      resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
+      resultBox.style.color = '#ff8888';
+      resultBox.innerHTML = '⚠️ Por favor, digite o seu e-mail cadastrado.';
+    } else {
+      alert('Por favor, informe seu e-mail.');
+    }
+    if (emailInput) emailInput.focus();
+    return false;
+  }
+
+  if (btn) {
+    if (btn.disabled) return false;
+    btn.disabled = true;
+    btn.textContent = 'Enviando e-mail...';
+  }
+
+  if (resultBox) {
+    resultBox.style.display = 'none';
+  }
+
+  try {
+    var res = await fetch(window.location.origin + '/api/send-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await res.json();
+
+    if (!data.success) {
+      if (resultBox) {
+        resultBox.style.display = 'block';
+        resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
+        resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
+        resultBox.style.color = '#ff8888';
+        resultBox.innerHTML = '⚠️ ' + escapeHTML(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
+      } else {
+        alert(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
+      }
+      return false;
+    }
+
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(232, 176, 75, 0.15)';
+      resultBox.style.border = '1px solid rgba(232, 176, 75, 0.4)';
+      resultBox.style.color = '#e8b04b';
+
+      if (data.mode === 'direct' && data.tempPassword) {
+        resultBox.innerHTML = 
+          '<div style="font-weight:800; font-size:16px; margin-bottom:6px; color:#fff;">🔑 Senha Temporária Gerada!</div>' +
+          '<div style="font-size:13px; color:#cbd5e1; margin-bottom:10px;">Sua nova senha temporária de acesso é:</div>' +
+          '<div style="font-size:26px; font-weight:800; letter-spacing:4px; font-family:monospace; background:#0b0e14; padding:10px; border-radius:8px; text-align:center; border:1px solid #e8b04b; margin-bottom:12px; color:#e8b04b;">' +
+            escapeHTML(data.tempPassword) +
+          '</div>' +
+          '<button type="button" onclick="window.fillLoginAndSwitch(\'' + escapeHTML(email) + '\', \'' + escapeHTML(data.tempPassword) + '\')" style="width:100%; background:linear-gradient(135deg,#e8b04b,#c9862a); color:#131722; border:none; padding:12px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer;">' +
+            'Ir para o Login com esta Senha →' +
+          '</button>';
+      } else {
+        resultBox.innerHTML = 
+          '<div style="font-weight:800; font-size:16px; margin-bottom:6px; color:#fff;">📧 E-mail Enviado com Sucesso!</div>' +
+          '<div style="font-size:13.5px; color:#cbd5e1; margin-bottom:12px;">Enviamos uma nova senha temporária para o seu e-mail cadastrado. Verifique sua caixa de entrada ou spam.</div>' +
+          '<button type="button" onclick="window.switchAuthTab(\'login\')" style="width:100%; background:linear-gradient(135deg,#e8b04b,#c9862a); color:#131722; border:none; padding:12px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer;">' +
+            'Ir para a Tela de Login →' +
+          '</button>';
+      }
+    } else {
+      alert('Sua nova senha temporária foi processada!');
+      window.switchAuthTab('login');
+    }
+
+  } catch(err) {
+    if (resultBox) {
+      resultBox.style.display = 'block';
+      resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
+      resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
+      resultBox.style.color = '#ff8888';
+      resultBox.innerHTML = '⚠️ Erro de conexão com o servidor ao enviar a senha: ' + escapeHTML(err ? err.message : '');
+    } else {
+      alert('Erro ao processar solicitação de recuperação de senha.');
+    }
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Enviar Senha por E-mail →';
+    }
+  }
+  return false;
 };
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
@@ -1663,114 +1782,7 @@ if (fillDemoBtn) {
   };
 }
 
-window.fillLoginAndSwitch = function(email, password) {
-  if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
-  if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = password;
-  window.switchAuthTab('login');
-};
 
-window.handleForgotSubmit = async function(e) {
-  if (e) {
-    if (typeof e.preventDefault === 'function') e.preventDefault();
-    if (typeof e.stopPropagation === 'function') e.stopPropagation();
-  }
-  const emailInput = document.getElementById('forgotEmail');
-  const email = emailInput ? emailInput.value.trim() : '';
-  const btn = document.getElementById('btnSendPassword');
-  const resultBox = document.getElementById('forgotResultBox');
-
-  if (!email) {
-    if (resultBox) {
-      resultBox.style.display = 'block';
-      resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
-      resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
-      resultBox.style.color = '#ff8888';
-      resultBox.innerHTML = '⚠️ Por favor, digite o seu e-mail cadastrado.';
-    } else {
-      alert('Por favor, informe seu e-mail.');
-    }
-    if (emailInput) emailInput.focus();
-    return false;
-  }
-
-  if (btn) {
-    if (btn.disabled) return false;
-    btn.disabled = true;
-    btn.textContent = 'Enviando e-mail...';
-  }
-
-  if (resultBox) {
-    resultBox.style.display = 'none';
-  }
-
-  try {
-    const res = await fetch(window.location.origin + '/api/send-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email })
-    });
-    const data = await res.json();
-
-    if (!data.success) {
-      if (resultBox) {
-        resultBox.style.display = 'block';
-        resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
-        resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
-        resultBox.style.color = '#ff8888';
-        resultBox.innerHTML = '⚠️ ' + escapeHTML(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
-      } else {
-        alert(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
-      }
-      return false;
-    }
-
-    if (resultBox) {
-      resultBox.style.display = 'block';
-      resultBox.style.background = 'rgba(232, 176, 75, 0.15)';
-      resultBox.style.border = '1px solid rgba(232, 176, 75, 0.4)';
-      resultBox.style.color = '#e8b04b';
-
-      if (data.mode === 'direct' && data.tempPassword) {
-        resultBox.innerHTML = 
-          '<div style="font-weight:800; font-size:16px; margin-bottom:6px; color:#fff;">🔑 Senha Temporária Gerada!</div>' +
-          '<div style="font-size:13px; color:#cbd5e1; margin-bottom:10px;">Sua nova senha temporária de acesso é:</div>' +
-          '<div style="font-size:26px; font-weight:800; letter-spacing:4px; font-family:monospace; background:#0b0e14; padding:10px; border-radius:8px; text-align:center; border:1px solid #e8b04b; margin-bottom:12px; color:#e8b04b;">' +
-            escapeHTML(data.tempPassword) +
-          '</div>' +
-          '<button type="button" onclick="window.fillLoginAndSwitch(\'' + escapeHTML(email) + '\', \'' + escapeHTML(data.tempPassword) + '\')" style="width:100%; background:linear-gradient(135deg,#e8b04b,#c9862a); color:#131722; border:none; padding:12px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer;">' +
-            'Ir para o Login com esta Senha →' +
-          '</button>';
-      } else {
-        resultBox.innerHTML = 
-          '<div style="font-weight:800; font-size:16px; margin-bottom:6px; color:#fff;">📧 E-mail Enviado com Sucesso!</div>' +
-          '<div style="font-size:13.5px; color:#cbd5e1; margin-bottom:12px;">Enviamos uma nova senha temporária para o seu e-mail cadastrado. Verifique sua caixa de entrada ou spam.</div>' +
-          '<button type="button" onclick="window.switchAuthTab(\'login\')" style="width:100%; background:linear-gradient(135deg,#e8b04b,#c9862a); color:#131722; border:none; padding:12px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer;">' +
-            'Ir para a Tela de Login →' +
-          '</button>';
-      }
-    } else {
-      alert('Sua nova senha temporária foi processada!');
-      window.switchAuthTab('login');
-    }
-
-  } catch(err) {
-    if (resultBox) {
-      resultBox.style.display = 'block';
-      resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
-      resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
-      resultBox.style.color = '#ff8888';
-      resultBox.innerHTML = '⚠️ Erro ao conectar ao servidor para recuperar a senha.';
-    } else {
-      alert('Erro ao processar solicitação de recuperação de senha.');
-    }
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Enviar Senha por E-mail →';
-    }
-  }
-  return false;
-};
 
 const loginPassToggle = document.getElementById('loginPasswordToggle');
 if (loginPassToggle) {
