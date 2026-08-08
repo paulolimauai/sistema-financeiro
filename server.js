@@ -219,6 +219,9 @@ const htmlContent = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nexus Financeiro Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
 :root{
@@ -239,7 +242,7 @@ body.light{
 }
 *{box-sizing:border-box; margin:0; padding:0;}
 body{
-  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
+  font-family:'Plus Jakarta Sans','Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif;
   background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
 }
 button, input, select{font-family:inherit; color:inherit;}
@@ -368,17 +371,43 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
 .auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; letter-spacing:-0.4px;}
 .auth-box p.sub{font-size:13px; color:var(--text-dim); margin-bottom:22px;}
 
-/* Campos com Ícone Embutido */
-.input-group-custom{position:relative; display:flex; align-items:center;}
-.input-group-custom .input-ic{position:absolute; left:14px; color:var(--text-faint); font-size:15px; pointer-events:none; transition:color .2s;}
-.input-group-custom input{
-  width:100%; padding:12px 14px 12px 42px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1);
-  border-radius:11px; font-size:13.5px; color:#fff; transition:all .2s;
+/* Chrome Autofill & Background Override */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #151922 inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  caret-color: #ffffff;
+  transition: background-color 5000s ease-in-out 0s;
 }
-.input-group-custom input:focus{
-  background:rgba(255,255,255,0.07); border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft); outline:none;
+
+/* Flexbox Input Box sem sobreposição de ícones */
+.input-icon-box {
+  display: flex; align-items: center; gap: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px; padding: 0 14px;
+  transition: border-color .2s, box-shadow .2s, background .2s;
 }
-.input-group-custom input:focus + .input-ic, .input-group-custom input:focus ~ .input-ic{color:var(--auth-accent);}
+.input-icon-box:focus-within {
+  border-color: var(--auth-accent);
+  box-shadow: 0 0 0 3px rgba(232, 176, 75, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+}
+.input-icon-box .ic {
+  font-size: 16px; opacity: 0.75; flex-shrink: 0; user-select: none;
+}
+.input-icon-box input {
+  flex: 1; min-width: 0; border: none !important; background: transparent !important;
+  padding: 12px 0 !important; font-size: 13.5px; color: #fff !important; outline: none !important;
+  box-shadow: none !important; margin: 0;
+}
+.input-icon-box .pass-toggle-ic {
+  background: none; border: none; cursor: pointer; font-size: 15px; opacity: 0.7;
+  padding: 4px; flex-shrink: 0; transition: opacity .15s; color: var(--text-dim);
+}
+.input-icon-box .pass-toggle-ic:hover { opacity: 1; color: #fff; }
 
 .auth-forgot{display:inline-block; font-size:12px; color:var(--auth-accent); margin-top:8px; cursor:pointer; text-decoration:none; transition:opacity .2s;}
 .auth-forgot:hover{opacity:.8; text-decoration:underline;}
@@ -995,17 +1024,17 @@ tr.trow:hover td{background:var(--hover);}
         <form id="loginForm">
           <div class="field" style="margin-bottom:16px;">
             <label>E-mail</label>
-            <div class="input-group-custom">
+            <div class="input-icon-box">
+              <span class="ic">✉️</span>
               <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
-              <span class="input-ic">✉️</span>
             </div>
           </div>
           <div class="field" style="margin-bottom:16px;">
             <label>Senha</label>
-            <div class="input-group-custom">
+            <div class="input-icon-box">
+              <span class="ic">🔒</span>
               <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-              <span class="input-ic">🔒</span>
-              <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha" style="right:12px; position:absolute; background:none; border:none; cursor:pointer; font-size:14px; opacity:.7; z-index:3;">👁</button>
+              <button type="button" class="pass-toggle-ic" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha">👁</button>
             </div>
             <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
           </div>
@@ -1026,9 +1055,9 @@ tr.trow:hover td{background:var(--hover);}
         <form id="forgotStep1">
           <div class="field" style="margin-bottom:18px;">
             <label>E-mail Cadastrado</label>
-            <div class="input-group-custom">
+            <div class="input-icon-box">
+              <span class="ic">✉️</span>
               <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
-              <span class="input-ic">✉️</span>
             </div>
           </div>
           <button type="submit" class="btn-auth-premium" id="btnSendPassword">Enviar Senha por E-mail →</button>
@@ -1045,23 +1074,23 @@ tr.trow:hover td{background:var(--hover);}
         <form id="registerForm">
           <div class="field" style="margin-bottom:14px;">
             <label>Nome Completo</label>
-            <div class="input-group-custom">
+            <div class="input-icon-box">
+              <span class="ic">👤</span>
               <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
-              <span class="input-ic">👤</span>
             </div>
           </div>
           <div class="field" style="margin-bottom:14px;">
             <label>E-mail</label>
-            <div class="input-group-custom">
+            <div class="input-icon-box">
+              <span class="ic">✉️</span>
               <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
-              <span class="input-ic">✉️</span>
             </div>
           </div>
           <div class="field" style="margin-bottom:14px;">
             <label>Senha</label>
-            <div class="input-group-custom">
+            <div class="input-icon-box">
+              <span class="ic">🔒</span>
               <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
-              <span class="input-ic">🔒</span>
             </div>
           </div>
           <button type="submit" class="btn-auth-premium">Cadastrar Minha Conta →</button>
