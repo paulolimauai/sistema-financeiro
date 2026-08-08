@@ -1117,9 +1117,9 @@ tr.trow:hover td{background:var(--hover);}
     <div class="auth-box-side">
       <!-- Tabs Selector -->
       <div class="auth-tabs">
-        <div class="auth-tab active" id="tabAuthLogin">Acessar</div>
-        <div class="auth-tab" id="tabAuthRegister">Criar Conta</div>
-        <div class="auth-tab" id="tabAuthForgot">Recuperar</div>
+        <div class="auth-tab active" id="tabAuthLogin" onclick="switchAuthTab('login')">Acessar</div>
+        <div class="auth-tab" id="tabAuthRegister" onclick="switchAuthTab('register')">Criar Conta</div>
+        <div class="auth-tab" id="tabAuthForgot" onclick="switchAuthTab('forgot')">Recuperar</div>
       </div>
 
       <!-- Login Box -->
@@ -1141,12 +1141,12 @@ tr.trow:hover td{background:var(--hover);}
               <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
               <button type="button" class="pass-toggle-ic" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha">👁</button>
             </div>
-            <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
+            <a class="auth-forgot" id="goForgot" href="javascript:void(0)" onclick="switchAuthTab('forgot'); return false;">Esqueceu a senha?</a>
           </div>
-          <button type="submit" class="btn-auth-premium">Entrar no Meu Painel →</button>
+          <button type="submit" class="btn-auth-premium" id="btnLoginSubmit">Entrar no Meu Painel →</button>
         </form>
         <div class="auth-toggle">
-          Não tem uma conta? <a id="goRegister">Cadastrar-se grátis</a>
+          Não tem uma conta? <a id="goRegister" href="javascript:void(0)" onclick="switchAuthTab('register'); return false;">Cadastrar-se grátis</a>
         </div>
       </div>
 
@@ -1165,7 +1165,7 @@ tr.trow:hover td{background:var(--hover);}
           <button type="submit" class="btn-auth-premium" id="btnSendPassword">Enviar Senha por E-mail →</button>
         </form>
         <div class="auth-toggle">
-          Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
+          Lembrou a senha? <a id="goLoginFromForgot" href="javascript:void(0)" onclick="switchAuthTab('login'); return false;">Fazer Login</a>
         </div>
       </div>
 
@@ -1195,10 +1195,10 @@ tr.trow:hover td{background:var(--hover);}
               <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
             </div>
           </div>
-          <button type="submit" class="btn-auth-premium">Criar Minha Conta Pessoal →</button>
+          <button type="submit" class="btn-auth-premium" id="btnRegisterSubmit">Criar Minha Conta Pessoal →</button>
         </form>
         <div class="auth-toggle">
-          Já tem uma conta? <a id="goLogin">Fazer Login</a>
+          Já tem uma conta? <a id="goLogin" href="javascript:void(0)" onclick="switchAuthTab('login'); return false;">Fazer Login</a>
         </div>
       </div>
     </div>
@@ -1566,7 +1566,7 @@ let isViewingOtherUser = false;
 let adminOriginalUser = null;
 
 // Formulários e Abas de Login/Cadastro/Recuperação
-function switchAuthTab(tabName) {
+window.switchAuthTab = function(tabName) {
   const loginBox = document.getElementById('loginBox');
   const registerBox = document.getElementById('registerBox');
   const forgotBox = document.getElementById('forgotBox');
@@ -1578,37 +1578,46 @@ function switchAuthTab(tabName) {
   if (tabRegister) tabRegister.classList.remove('active');
   if (tabForgot) tabForgot.classList.remove('active');
 
-  loginBox.style.display = 'none';
-  registerBox.style.display = 'none';
-  forgotBox.style.display = 'none';
+  if (loginBox) loginBox.style.display = 'none';
+  if (registerBox) registerBox.style.display = 'none';
+  if (forgotBox) forgotBox.style.display = 'none';
 
   if (tabName === 'register') {
-    registerBox.style.display = 'block';
+    if (registerBox) registerBox.style.display = 'block';
     if (tabRegister) tabRegister.classList.add('active');
   } else if (tabName === 'forgot') {
-    forgotBox.style.display = 'block';
+    if (forgotBox) forgotBox.style.display = 'block';
     if (tabForgot) tabForgot.classList.add('active');
   } else {
-    loginBox.style.display = 'block';
+    if (loginBox) loginBox.style.display = 'block';
     if (tabLogin) tabLogin.classList.add('active');
   }
-}
+};
 
 const tabLoginEl = document.getElementById('tabAuthLogin');
 const tabRegEl = document.getElementById('tabAuthRegister');
 const tabForgotEl = document.getElementById('tabAuthForgot');
-if (tabLoginEl) tabLoginEl.onclick = () => switchAuthTab('login');
-if (tabRegEl) tabRegEl.onclick = () => switchAuthTab('register');
-if (tabForgotEl) tabForgotEl.onclick = () => switchAuthTab('forgot');
+if (tabLoginEl) tabLoginEl.onclick = () => window.switchAuthTab('login');
+if (tabRegEl) tabRegEl.onclick = () => window.switchAuthTab('register');
+if (tabForgotEl) tabForgotEl.onclick = () => window.switchAuthTab('forgot');
 
-document.getElementById('goRegister').onclick = () => switchAuthTab('register');
-document.getElementById('goLogin').onclick = () => switchAuthTab('login');
-document.getElementById('goLoginFromForgot').onclick = () => switchAuthTab('login');
-document.getElementById('goForgot').onclick = (e) => {
-  e.preventDefault();
-  switchAuthTab('forgot');
-  document.getElementById('forgotStep1').reset();
-  document.getElementById('forgotSub').textContent = 'Informe seu e-mail para enviarmos sua nova senha temporária';
+const goRegEl = document.getElementById('goRegister');
+if (goRegEl) goRegEl.onclick = (e) => { if(e) e.preventDefault(); window.switchAuthTab('register'); };
+
+const goLoginEl = document.getElementById('goLogin');
+if (goLoginEl) goLoginEl.onclick = (e) => { if(e) e.preventDefault(); window.switchAuthTab('login'); };
+
+const goLoginForgotEl = document.getElementById('goLoginFromForgot');
+if (goLoginForgotEl) goLoginForgotEl.onclick = (e) => { if(e) e.preventDefault(); window.switchAuthTab('login'); };
+
+const goForgotEl = document.getElementById('goForgot');
+if (goForgotEl) goForgotEl.onclick = (e) => {
+  if(e) e.preventDefault();
+  window.switchAuthTab('forgot');
+  const forgotForm = document.getElementById('forgotStep1');
+  if (forgotForm) forgotForm.reset();
+  const forgotSub = document.getElementById('forgotSub');
+  if (forgotSub) forgotSub.textContent = 'Informe seu e-mail para enviarmos sua nova senha temporária';
 };
 
 const fillDemoBtn = document.getElementById('btnFillDemoAdmin');
@@ -1654,46 +1663,81 @@ document.getElementById('forgotStep1').onsubmit = async (e) => {
   }
 };
 
+const loginPassToggle = document.getElementById('loginPasswordToggle');
+if (loginPassToggle) {
+  loginPassToggle.onclick = (e) => {
+    e.preventDefault();
+    const passInput = document.getElementById('loginPassword');
+    if (passInput) {
+      const isPass = passInput.type === 'password';
+      passInput.type = isPass ? 'text' : 'password';
+      loginPassToggle.textContent = isPass ? '🙈' : '👁';
+    }
+  };
+}
+
 // Login Seguro
-document.getElementById('loginForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
+const loginFormEl = document.getElementById('loginForm');
+if (loginFormEl) {
+  loginFormEl.onsubmit = async (e) => {
+    if (e) e.preventDefault();
+    const emailInput = document.getElementById('loginEmail');
+    const passwordInput = document.getElementById('loginPassword');
+    const btnSubmit = document.getElementById('btnLoginSubmit');
 
-  try {
-    const res = await fetch(window.location.origin + '/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
+    const email = emailInput ? emailInput.value.trim() : '';
+    const password = passwordInput ? passwordInput.value.trim() : '';
 
-    if (!res.ok || !data.success) {
-      if (res.status === 403) {
-        showAccountDisabledPopup(data.error);
-      } else {
-        alert(data.error || 'E-mail ou senha incorretos!');
-      }
+    if (!email || !password) {
+      alert('Por favor, informe seu e-mail e senha.');
       return;
     }
 
-    localStorage.setItem('nexus_token', data.token);
-    document.documentElement.classList.add('is-logged-in');
-    currentUser = data.user;
-    const initialPage = 'dashboard';
-    saveToStorage('nexus_session', { email: currentUser.email, page: initialPage });
-    await loadUserData();
-    document.getElementById('authPage').classList.remove('show');
-    document.getElementById('appMain').classList.add('show');
-    
-    currentPage = initialPage;
+    if (btnSubmit) {
+      btnSubmit.disabled = true;
+      btnSubmit.textContent = 'Entrando...';
+    }
 
-    render();
-    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + currentUser.name.split(' ')[0] + '!');
-  } catch (err) {
-    alert('Erro ao conectar ao servidor. Verifique sua conexão.');
-  }
-};
+    try {
+      const res = await fetch(window.location.origin + '/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        if (res.status === 403) {
+          showAccountDisabledPopup(data.error);
+        } else {
+          alert(data.error || 'E-mail ou senha incorretos!');
+        }
+        return;
+      }
+
+      localStorage.setItem('nexus_token', data.token);
+      document.documentElement.classList.add('is-logged-in');
+      currentUser = data.user;
+      const initialPage = 'dashboard';
+      saveToStorage('nexus_session', { email: currentUser.email, page: initialPage });
+      await loadUserData();
+      document.getElementById('authPage').classList.remove('show');
+      document.getElementById('appMain').classList.add('show');
+      
+      currentPage = initialPage;
+
+      render();
+      showLoginSuccessPopup('Bem-vindo(a) de volta, ' + (currentUser.name ? currentUser.name.split(' ')[0] : 'Usuário') + '!');
+    } catch (err) {
+      alert('Erro ao conectar ao servidor. Verifique sua conexão.');
+    } finally {
+      if (btnSubmit) {
+        btnSubmit.disabled = false;
+        btnSubmit.textContent = 'Entrar no Meu Painel →';
+      }
+    }
+  };
+}
 
 function showLoginSuccessPopup(msg){
   const overlay = document.getElementById('loginSuccessOverlay');
@@ -1745,7 +1789,7 @@ document.getElementById('registerForm').onsubmit = async (e) => {
     document.getElementById('regPassword').value = '';
     document.getElementById('loginEmail').value = email;
     document.getElementById('loginPassword').value = password;
-    document.getElementById('goLogin').click();
+    window.switchAuthTab('login');
   } catch (err) {
     alert('Erro ao registrar no servidor. Verifique sua conexão e tente novamente.');
   }
