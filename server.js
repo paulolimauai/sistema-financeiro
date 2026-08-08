@@ -2423,7 +2423,7 @@ function pageOpenFinance(){
   <div class="page-head">
     <div>
       <h1>⚡ Open Finance Brasil — Busca por CPF & Pendências em Aberto</h1>
-      <p>Consulte e puxes todas as suas contas bancárias, cartões, faturas e boletos em aberto no seu CPF</p>
+      <p>Consulte, conecte e personalize suas contas bancárias, cartões, faturas e boletos reais do seu CPF</p>
     </div>
   </div>
 
@@ -2444,8 +2444,14 @@ function pageOpenFinance(){
           <input type="text" id="ofCpf" placeholder="000.000.000-00" value="\${escapeHTML(userCpf)}" maxlength="14" required style="font-size:15px; font-weight:700; letter-spacing:1px;">
         </div>
       </div>
-      <button type="submit" id="btnSyncCpf" class="btn-auth-premium" style="width:auto; padding:12px 24px; margin:0; height:46px;">
-        ⚡ Puxar Tudo em Aberto no CPF →
+      <button type="submit" id="btnSyncCpf" class="btn-auth-premium" style="width:auto; padding:12px 20px; margin:0; height:46px;">
+        ⚡ Puxar Contas do CPF →
+      </button>
+      <button type="button" onclick="openAccountModal()" class="btn-ghost" style="height:46px; border:1px solid rgba(232,176,75,0.4); color:var(--green); font-weight:700;">
+        ➕ Adicionar Minha Conta/Cartão Real
+      </button>
+      <button type="button" onclick="resetCpfTestData()" class="btn-ghost" style="height:46px; color:var(--red); font-size:12px;">
+        🗑️ Limpar Dados de Teste
       </button>
     </form>
     <div id="ofSyncStatus" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; background:rgba(232,176,75,0.12); border:1px solid rgba(232,176,75,0.3); color:var(--green); font-size:13px; font-weight:600;"></div>
@@ -2470,9 +2476,9 @@ function pageOpenFinance(){
     </div>
   </div>
 
-  <div class="panel-head" style="margin-bottom:14px;">
+  <div class="panel-head" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
     <h3>Faturas & Pendências Sincronizadas do CPF</h3>
-    <span class="tag" style="cursor:default;">\${pendingTx.length} Pendência\${pendingTx.length===1?'':'s'}</span>
+    <button type="button" onclick="openModal()" class="btn-ghost" style="font-size:12px; border:1px solid rgba(255,255,255,0.15); padding:6px 12px;">➕ Cadastrar Conta/Fatura Real em Aberto</button>
   </div>
 
   <div class="panel" style="margin-bottom:24px;">
@@ -2486,6 +2492,7 @@ function pageOpenFinance(){
             <th>Vencimento</th>
             <th>Valor (R$)</th>
             <th>Status</th>
+            <th>Ação</th>
           </tr>
         </thead>
         <tbody>
@@ -2496,6 +2503,7 @@ function pageOpenFinance(){
             <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
             <td style="font-weight:800; color:var(--red);">\${fmt(t.val)}</td>
             <td><span class="pill" style="background:var(--red-soft); color:var(--red);">⏳ Em Aberto</span></td>
+            <td><button class="row-del" data-del="\${t.id}" title="Excluir">🗑</button></td>
           </tr>\`).join('')}
         </tbody>
       </table>
@@ -2503,7 +2511,7 @@ function pageOpenFinance(){
     <div class="placeholder">
       <div class="big">📋</div>
       <h3>Nenhuma pendência em aberto cadastrada</h3>
-      <p>Clique no botão "Puxar Tudo em Aberto no CPF" acima para consultar e importar automaticamente todas as suas faturas de cartão de crédito e boletos DDA em aberto.</p>
+      <p>Clique em "➕ Cadastrar Conta/Fatura Real em Aberto" acima para registrar seus boletos e faturas reais do seu CPF.</p>
     </div>\`}
   </div>
 
@@ -2563,7 +2571,7 @@ function pageOpenFinance(){
     <div class="placeholder">
       <div class="big">🏦</div>
       <h3>Nenhuma conta bancária conectada ainda</h3>
-      <p>Digite seu CPF acima e clique em "Puxar Tudo em Aberto no CPF" para vincular automaticamente suas contas do Nubank, Itaú, Bradesco, Banco do Brasil e outros.</p>
+      <p>Digite seu CPF acima ou clique em "➕ Adicionar Minha Conta/Cartão Real" para registrar suas contas bancárias reais.</p>
     </div>\`}
   </div>\`;
 }
@@ -3013,6 +3021,15 @@ async function handleOpenFinanceSync(e) {
       render();
     }, 1200);
   }, 1000);
+}
+
+async function resetCpfTestData() {
+  if(!confirm('Deseja limpar os dados de teste e redefinir para cadastrar suas contas e faturas reais do CPF?')) return;
+  accounts = accounts.filter(a => !a.openFinance);
+  transactions = transactions.filter(t => t.status !== 'Pendente' || (!t.desc.includes('CPF') && !t.desc.includes('DDA')));
+  await saveUserData();
+  showToast('Dados de teste removidos! Agora você pode cadastrar suas contas e faturas reais.');
+  render();
 }
 
 function openAccountModal(id){
