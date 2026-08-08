@@ -971,18 +971,18 @@ tr.trow:hover td{background:var(--hover);}
   <div class="auth-blob b2"></div>
 
   <div class="auth-portal-card">
-    <!-- Lado Esquerdo: Showcase do Cartão & Benefícios -->
+    <!-- Lado Esquerdo: Showcase de Finanças Pessoais -->
     <div class="auth-hero-side">
       <div>
         <div class="auth-hero-brand">
           <div class="logo-ic">N</div>
           <div class="brand-title">NEXUS <span>FINANCEIRO HUB</span></div>
         </div>
-        <h3 style="font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 8px;">Gestão Patrimonial Inteligente</h3>
-        <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">Sua plataforma centralizada de controle financeiro com criptografia de ponta a ponta e persistência de dados em tempo real.</p>
+        <h3 style="font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 8px;">Controle Financeiro Pessoal</h3>
+        <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">Organize suas receitas, despesas, cartões e metas da sua vida financeira em um único lugar simples e seguro.</p>
       </div>
 
-      <!-- Preview de Cartão VIP 3D -->
+      <!-- Preview de Cartão de Crédito / Conta Pessoal -->
       <div class="vip-card-preview">
         <div class="card-top">
           <div class="chip"></div>
@@ -991,20 +991,20 @@ tr.trow:hover td{background:var(--hover);}
         <div class="card-num">•••• •••• •••• 8892</div>
         <div class="card-bottom">
           <div class="card-holder">
-            <span>Titular VIP</span>
-            <div>PROPRIETÁRIO NEXUS</div>
+            <span>Conta Pessoal</span>
+            <div>SUA CONTA PESSOAL</div>
           </div>
           <div class="card-balance">
-            <span>Saldo Ativo</span>
-            <strong>R$ 48.750,00</strong>
+            <span>Saldo Disponível</span>
+            <strong>R$ 4.850,00</strong>
           </div>
         </div>
       </div>
 
       <div class="hero-features-list">
-        <div class="feature-pill"><span class="ic">🛡️</span> Autenticação Segura com Hashing Salt PBKDF2</div>
-        <div class="feature-pill"><span class="ic">⚡</span> Banco de Dados PostgreSQL de Alta Performance</div>
-        <div class="feature-pill"><span class="ic">📊</span> Orçamentos, Relatórios e Painel Administrador</div>
+        <div class="feature-pill"><span class="ic">💳</span> Gestão de Cartões, Faturas e Contas</div>
+        <div class="feature-pill"><span class="ic">🎯</span> Metas de Economia & Orçamentos Mensais</div>
+        <div class="feature-pill"><span class="ic">📊</span> Relatórios Detalhados de Gastos Pessoais</div>
       </div>
     </div>
 
@@ -1019,8 +1019,8 @@ tr.trow:hover td{background:var(--hover);}
 
       <!-- Login Box -->
       <div class="auth-box" id="loginBox" style="padding:0; background:transparent; border:none; box-shadow:none;">
-        <h2>Acessar Conta</h2>
-        <p class="sub">Informe suas credenciais para continuar</p>
+        <h2>Acessar Minha Conta</h2>
+        <p class="sub">Entre com seu e-mail e senha para acessar seu painel financeiro</p>
         <form id="loginForm">
           <div class="field" style="margin-bottom:16px;">
             <label>E-mail</label>
@@ -1038,20 +1038,20 @@ tr.trow:hover td{background:var(--hover);}
             </div>
             <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
           </div>
-          <button type="submit" class="btn-auth-premium">Entrar no Sistema →</button>
+          <button type="submit" class="btn-auth-premium">Entrar no Meu Painel →</button>
         </form>
         <div class="demo-fill-btn" id="btnFillDemoAdmin">
-          ⚡ Entrar Rapidamente como Administrador (Demo)
+          ⚡ Preencher Acesso de Teste (Administrador Demo)
         </div>
         <div class="auth-toggle">
-          Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
+          Não tem uma conta? <a id="goRegister">Cadastrar-se grátis</a>
         </div>
       </div>
 
       <!-- Recuperar Senha Box -->
       <div class="auth-box" id="forgotBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
         <h2>Recuperar Senha</h2>
-        <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos uma nova senha temporária</p>
+        <p class="sub" id="forgotSub">Informe seu e-mail cadastrado para receber sua senha temporária</p>
         <form id="forgotStep1">
           <div class="field" style="margin-bottom:18px;">
             <label>E-mail Cadastrado</label>
@@ -1069,8 +1069,8 @@ tr.trow:hover td{background:var(--hover);}
 
       <!-- Cadastro Box -->
       <div class="auth-box" id="registerBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
-        <h2>Criar Conta</h2>
-        <p class="sub">Preencha seus dados para começar gratuitamente</p>
+        <h2>Criar Conta Pessoal</h2>
+        <p class="sub">Cadastre-se para começar a organizar suas finanças pessoais</p>
         <form id="registerForm">
           <div class="field" style="margin-bottom:14px;">
             <label>Nome Completo</label>
@@ -1093,7 +1093,7 @@ tr.trow:hover td{background:var(--hover);}
               <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
             </div>
           </div>
-          <button type="submit" class="btn-auth-premium">Cadastrar Minha Conta →</button>
+          <button type="submit" class="btn-auth-premium">Criar Minha Conta Pessoal →</button>
         </form>
         <div class="auth-toggle">
           Já tem uma conta? <a id="goLogin">Fazer Login</a>
