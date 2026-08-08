@@ -308,10 +308,40 @@ const htmlContent = `<!DOCTYPE html>
     }
   } catch(e){}
 })();
+
+window.switchAuthTab = function(tabName) {
+  var loginBox = document.getElementById('loginBox');
+  var registerBox = document.getElementById('registerBox');
+  var forgotBox = document.getElementById('forgotBox');
+  var tabLogin = document.getElementById('tabAuthLogin');
+  var tabRegister = document.getElementById('tabAuthRegister');
+  var tabForgot = document.getElementById('tabAuthForgot');
+
+  if (tabLogin) tabLogin.classList.remove('active');
+  if (tabRegister) tabRegister.classList.remove('active');
+  if (tabForgot) tabForgot.classList.remove('active');
+
+  if (loginBox) loginBox.style.display = 'none';
+  if (registerBox) registerBox.style.display = 'none';
+  if (forgotBox) forgotBox.style.display = 'none';
+
+  if (tabName === 'register') {
+    if (registerBox) registerBox.style.display = 'block';
+    if (tabRegister) tabRegister.classList.add('active');
+  } else if (tabName === 'forgot') {
+    if (forgotBox) forgotBox.style.display = 'block';
+    if (tabForgot) tabForgot.classList.add('active');
+  } else {
+    if (loginBox) loginBox.style.display = 'block';
+    if (tabLogin) tabLogin.classList.add('active');
+  }
+};
 </script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
-/* Prevenção Absoluta de Flash ao recarregar a página (F5) */
+/* Controle de Exibição Auth vs App */
+html:not(.is-logged-in) #authPage { display: flex !important; }
+html:not(.is-logged-in) #appMain { display: none !important; }
 html.is-logged-in #authPage { display: none !important; }
 html.is-logged-in #appMain { display: flex !important; }
 
@@ -1126,7 +1156,7 @@ tr.trow:hover td{background:var(--hover);}
       <div class="auth-box" id="loginBox" style="padding:0; background:transparent; border:none; box-shadow:none;">
         <h2>Acessar Minha Conta</h2>
         <p class="sub">Entre com seu e-mail e senha para acessar seu painel financeiro</p>
-        <form id="loginForm">
+        <form id="loginForm" onsubmit="handleLoginSubmit(event); return false;">
           <div class="field" style="margin-bottom:16px;">
             <label>E-mail</label>
             <div class="field-input-wrapper">
@@ -1154,7 +1184,7 @@ tr.trow:hover td{background:var(--hover);}
       <div class="auth-box" id="forgotBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
         <h2>Recuperar Senha</h2>
         <p class="sub" id="forgotSub">Informe seu e-mail cadastrado para receber sua senha temporária</p>
-        <form id="forgotStep1">
+        <form id="forgotStep1" onsubmit="handleForgotSubmit(event); return false;">
           <div class="field" style="margin-bottom:18px;">
             <label>E-mail Cadastrado</label>
             <div class="field-input-wrapper">
@@ -1173,7 +1203,7 @@ tr.trow:hover td{background:var(--hover);}
       <div class="auth-box" id="registerBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
         <h2>Criar Conta Pessoal</h2>
         <p class="sub">Cadastre-se para começar a organizar suas finanças pessoais</p>
-        <form id="registerForm">
+        <form id="registerForm" onsubmit="handleRegisterSubmit(event); return false;">
           <div class="field" style="margin-bottom:14px;">
             <label>Nome Completo</label>
             <div class="field-input-wrapper">
@@ -1630,13 +1660,21 @@ if (fillDemoBtn) {
   };
 }
 
-document.getElementById('forgotStep1').onsubmit = async (e) => {
-  e.preventDefault();
-  const email = document.getElementById('forgotEmail').value.trim();
+window.handleForgotSubmit = async function(e) {
+  if (e) e.preventDefault();
+  const emailInput = document.getElementById('forgotEmail');
+  const email = emailInput ? emailInput.value.trim() : '';
   const btn = document.getElementById('btnSendPassword');
 
-  btn.disabled = true;
-  btn.textContent = 'Enviando...';
+  if (!email) {
+    alert('Por favor, informe seu e-mail.');
+    return;
+  }
+
+  if (btn) {
+    btn.disabled = true;
+    btn.textContent = 'Enviando...';
+  }
 
   try {
     const res = await fetch(window.location.origin + '/api/send-password', {
@@ -1652,14 +1690,15 @@ document.getElementById('forgotStep1').onsubmit = async (e) => {
     }
 
     alert('Sua nova senha temporária foi enviada para o seu e-mail com sucesso!');
-    document.getElementById('loginEmail').value = email;
-    document.getElementById('forgotBox').style.display = 'none';
-    document.getElementById('loginBox').style.display = 'block';
+    if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
+    window.switchAuthTab('login');
   } catch(err) {
-    alert('Erro ao processar solicitação de e-mail. Verifique suas credenciais SMTP no Render.');
+    alert('Erro ao processar solicitação de e-mail. Verifique a chave RESEND_API_KEY no Render.');
   } finally {
-    btn.disabled = false;
-    btn.textContent = 'Enviar Senha por E-mail';
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = 'Enviar Senha por E-mail →';
+    }
   }
 };
 
@@ -1677,67 +1716,67 @@ if (loginPassToggle) {
 }
 
 // Login Seguro
-const loginFormEl = document.getElementById('loginForm');
-if (loginFormEl) {
-  loginFormEl.onsubmit = async (e) => {
-    if (e) e.preventDefault();
-    const emailInput = document.getElementById('loginEmail');
-    const passwordInput = document.getElementById('loginPassword');
-    const btnSubmit = document.getElementById('btnLoginSubmit');
+window.handleLoginSubmit = async function(e) {
+  if (e) e.preventDefault();
+  const emailInput = document.getElementById('loginEmail');
+  const passwordInput = document.getElementById('loginPassword');
+  const btnSubmit = document.getElementById('btnLoginSubmit');
 
-    const email = emailInput ? emailInput.value.trim() : '';
-    const password = passwordInput ? passwordInput.value.trim() : '';
+  const email = emailInput ? emailInput.value.trim() : '';
+  const password = passwordInput ? passwordInput.value.trim() : '';
 
-    if (!email || !password) {
-      alert('Por favor, informe seu e-mail e senha.');
+  if (!email || !password) {
+    alert('Por favor, informe seu e-mail e senha.');
+    return;
+  }
+
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'Entrando...';
+  }
+
+  try {
+    const res = await fetch(window.location.origin + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      if (res.status === 403) {
+        showAccountDisabledPopup(data.error);
+      } else {
+        alert(data.error || 'E-mail ou senha incorretos!');
+      }
       return;
     }
 
+    localStorage.setItem('nexus_token', data.token);
+    document.documentElement.classList.add('is-logged-in');
+    currentUser = data.user;
+    const initialPage = 'dashboard';
+    saveToStorage('nexus_session', { email: currentUser.email, page: initialPage });
+    await loadUserData();
+    
+    const authPageEl = document.getElementById('authPage');
+    const appMainEl = document.getElementById('appMain');
+    if (authPageEl) authPageEl.classList.remove('show');
+    if (appMainEl) appMainEl.classList.add('show');
+    
+    currentPage = initialPage;
+
+    render();
+    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + (currentUser.name ? currentUser.name.split(' ')[0] : 'Usuário') + '!');
+  } catch (err) {
+    alert('Erro ao conectar ao servidor. Verifique sua conexão.');
+  } finally {
     if (btnSubmit) {
-      btnSubmit.disabled = true;
-      btnSubmit.textContent = 'Entrando...';
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Entrar no Meu Painel →';
     }
-
-    try {
-      const res = await fetch(window.location.origin + '/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password })
-      });
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        if (res.status === 403) {
-          showAccountDisabledPopup(data.error);
-        } else {
-          alert(data.error || 'E-mail ou senha incorretos!');
-        }
-        return;
-      }
-
-      localStorage.setItem('nexus_token', data.token);
-      document.documentElement.classList.add('is-logged-in');
-      currentUser = data.user;
-      const initialPage = 'dashboard';
-      saveToStorage('nexus_session', { email: currentUser.email, page: initialPage });
-      await loadUserData();
-      document.getElementById('authPage').classList.remove('show');
-      document.getElementById('appMain').classList.add('show');
-      
-      currentPage = initialPage;
-
-      render();
-      showLoginSuccessPopup('Bem-vindo(a) de volta, ' + (currentUser.name ? currentUser.name.split(' ')[0] : 'Usuário') + '!');
-    } catch (err) {
-      alert('Erro ao conectar ao servidor. Verifique sua conexão.');
-    } finally {
-      if (btnSubmit) {
-        btnSubmit.disabled = false;
-        btnSubmit.textContent = 'Entrar no Meu Painel →';
-      }
-    }
-  };
-}
+  }
+};
 
 function showLoginSuccessPopup(msg){
   const overlay = document.getElementById('loginSuccessOverlay');
@@ -1763,11 +1802,26 @@ function hideAccountDisabledPopup(){
 }
 
 // Cadastro Seguro
-document.getElementById('registerForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const name = document.getElementById('regName').value.trim();
-  const email = document.getElementById('regEmail').value.trim();
-  const password = document.getElementById('regPassword').value.trim();
+window.handleRegisterSubmit = async function(e) {
+  if (e) e.preventDefault();
+  const nameInput = document.getElementById('regName');
+  const emailInput = document.getElementById('regEmail');
+  const passwordInput = document.getElementById('regPassword');
+  const btnSubmit = document.getElementById('btnRegisterSubmit');
+
+  const name = nameInput ? nameInput.value.trim() : '';
+  const email = emailInput ? emailInput.value.trim() : '';
+  const password = passwordInput ? passwordInput.value.trim() : '';
+
+  if (!name || !email || !password) {
+    alert('Por favor, preencha todos os campos.');
+    return;
+  }
+
+  if (btnSubmit) {
+    btnSubmit.disabled = true;
+    btnSubmit.textContent = 'Criando conta...';
+  }
 
   try {
     const response = await fetch(window.location.origin + '/api/register', {
@@ -1784,14 +1838,19 @@ document.getElementById('registerForm').onsubmit = async (e) => {
 
     alert('Conta criada com sucesso! Faça login para continuar.');
 
-    document.getElementById('regName').value = '';
-    document.getElementById('regEmail').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('loginEmail').value = email;
-    document.getElementById('loginPassword').value = password;
+    if (nameInput) nameInput.value = '';
+    if (emailInput) emailInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+    if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
+    if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = password;
     window.switchAuthTab('login');
   } catch (err) {
     alert('Erro ao registrar no servidor. Verifique sua conexão e tente novamente.');
+  } finally {
+    if (btnSubmit) {
+      btnSubmit.disabled = false;
+      btnSubmit.textContent = 'Criar Minha Conta Pessoal →';
+    }
   }
 };
 
