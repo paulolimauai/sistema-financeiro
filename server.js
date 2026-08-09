@@ -1,268 +1,99 @@
 require('dotenv').config();
 const http = require('http');
-const https = require('https');
-const fs = require('fs');
-const path = require('path');
 const url = require('url');
 const net = require('net');
 const tls = require('tls');
-const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const PORT = process.env.PORT || 3000;
 
-// ==================== Hashing de Senha Seguro & Gerenciamento de Sessões ====================
-function hashPassword(password) {
-  const salt = crypto.randomBytes(16).toString('hex');
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return `${salt}:${hash}`;
-}
-
-function verifyPassword(password, storedPassword) {
-  if (!storedPassword) return false;
-  if (!storedPassword.includes(':')) {
-    // Compatibilidade temporária com senhas legadas em texto limpo
-    return password === storedPassword;
-  }
-  const [salt, originalHash] = storedPassword.split(':');
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return hash === originalHash;
-}
-
-function escapeHTML(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-const activeSessions = new Map();
-
-function createSessionToken(user) {
-  const token = crypto.randomBytes(32).toString('hex');
-  const expiresAt = Date.now() + (30 * 24 * 60 * 60 * 1000); // 30 dias de validade
-  const sessionData = {
-    token,
-    email: user.email.toLowerCase(),
-    name: user.name,
-    role: user.role,
-    active: user.active !== false,
-    expiresAt
-  };
-  activeSessions.set(token, sessionData);
-  return token;
-}
-
-function getAuthUser(req) {
-  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
-  let token = null;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    token = authHeader.substring(7).trim();
-  }
-  if (!token) {
-    const parsedUrl = url.parse(req.url, true);
-    token = parsedUrl.query && parsedUrl.query.token;
-  }
-  if (!token) return null;
-
-  const session = activeSessions.get(token);
-  if (!session) return null;
-  if (Date.now() > session.expiresAt) {
-    activeSessions.delete(token);
-    return null;
-  }
-  return session;
-}
-
 // ==================== Conexão com o PostgreSQL ====================
 const pool = process.env.DATABASE_URL
   ? new Pool({
-      connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
-    })
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  })
   : new Pool({
-      host: process.env.DB_HOST || 'localhost',
-      port: process.env.DB_PORT || 5432,
-      user: process.env.DB_USER || 'postgres',
-      password: process.env.DB_PASSWORD || '86266049',
-      database: process.env.DB_NAME || 'FINANCEIRO',
-      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
-    });
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT || 5432,
+    user: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || '86266049',
+    database: process.env.DB_NAME || 'FINANCEIRO',
+    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
+  });
 
-// Usuário admin padrão
+// Usuário admin padrão, inserido no banco na primeira execução
 const DEFAULT_ADMIN = {
-  name: 'Administrador de TI',
-  email: 'paulodelima21@gmail.com',
+  name: 'Paulo Lima',
+  email: 'admin@nexusfinanceiro.com',
   password: '86266049',
   role: 'Administrador',
   active: true
 };
 
-// Armazenamento em memória para fallback no servidor Node.js
-const serverRegisteredUsers = [];
-
-// Disparo real de e-mail de redefinição de senha via Resend API (Dominio: nexusfinanceirohub.com.br ou onboarding@resend.dev) ou SMTP
+// Disparo real de e-mail via Socket SMTP Nativo (compatível com Gmail sem pacotes externos)
 function sendPasswordEmail(toEmail, userName, userPassword) {
   return new Promise((resolve) => {
-    const resendApiKey = (process.env.RESEND_API_KEY || '').trim();
-    const primaryFrom = process.env.RESEND_FROM || 'Nexus Financeiro <suporte@nexusfinanceirohub.com.br>';
-    const fallbackFrom = 'Nexus Financeiro <onboarding@resend.dev>';
-
-    // 1. Envio via Resend API
-    if (resendApiKey) {
-      console.log(`[Resend] Enviando e-mail de redefinição para ${toEmail} via Resend API (${primaryFrom})...`);
-
-      const htmlBody = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #0b0e14; color: #e2e8f0; margin: 0; padding: 40px 20px; }
-          .container { max-width: 560px; margin: 0 auto; background: #131722; border: 1px solid rgba(232,176,75,0.25); border-radius: 16px; padding: 36px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-          .logo { font-size: 24px; font-weight: 800; color: #ffffff; text-align: center; margin-bottom: 24px; letter-spacing: -0.5px; }
-          .logo span { color: #e8b04b; }
-          h2 { font-size: 20px; font-weight: 700; color: #ffffff; margin-bottom: 12px; text-align: center; }
-          p { font-size: 14.5px; line-height: 1.6; color: #94a3b8; margin-bottom: 20px; }
-          .pass-box { background: rgba(232,176,75,0.12); border: 1px dashed #e8b04b; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0; }
-          .pass-code { font-size: 32px; font-weight: 800; letter-spacing: 4px; color: #e8b04b; font-family: monospace; }
-          .btn-container { text-align: center; margin: 28px 0; }
-          .btn { display: inline-block; background: linear-gradient(135deg, #e8b04b 0%, #c9862a 100%); color: #131722 !important; text-decoration: none; font-weight: 800; font-size: 15px; padding: 14px 32px; border-radius: 10px; box-shadow: 0 4px 15px rgba(232,176,75,0.3); }
-          .footer { font-size: 12px; color: #64748b; text-align: center; margin-top: 32px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 20px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="logo"><span>NEXUS</span> FINANCEIRO</div>
-          <h2>Sua Nova Senha Temporária</h2>
-          <p>Olá, <strong>${escapeHTML(userName)}</strong>!</p>
-          <p>Recebemos uma solicitação de redefinição de senha para a conta <code>${escapeHTML(toEmail)}</code> cadastrada no <strong>Nexus Financeiro Hub</strong>.</p>
-          
-          <div class="pass-box">
-            <div style="font-size:12px; color:#94a3b8; margin-bottom:6px; text-transform:uppercase; font-weight:700;">Nova Senha Temporária</div>
-            <div class="pass-code">${escapeHTML(userPassword)}</div>
-          </div>
-
-          <div class="btn-container">
-            <a href="https://nexusfinanceirohub.com.br" class="btn" target="_blank">Acessar Meu Painel Agora →</a>
-          </div>
-
-          <p style="font-size:13px; color:#64748b;">Recomendamos alterar sua senha nas <strong>Configurações</strong> assim que fizer login no painel.</p>
-
-          <div class="footer">
-            Nexus Financeiro Hub • nexusfinanceirohub.com.br<br>
-            Mensagem Automática de Segurança
-          </div>
-        </div>
-      </body>
-      </html>
-      `;
-
-      const dispatch = (senderEmail) => {
-        return new Promise((subResolve) => {
-          const postData = JSON.stringify({
-            from: senderEmail,
-            to: [toEmail],
-            subject: '🔐 Sua Nova Senha Temporária — Nexus Financeiro Hub',
-            html: htmlBody
-          });
-
-          const reqOptions = {
-            hostname: 'api.resend.com',
-            port: 443,
-            path: '/emails',
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${resendApiKey}`,
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(postData)
-            }
-          };
-
-          const req = https.request(reqOptions, (res) => {
-            let respData = '';
-            res.on('data', chunk => respData += chunk);
-            res.on('end', () => {
-              if (res.statusCode >= 200 && res.statusCode < 300) {
-                console.log(`[Resend OK] E-mail enviado com sucesso via (${senderEmail}) para ${toEmail}`);
-                subResolve(true);
-              } else {
-                console.error(`[Resend Erro ${res.statusCode}] (${senderEmail}):`, respData);
-                subResolve(false);
-              }
-            });
-          });
-
-          req.on('error', (e) => {
-            console.error(`[Resend Erro de Rede] (${senderEmail}):`, e.message);
-            subResolve(false);
-          });
-
-          req.write(postData);
-          req.end();
-        });
-      };
-
-      // Tenta primeiro com o domínio próprio (suporte@nexusfinanceirohub.com.br)
-      dispatch(primaryFrom).then(success => {
-        if (success) {
-          resolve(true);
-        } else {
-          console.log(`[Resend Fallback] Tentando via remetente padrão de testes (${fallbackFrom})...`);
-          // Fallback via onboarding@resend.dev (para envio imediato antes da verificação DNS terminar)
-          dispatch(fallbackFrom).then(fallbackSuccess => {
-            resolve(fallbackSuccess);
-          });
-        }
-      });
-      return;
-    }
-
-    // 2. Fallback via Socket SMTP Nativo
     const host = process.env.SMTP_HOST || 'smtp.gmail.com';
     const port = parseInt(process.env.SMTP_PORT || '465');
     const user = process.env.SMTP_USER;
     const pass = process.env.SMTP_PASS;
 
     if (!user || !pass) {
-      console.log(`[AVISO] Credenciais RESEND_API_KEY ou SMTP ausentes no Render. E-mail não enviado para ${toEmail}`);
+      console.log(`[AVISO] Credenciais SMTP ausentes no Render. E-mail não enviado para ${toEmail}`);
       return resolve(false);
     }
 
     const socket = tls.connect(port, host, { rejectUnauthorized: false }, () => {
       let step = 0;
-      const send = (cmd) => { try { socket.write(cmd + '\r\n'); } catch(e){} };
+
+      const send = (cmd) => {
+        try { socket.write(cmd + '\r\n'); } catch (e) { }
+      };
 
       socket.on('data', (data) => {
         try {
           const response = data.toString();
-          if (step === 0 && response.startsWith('220')) { step++; send(`EHLO ${host}`); }
-          else if (step === 1 && response.startsWith('250')) { step++; send('AUTH LOGIN'); }
-          else if (step === 2 && response.startsWith('334')) { step++; send(Buffer.from(user).toString('base64')); }
-          else if (step === 3 && response.startsWith('334')) { step++; send(Buffer.from(pass).toString('base64')); }
-          else if (step === 4 && response.startsWith('235')) { step++; send(`MAIL FROM:<${user}>`); }
-          else if (step === 5 && response.startsWith('250')) { step++; send(`RCPT TO:<${toEmail}>`); }
-          else if (step === 6 && response.startsWith('250')) { step++; send('DATA'); }
-          else if (step === 7 && response.startsWith('354')) {
+
+          if (step === 0 && response.startsWith('220')) {
+            step++;
+            send(`EHLO ${host}`);
+          } else if (step === 1 && response.startsWith('250')) {
+            step++;
+            send('AUTH LOGIN');
+          } else if (step === 2 && response.startsWith('334')) {
+            step++;
+            send(Buffer.from(user).toString('base64'));
+          } else if (step === 3 && response.startsWith('334')) {
+            step++;
+            send(Buffer.from(pass).toString('base64'));
+          } else if (step === 4 && response.startsWith('235')) {
+            step++;
+            send(`MAIL FROM:<${user}>`);
+          } else if (step === 5 && response.startsWith('250')) {
+            step++;
+            send(`RCPT TO:<${toEmail}>`);
+          } else if (step === 6 && response.startsWith('250')) {
+            step++;
+            send('DATA');
+          } else if (step === 7 && response.startsWith('354')) {
             step++;
             const body = [
               `From: "Nexus Financeiro" <${user}>`,
               `To: <${toEmail}>`,
-              `Subject: Reciclagem de Senha - Nexus Financeiro`,
+              `Subject: Recuperacao de Senha - Nexus Financeiro`,
               'MIME-Version: 1.0',
               'Content-Type: text/html; charset=UTF-8',
               '',
               '<div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #1f2530; border-radius: 10px; background-color: #0b0e12; color: #e9edf3;">',
               '  <h2 style="color: #e8b04b; text-align: center;">Nexus Financeiro Hub</h2>',
               `  <p>Olá, <strong>${userName}</strong>!</p>`,
-              '  <p>Sua senha temporária de acesso ao sistema Nexus Financeiro é:</p>',
+              '  <p>Você solicitou o envio da sua senha de acesso ao sistema Nexus Financeiro.</p>',
+              '  <p>Sua senha cadastrada é:</p>',
               '  <div style="text-align: center; margin: 25px 0;">',
               `    <span style="font-size: 24px; font-weight: bold; color: #e8b04b; background: #141821; padding: 10px 20px; border-radius: 8px; border: 1px solid #1f2530;">${userPassword}</span>`,
               '  </div>',
-              '  <p style="font-size: 12px; color: #8a93a3;">Recomendamos alterar sua senha após realizar o login no painel.</p>',
+              '  <p style="font-size: 12px; color: #8a93a3;">Se você não solicitou este e-mail, recomendamos alterar sua senha após realizar o login.</p>',
               '</div>',
               '.'
             ].join('\r\n');
@@ -272,7 +103,9 @@ function sendPasswordEmail(toEmail, userName, userPassword) {
             send('QUIT');
             resolve(true);
           }
-        } catch(err) { resolve(false); }
+        } catch (err) {
+          resolve(false);
+        }
       });
     });
 
@@ -283,44 +116,8 @@ function sendPasswordEmail(toEmail, userName, userPassword) {
   });
 }
 
-// Garante a criação automática do banco de dados no PostgreSQL se ainda não existir
-async function ensureDatabaseExists() {
-  if (process.env.DATABASE_URL) return;
-
-  const dbName = process.env.DB_NAME || 'FINANCEIRO';
-  const dbUser = process.env.DB_USER || 'postgres';
-  const dbHost = process.env.DB_HOST || 'localhost';
-  const dbPort = process.env.DB_PORT || 5432;
-  const dbPassword = process.env.DB_PASSWORD || '86266049';
-
-  const { Client } = require('pg');
-  const sysClient = new Client({
-    host: dbHost,
-    port: dbPort,
-    user: dbUser,
-    password: dbPassword,
-    database: 'postgres',
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
-  });
-
-  try {
-    await sysClient.connect();
-    const checkDb = await sysClient.query('SELECT 1 FROM pg_database WHERE datname = $1', [dbName]);
-    if (checkDb.rows.length === 0) {
-      console.log(`[PostgreSQL] Criando banco de dados "${dbName}" automaticamente...`);
-      await sysClient.query(`CREATE DATABASE "${dbName}"`);
-      console.log(`[PostgreSQL] Banco de dados "${dbName}" criado com sucesso!`);
-    }
-  } catch (err) {
-    console.warn('[PostgreSQL] Aviso ao verificar/criar banco de dados:', err.message);
-  } finally {
-    try { await sysClient.end(); } catch(e){}
-  }
-}
-
-// Cria as tabelas (se não existirem) e garante o admin padrão com hash de senha
+// Cria as tabelas (se não existirem) e garante o admin padrão
 async function initDatabase() {
-  await ensureDatabaseExists();
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id SERIAL PRIMARY KEY,
@@ -342,21 +139,12 @@ async function initDatabase() {
     );
   `);
 
-  const adminCheck = await pool.query('SELECT id, password FROM usuarios WHERE LOWER(email) = LOWER($1)', [DEFAULT_ADMIN.email]);
-  if (adminCheck.rows.length === 0) {
-    const hashedPass = hashPassword(DEFAULT_ADMIN.password);
-    await pool.query(
-      `INSERT INTO usuarios (name, email, password, role, active)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [DEFAULT_ADMIN.name, DEFAULT_ADMIN.email, hashedPass, DEFAULT_ADMIN.role, DEFAULT_ADMIN.active]
-    );
-  } else {
-    const currentPass = adminCheck.rows[0].password;
-    if (!currentPass.includes(':')) {
-      const hashedPass = hashPassword(DEFAULT_ADMIN.password);
-      await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [hashedPass, adminCheck.rows[0].id]);
-    }
-  }
+  await pool.query(
+    `INSERT INTO usuarios (name, email, password, role, active)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (email) DO NOTHING;`,
+    [DEFAULT_ADMIN.name, DEFAULT_ADMIN.email, DEFAULT_ADMIN.password, DEFAULT_ADMIN.role, DEFAULT_ADMIN.active]
+  );
 }
 
 // Conteúdo HTML/JS/CSS da aplicação centralizada com isolamento por usuário
@@ -366,175 +154,8 @@ const htmlContent = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nexus Financeiro Hub</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script>
-(function(){
-  try {
-    var token = localStorage.getItem('nexus_token');
-    var cached = localStorage.getItem('nexus_cached_user');
-    if (token || cached) {
-      document.documentElement.classList.add('is-logged-in');
-    }
-  } catch(e){}
-})();
-
-function escapeHTML(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-window.switchAuthTab = function(tabName) {
-  var loginBox = document.getElementById('loginBox');
-  var registerBox = document.getElementById('registerBox');
-  var forgotBox = document.getElementById('forgotBox');
-  var tabLogin = document.getElementById('tabAuthLogin') || document.getElementById('tabLogin');
-  var tabRegister = document.getElementById('tabAuthRegister') || document.getElementById('tabRegister');
-  var tabForgot = document.getElementById('tabAuthForgot') || document.getElementById('tabForgot');
-
-  if (tabLogin) tabLogin.classList.remove('active');
-  if (tabRegister) tabRegister.classList.remove('active');
-  if (tabForgot) tabForgot.classList.remove('active');
-
-  if (loginBox) loginBox.style.display = 'none';
-  if (registerBox) registerBox.style.display = 'none';
-  if (forgotBox) forgotBox.style.display = 'none';
-
-  if (tabName === 'register') {
-    if (registerBox) registerBox.style.display = 'block';
-    if (tabRegister) tabRegister.classList.add('active');
-  } else if (tabName === 'forgot') {
-    if (forgotBox) forgotBox.style.display = 'block';
-    if (tabForgot) tabForgot.classList.add('active');
-  } else {
-    if (loginBox) loginBox.style.display = 'block';
-    if (tabLogin) tabLogin.classList.add('active');
-  }
-};
-
-window.fillLoginAndSwitch = function(email, password) {
-  if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
-  if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = password;
-  window.switchAuthTab('login');
-};
-
-window.handleForgotSubmit = async function(e) {
-  if (e) {
-    if (typeof e.preventDefault === 'function') e.preventDefault();
-    if (typeof e.stopPropagation === 'function') e.stopPropagation();
-  }
-  var emailInput = document.getElementById('forgotEmail');
-  var email = emailInput ? emailInput.value.trim() : '';
-  var btn = document.getElementById('btnSendPassword');
-  var resultBox = document.getElementById('forgotResultBox');
-
-  if (!email) {
-    if (resultBox) {
-      resultBox.style.display = 'block';
-      resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
-      resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
-      resultBox.style.color = '#ff8888';
-      resultBox.innerHTML = '⚠️ Por favor, digite o seu e-mail cadastrado.';
-    } else {
-      alert('Por favor, informe seu e-mail.');
-    }
-    if (emailInput) emailInput.focus();
-    return false;
-  }
-
-  if (btn) {
-    if (btn.disabled) return false;
-    btn.disabled = true;
-    btn.textContent = 'Enviando e-mail...';
-  }
-
-  if (resultBox) {
-    resultBox.style.display = 'none';
-  }
-
-  try {
-    var res = await fetch(window.location.origin + '/api/send-password', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
-    });
-    var data = await res.json();
-
-    if (!data.success) {
-      if (resultBox) {
-        resultBox.style.display = 'block';
-        resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
-        resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
-        resultBox.style.color = '#ff8888';
-        resultBox.innerHTML = '⚠️ ' + escapeHTML(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
-      } else {
-        alert(data.error || 'Não encontramos nenhuma conta com esse e-mail.');
-      }
-      return false;
-    }
-
-    if (resultBox) {
-      resultBox.style.display = 'block';
-      resultBox.style.background = 'rgba(232, 176, 75, 0.15)';
-      resultBox.style.border = '1px solid rgba(232, 176, 75, 0.4)';
-      resultBox.style.color = '#e8b04b';
-
-      if (data.mode === 'direct' && data.tempPassword) {
-        resultBox.innerHTML = 
-          '<div style="font-weight:800; font-size:16px; margin-bottom:6px; color:#fff;">🔑 Senha Temporária Gerada!</div>' +
-          '<div style="font-size:13px; color:#cbd5e1; margin-bottom:10px;">Sua nova senha temporária de acesso é:</div>' +
-          '<div style="font-size:26px; font-weight:800; letter-spacing:4px; font-family:monospace; background:#0b0e14; padding:10px; border-radius:8px; text-align:center; border:1px solid #e8b04b; margin-bottom:12px; color:#e8b04b;">' +
-            escapeHTML(data.tempPassword) +
-          '</div>' +
-          '<button type="button" onclick="window.fillLoginAndSwitch(\'' + escapeHTML(email) + '\', \'' + escapeHTML(data.tempPassword) + '\')" style="width:100%; background:linear-gradient(135deg,#e8b04b,#c9862a); color:#131722; border:none; padding:12px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer;">' +
-            'Ir para o Login com esta Senha →' +
-          '</button>';
-      } else {
-        resultBox.innerHTML = 
-          '<div style="font-weight:800; font-size:16px; margin-bottom:6px; color:#fff;">📧 E-mail Enviado com Sucesso!</div>' +
-          '<div style="font-size:13.5px; color:#cbd5e1; margin-bottom:12px;">Enviamos uma nova senha temporária para o seu e-mail cadastrado. Verifique sua caixa de entrada ou spam.</div>' +
-          '<button type="button" onclick="window.switchAuthTab(\'login\')" style="width:100%; background:linear-gradient(135deg,#e8b04b,#c9862a); color:#131722; border:none; padding:12px; border-radius:8px; font-weight:800; font-size:14px; cursor:pointer;">' +
-            'Ir para a Tela de Login →' +
-          '</button>';
-      }
-    } else {
-      alert('Sua nova senha temporária foi processada!');
-      window.switchAuthTab('login');
-    }
-
-  } catch(err) {
-    if (resultBox) {
-      resultBox.style.display = 'block';
-      resultBox.style.background = 'rgba(239, 90, 90, 0.15)';
-      resultBox.style.border = '1px solid rgba(239, 90, 90, 0.4)';
-      resultBox.style.color = '#ff8888';
-      resultBox.innerHTML = '⚠️ Erro de conexão com o servidor ao enviar a senha: ' + escapeHTML(err ? err.message : '');
-    } else {
-      alert('Erro ao processar solicitação de recuperação de senha.');
-    }
-  } finally {
-    if (btn) {
-      btn.disabled = false;
-      btn.textContent = 'Enviar Senha por E-mail →';
-    }
-  }
-  return false;
-};
-</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
-/* Controle de Exibição Auth vs App */
-html:not(.is-logged-in) #authPage { display: flex !important; }
-html:not(.is-logged-in) #appMain { display: none !important; }
-html.is-logged-in #authPage { display: none !important; }
-html.is-logged-in #appMain { display: flex !important; }
-
 :root{
   --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
   --text:#e9edf3; --text-dim:#8a93a3; --text-faint:#5b6472;
@@ -553,7 +174,7 @@ body.light{
 }
 *{box-sizing:border-box; margin:0; padding:0;}
 body{
-  font-family:'Plus Jakarta Sans','Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,sans-serif;
+  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
   background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
 }
 button, input, select{font-family:inherit; color:inherit;}
@@ -565,209 +186,107 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth Portal (Pro Fintech) ==================== */
+/* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
 .auth-container{
   --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
   --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
   position:relative; overflow:hidden;
-  display:none; align-items:center; justify-content:center; min-height:100vh; padding:24px 16px;
+  display:none; align-items:center; justify-content:center; min-height:100vh; padding:20px;
   background:
-    radial-gradient(circle at 85% 15%, rgba(232,176,75,0.14), transparent 45%),
-    radial-gradient(circle at 15% 85%, rgba(201,134,42,0.12), transparent 50%),
-    linear-gradient(160deg, #07090c 0%, #0c0f15 50%, #120e0a 100%);
+    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
+    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
+    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
 }
 .auth-container.show { display: flex; }
 .auth-grid{
   position:absolute; inset:0; z-index:0; pointer-events:none;
   background-image:
-    linear-gradient(rgba(232,176,75,.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232,176,75,.06) 1px, transparent 1px);
-  background-size:48px 48px;
-  -webkit-mask-image:radial-gradient(circle at 50% 50%, #000 20%, transparent 80%);
-  mask-image:radial-gradient(circle at 50% 50%, #000 20%, transparent 80%);
+    linear-gradient(rgba(232,176,75,.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,176,75,.07) 1px, transparent 1px);
+  background-size:54px 54px;
+  -webkit-mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+  mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
 }
 .auth-chart{
-  position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:.35;
-  -webkit-mask-image:linear-gradient(to bottom, transparent, #000 15%, #000 85%, transparent);
-  mask-image:radial-gradient(circle at 50% 50%, #000 0%, transparent 75%);
+  position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:.38;
+  -webkit-mask-image:linear-gradient(to bottom, transparent, #000 22%, #000 92%, transparent);
+  mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
 }
-.auth-blob{position:absolute; border-radius:50%; filter:blur(80px); opacity:.25; pointer-events:none; will-change:transform;}
-.auth-blob.b1{width:420px; height:420px; background:var(--auth-accent); top:-130px; left:-120px; animation:blobFloat 22s ease-in-out infinite;}
-.auth-blob.b2{width:380px; height:380px; background:var(--auth-accent-2); bottom:-140px; right:-100px; animation:blobFloat 26s ease-in-out infinite; animation-delay:-8s;}
-
+.auth-chart .chart-area{animation:chartBreathe 7s ease-in-out infinite;}
+.auth-chart .chart-line{
+  stroke-dasharray:2600; stroke-dashoffset:2600;
+  animation:chartDraw 3.2s ease-out forwards, chartGlow 4s ease-in-out 3.2s infinite;
+}
+.auth-chart .chart-candles{animation:candlesFade 1.4s ease-out .6s backwards;}
+@keyframes chartDraw{to{stroke-dashoffset:0;}}
+@keyframes chartBreathe{0%,100%{opacity:1;} 50%{opacity:.65;}}
+@keyframes chartGlow{0%,100%{filter:drop-shadow(0 0 0px var(--auth-accent));} 50%{filter:drop-shadow(0 0 6px var(--auth-accent));}}
+@keyframes candlesFade{from{opacity:0;} to{opacity:.8;}}
+body.light .auth-grid{opacity:.5;}
+body.light .auth-chart{opacity:.3;}
+.auth-blob{position:absolute; border-radius:50%; filter:blur(70px); opacity:.28; pointer-events:none; will-change:transform;}
+.auth-blob.b1{width:360px; height:360px; background:var(--auth-accent); top:-110px; left:-100px; animation:blobFloat 24s ease-in-out infinite;}
+.auth-blob.b2{width:320px; height:320px; background:var(--auth-accent-2); bottom:-130px; right:-90px; animation:blobFloat 28s ease-in-out infinite; animation-delay:-8s;}
+body.light .auth-blob{opacity:.16;}
 @keyframes blobFloat{
   0%,100%{transform:translate(0,0) scale(1);}
-  33%{transform:translate(40px,-45px) scale(1.08);}
-  66%{transform:translate(-35px,30px) scale(.94);}
+  33%{transform:translate(35px,-40px) scale(1.1);}
+  66%{transform:translate(-30px,28px) scale(.92);}
 }
 
-@keyframes authPortalIn{
-  from{opacity:0; transform:translateY(28px) scale(.97);}
+@keyframes authIn{
+  from{opacity:0; transform:translateY(26px) scale(.96);}
   to{opacity:1; transform:translateY(0) scale(1);}
 }
-
-/* Container do Portal Split Screen */
-.auth-portal-card{
-  position:relative; z-index:1; display:flex; flex-direction:row; width:100%; max-width:980px; min-height:580px;
-  background:rgba(15, 18, 26, 0.76);
-  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-  border:1px solid rgba(232,176,75,.2); border-radius:24px; overflow:hidden;
-  box-shadow:0 24px 64px rgba(0,0,0,.6), 0 0 0 1px rgba(252,211,133,.08);
-  animation:authPortalIn .65s cubic-bezier(.16,1,.3,1);
+@keyframes fieldIn{
+  from{opacity:0; transform:translateY(10px);}
+  to{opacity:1; transform:translateY(0);}
 }
-
-/* Lado Esquerdo: Showcase do Cartão & Benefícios */
-.auth-hero-side{
-  flex:1.1; position:relative; padding:44px; display:flex; flex-direction:column; justify-content:space-between;
-  background:linear-gradient(145deg, rgba(232,176,75,0.08) 0%, rgba(20,15,10,0.45) 100%);
-  border-right:1px solid rgba(232,176,75,.14); overflow:hidden;
+.auth-box{
+  position:relative; z-index:1;
+  background:var(--card); border:1px solid var(--card-border); border-radius:18px;
+  padding:36px; width:100%; max-width:400px;
+  box-shadow:var(--shadow), 0 0 0 1px rgba(232,176,75,.06);
+  animation:authIn .55s cubic-bezier(.16,1,.3,1);
 }
-.auth-hero-brand{display:flex; align-items:center; gap:12px; margin-bottom:20px;}
-.auth-hero-brand .logo-ic{
-  width:44px; height:44px; border-radius:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2));
-  color:var(--auth-text-on); font-weight:800; font-size:22px; display:flex; align-items:center; justify-content:center;
-  box-shadow:0 6px 18px rgba(232,176,75,.35);
+.auth-box .brand{display:flex; justify-content:center; margin-bottom:24px; padding:0;}
+.auth-box .brand .logo{
+  background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)) !important; color:var(--auth-text-on) !important;
+  animation:logoPulse 3s ease-in-out infinite;
 }
-.auth-hero-brand .brand-title{font-size:18px; font-weight:800; color:#fff;}
-.auth-hero-brand .brand-title span{color:var(--auth-accent); font-size:11px; display:block; font-weight:600; letter-spacing:1.5px;}
-
-/* Cartão Virtual Metallic Gold 3D */
-.vip-card-preview{
-  position:relative; width:100%; max-width:320px; height:180px; margin:10px auto 20px; border-radius:16px; padding:22px;
-  background:linear-gradient(135deg, #241c10 0%, #120e08 50%, #302414 100%);
-  border:1px solid rgba(232,176,75,0.4);
-  box-shadow:0 14px 36px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,0.25);
-  display:flex; flex-direction:column; justify-content:space-between;
-  transform:rotate(-2deg) translateY(0); transition:transform .35s ease, box-shadow .35s ease;
-  animation:cardFloat 6s ease-in-out infinite;
+@keyframes logoPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(232,176,75,.45);}
+  50%{box-shadow:0 0 0 9px rgba(232,176,75,0);}
 }
-.vip-card-preview:hover{transform:rotate(0deg) translateY(-6px) scale(1.02); box-shadow:0 20px 45px rgba(232,176,75,0.25);}
-@keyframes cardFloat{
-  0%,100%{transform:rotate(-2deg) translateY(0);}
-  50%{transform:rotate(0deg) translateY(-8px);}
+.auth-box h2{font-size:20px; font-weight:700; margin-bottom:6px; text-align:center;}
+.auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
+.auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
+.auth-box .field:nth-of-type(1){animation-delay:.05s;}
+.auth-box .field:nth-of-type(2){animation-delay:.1s;}
+.auth-box .field input:focus, .auth-box .field select:focus{
+  border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft); transform:translateY(-1px);
 }
-.vip-card-preview .card-top{display:flex; justify-content:space-between; align-items:center;}
-.vip-card-preview .chip{width:36px; height:26px; background:linear-gradient(135deg,#e8c475,#b3832d); border-radius:5px; border:1px solid rgba(255,255,255,.3);}
-.vip-card-preview .nfc{font-size:18px; color:rgba(232,176,75,.8);}
-.vip-card-preview .card-num{font-family:monospace; font-size:15px; letter-spacing:2px; color:rgba(255,255,255,.85);}
-.vip-card-preview .card-bottom{display:flex; justify-content:space-between; align-items:flex-end;}
-.vip-card-preview .card-holder{font-size:10px; text-transform:uppercase; color:var(--auth-accent); letter-spacing:1px; font-weight:700;}
-.vip-card-preview .card-holder div{color:#fff; font-size:12px; margin-top:2px;}
-.vip-card-preview .card-balance{text-align:right;}
-.vip-card-preview .card-balance span{font-size:9px; color:rgba(255,255,255,.6); display:block;}
-.vip-card-preview .card-balance strong{font-size:13px; color:#e8b04b;}
-
-.hero-features-list{display:flex; flex-direction:column; gap:10px;}
-.feature-pill{
-  display:flex; align-items:center; gap:10px; padding:10px 14px; border-radius:12px;
-  background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.05); font-size:12.5px; color:var(--text-dim);
+.auth-box .field input{transition:border-color .2s, box-shadow .2s, transform .15s;}
+.auth-forgot{display:block; text-align:right; font-size:12px; color:var(--text-dim); margin-top:8px; cursor:pointer; transition:color .15s;}
+.auth-forgot:hover{color:var(--auth-accent); text-decoration:underline;}
+.auth-box .btn-auth{
+  position:relative; overflow:hidden;
+  width:100%; padding:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); border:none;
+  border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;
+  transition:filter .2s, transform .15s;
 }
-.feature-pill .ic{font-size:16px;}
-
-/* Lado Direito: Formulário Glassmorphism */
-.auth-box-side{
-  flex:1; padding:44px 38px; display:flex; flex-direction:column; justify-content:center;
-  background:rgba(10, 13, 19, 0.85); position:relative;
+.auth-box .btn-auth::after{
+  content:''; position:absolute; top:0; left:-75%; width:45%; height:100%;
+  background:linear-gradient(120deg, transparent, rgba(255,255,255,.45), transparent);
+  transform:skewX(-20deg);
 }
-
-/* Tabs no Form com Alto Contraste */
-.auth-tabs{
-  display:flex; background:rgba(0,0,0,0.5); border:1px solid rgba(232,176,75,0.25);
-  border-radius:12px; padding:4px; margin-bottom:24px;
-}
-.auth-tab{
-  flex:1; text-align:center; padding:10px 12px; font-size:13px; font-weight:600;
-  color:rgba(255,255,255,0.75); border-radius:8px; cursor:pointer; transition:all .2s;
-}
-.auth-tab:hover{color:#ffffff; background:rgba(255,255,255,0.08);}
-.auth-tab.active{
-  background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2));
-  color:#1f1400; font-weight:800; box-shadow:0 4px 14px rgba(232,176,75,.35);
-}
-
-.auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; letter-spacing:-0.4px;}
-.auth-box p.sub{font-size:13px; color:var(--text-dim); margin-bottom:22px;}
-
-/* Container de Input com Ícone Fixo e Fundo Escuro */
-.field-input-wrapper {
-  position: relative; width: 100%; display: flex; align-items: center;
-}
-.field-input-wrapper .input-ic {
-  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-  font-size: 16px; opacity: 0.8; pointer-events: none; z-index: 5;
-}
-.field-input-wrapper input {
-  width: 100%; height: 46px; background: #131722 !important;
-  border: 1px solid rgba(255, 255, 255, 0.15) !important;
-  border-radius: 12px !important;
-  padding: 0 40px 0 44px !important;
-  font-size: 14px !important; color: #ffffff !important;
-  transition: border-color .2s, box-shadow .2s, background .2s;
-  box-shadow: none !important;
-}
-.field-input-wrapper input:focus {
-  border-color: var(--auth-accent) !important;
-  box-shadow: 0 0 0 3px rgba(232, 176, 75, 0.25) !important;
-  background: #181d2a !important; outline: none;
-}
-.field-input-wrapper .pass-toggle-ic {
-  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
-  background: none; border: none; cursor: pointer; font-size: 15px;
-  opacity: 0.7; z-index: 5; color: var(--text-dim); transition: opacity .15s;
-}
-.field-input-wrapper .pass-toggle-ic:hover { opacity: 1; color: #fff; }
-
-/* Autofill Override para Chrome / Edge / Safari */
-input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus, 
-input:-webkit-autofill:active,
-input:-internal-autofill-selected,
-input:-internal-autofill-previewed {
-  -webkit-box-shadow: 0 0 0 1000px #131722 inset !important;
-  box-shadow: 0 0 0 1000px #131722 inset !important;
-  -webkit-text-fill-color: #ffffff !important;
-  color: #ffffff !important;
-  caret-color: #ffffff !important;
-  font-size: 14px !important;
-  border-radius: 12px !important;
-  transition: background-color 99999s ease-in-out 0s !important;
-}
-
-.auth-forgot{display:inline-block; font-size:12px; color:var(--auth-accent); margin-top:8px; cursor:pointer; text-decoration:none; transition:opacity .2s;}
-.auth-forgot:hover{opacity:.8; text-decoration:underline;}
-
-.btn-auth-premium{
-  position:relative; overflow:hidden; width:100%; padding:13px; margin-top:14px;
-  background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on);
-  border:none; border-radius:11px; font-weight:800; font-size:14px; letter-spacing:.3px; cursor:pointer;
-  box-shadow:0 6px 20px rgba(232,176,75,.28); transition:all .2s;
-}
-.btn-auth-premium::after{
-  content:''; position:absolute; top:0; left:-75%; width:50%; height:100%;
-  background:linear-gradient(120deg, transparent, rgba(255,255,255,.5), transparent); transform:skewX(-20deg);
-}
-.btn-auth-premium:hover{filter:brightness(1.1); transform:translateY(-1.5px); box-shadow:0 8px 24px rgba(232,176,75,.38);}
-.btn-auth-premium:hover::after{animation:shimmer .9s ease;}
-.btn-auth-premium:active{transform:translateY(0) scale(.98);}
+.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-1px);}
+.auth-box .btn-auth:hover::after{animation:shimmer .9s ease;}
+.auth-box .btn-auth:active{transform:translateY(0) scale(.98);}
 @keyframes shimmer{from{left:-75%;} to{left:130%;}}
-
-.demo-fill-btn{
-  margin-top:16px; padding:9px 12px; background:rgba(232,176,75,0.08); border:1px dashed rgba(232,176,75,0.3);
-  border-radius:9px; color:var(--auth-accent); font-size:12px; font-weight:600; text-align:center; cursor:pointer; transition:all .2s;
-}
-.demo-fill-btn:hover{background:rgba(232,176,75,0.16); border-style:solid;}
-
-.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:20px; padding-top:16px; border-top:1px solid rgba(255,255,255,0.08);}
-.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:700; cursor:pointer;}
+.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:22px; padding-top:18px; border-top:1px solid var(--card-border);}
+.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:600; cursor:pointer;}
 .auth-toggle a:hover{text-decoration:underline;}
-
-/* Responsividade Mobile */
-@media(max-width:860px){
-  .auth-portal-card{flex-direction:column; max-width:440px;}
-  .auth-hero-side{display:none;}
-  .auth-box-side{padding:32px 24px;}
-}
 
 /* ==================== App principal Centralizado ==================== */
 .app{
@@ -1143,53 +662,6 @@ tr.trow:hover td{background:var(--hover);}
 }
 .row-toggle:hover{background:var(--red-soft); color:var(--red); border-color:var(--red);}
 
-/* ==================== Estilos PostgreSQL & VS Code ==================== */
-.pg-code-block {
-  background: #090d16;
-  border: 1px solid var(--card-border);
-  border-radius: 10px;
-  padding: 12px 14px;
-  font-family: 'Consolas', 'Fira Code', monospace;
-  font-size: 12px;
-  color: #38bdf8;
-  overflow-x: auto;
-  white-space: pre;
-  margin-top: 8px;
-  margin-bottom: 4px;
-}
-.pg-code-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
-}
-.pg-code-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text-dim);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.pg-status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-}
-.pg-status-badge.online {
-  background: rgba(16, 185, 129, 0.15);
-  color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.3);
-}
-.pg-status-badge.offline {
-  background: rgba(239, 68, 68, 0.15);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
 /* ==================== Banner: Modo Visualização (Admin) ==================== */
 .view-mode-banner{
   display:none; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
@@ -1325,7 +797,7 @@ tr.trow:hover td{background:var(--hover);}
 </head>
 <body>
 
-<!-- TELA DE LOGIN / CADASTRO PRO FINTECH -->
+<!-- TELA DE LOGIN / CADASTRO -->
 <div class="auth-container show" id="authPage">
   <div class="auth-grid" aria-hidden="true"></div>
   <svg class="auth-chart" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -1342,139 +814,83 @@ tr.trow:hover td{background:var(--hover);}
   <div class="auth-blob b1"></div>
   <div class="auth-blob b2"></div>
 
-  <div class="auth-portal-card">
-    <!-- Lado Esquerdo: Showcase de Finanças Pessoais -->
-    <div class="auth-hero-side">
-      <div>
-        <div class="auth-hero-brand">
-          <div class="logo-ic">N</div>
-          <div class="brand-title">NEXUS <span>FINANCEIRO HUB</span></div>
-        </div>
-        <h3 style="font-size: 20px; font-weight: 800; color: #fff; margin-bottom: 8px;">Controle Financeiro Pessoal</h3>
-        <p style="font-size: 13px; color: var(--text-dim); line-height: 1.5;">Organize suas receitas, despesas, cartões e metas da sua vida financeira em um único lugar simples e seguro.</p>
-      </div>
-
-      <!-- Preview de Cartão de Crédito / Conta Pessoal -->
-      <div class="vip-card-preview">
-        <div class="card-top">
-          <div class="chip"></div>
-          <div class="nfc">📡</div>
-        </div>
-        <div class="card-num">•••• •••• •••• 8892</div>
-        <div class="card-bottom">
-          <div class="card-holder">
-            <span>Conta Pessoal</span>
-            <div>SUA CONTA PESSOAL</div>
-          </div>
-          <div class="card-balance">
-            <span>Saldo Disponível</span>
-            <strong>R$ 4.850,00</strong>
-          </div>
-        </div>
-      </div>
-
-      <div class="hero-features-list">
-        <div class="feature-pill"><span class="ic">💳</span> Gestão de Cartões, Faturas e Contas</div>
-        <div class="feature-pill"><span class="ic">🎯</span> Metas de Economia & Orçamentos Mensais</div>
-        <div class="feature-pill"><span class="ic">📊</span> Relatórios Detalhados de Gastos Pessoais</div>
-      </div>
+  <!-- Login -->
+  <div class="auth-box" id="loginBox">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
     </div>
-
-    <!-- Lado Direito: Formulário Glassmorphism -->
-    <div class="auth-box-side">
-      <!-- Tabs Selector -->
-      <div class="auth-tabs">
-        <div class="auth-tab active" id="tabAuthLogin" onclick="switchAuthTab('login')">Acessar</div>
-        <div class="auth-tab" id="tabAuthRegister" onclick="switchAuthTab('register')">Criar Conta</div>
-        <div class="auth-tab" id="tabAuthForgot" onclick="switchAuthTab('forgot')">Recuperar</div>
+    <h2>Acessar Conta</h2>
+    <p class="sub">Informe suas credenciais para continuar</p>
+    <form id="loginForm">
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
       </div>
-
-      <!-- Login Box -->
-      <div class="auth-box" id="loginBox" style="padding:0; background:transparent; border:none; box-shadow:none;">
-        <h2>Acessar Minha Conta</h2>
-        <p class="sub">Entre com seu e-mail e senha para acessar seu painel financeiro</p>
-        <form id="loginForm" onsubmit="handleLoginSubmit(event); return false;">
-          <div class="field" style="margin-bottom:16px;">
-            <label>E-mail</label>
-            <div class="field-input-wrapper">
-              <span class="ic">✉️</span>
-              <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
-            </div>
-          </div>
-          <div class="field" style="margin-bottom:16px;">
-            <label>Senha</label>
-            <div class="field-input-wrapper">
-              <span class="ic">🔒</span>
-              <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-              <button type="button" class="pass-toggle-ic" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha">👁</button>
-            </div>
-            <a class="auth-forgot" id="goForgot" href="javascript:void(0)" onclick="switchAuthTab('forgot'); return false;">Esqueceu a senha?</a>
-          </div>
-          <button type="submit" class="btn-auth-premium" id="btnLoginSubmit">Entrar no Meu Painel →</button>
-          <button type="button" onclick="document.getElementById('loginEmail').value='paulodelima21@gmail.com'; document.getElementById('loginPassword').value='86266049'; window.handleLoginSubmit(event);" style="width:100%; margin-top:12px; background:rgba(6,214,160,0.12); border:1px solid rgba(6,214,160,0.4); color:#06D6A0; padding:11px; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; transition:all 0.2s;">⚡ Entrar como Administrador de TI (1 Clique)</button>
-        </form>
-        <div class="auth-toggle">
-          Não tem uma conta? <a id="goRegister" href="javascript:void(0)" onclick="switchAuthTab('register'); return false;">Cadastrar-se grátis</a>
+      <div class="field">
+        <label>Senha</label>
+        <div class="pass-field">
+          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
         </div>
+        <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
       </div>
-
-      <!-- Recuperar Senha Box -->
-      <div class="auth-box" id="forgotBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
-        <h2>Recuperar Senha</h2>
-        <p class="sub" id="forgotSub">Informe seu e-mail cadastrado para receber sua senha temporária</p>
-        
-        <div id="forgotResultBox" style="display:none; margin-bottom:18px; padding:16px; border-radius:12px; font-size:14px; line-height:1.5;"></div>
-
-        <form id="forgotStep1" onsubmit="window.handleForgotSubmit(event); return false;">
-          <div class="field" style="margin-bottom:18px;">
-            <label>E-mail Cadastrado</label>
-            <div class="field-input-wrapper">
-              <span class="ic">✉️</span>
-              <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required onkeydown="if(event.key==='Enter'){event.preventDefault(); window.handleForgotSubmit(event);}">
-            </div>
-          </div>
-          <button type="button" onclick="window.handleForgotSubmit(event)" class="btn-auth-premium" id="btnSendPassword">Enviar Senha por E-mail →</button>
-        </form>
-        <div class="auth-toggle">
-          Lembrou a senha? <a id="goLoginFromForgot" href="javascript:void(0)" onclick="switchAuthTab('login'); return false;">Fazer Login</a>
-        </div>
-      </div>
-
-      <!-- Cadastro Box -->
-      <div class="auth-box" id="registerBox" style="display:none; padding:0; background:transparent; border:none; box-shadow:none;">
-        <h2>Criar Conta Pessoal</h2>
-        <p class="sub">Cadastre-se para começar a organizar suas finanças pessoais</p>
-        <form id="registerForm" onsubmit="handleRegisterSubmit(event); return false;">
-          <div class="field" style="margin-bottom:14px;">
-            <label>Nome Completo</label>
-            <div class="field-input-wrapper">
-              <span class="ic">👤</span>
-              <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
-            </div>
-          </div>
-          <div class="field" style="margin-bottom:14px;">
-            <label>E-mail</label>
-            <div class="field-input-wrapper">
-              <span class="ic">✉️</span>
-              <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
-            </div>
-          </div>
-          <div class="field" style="margin-bottom:14px;">
-            <label>Senha</label>
-            <div class="field-input-wrapper">
-              <span class="ic">🔒</span>
-              <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
-            </div>
-          </div>
-          <button type="submit" class="btn-auth-premium" id="btnRegisterSubmit">Criar Minha Conta Pessoal →</button>
-        </form>
-        <div class="auth-toggle">
-          Já tem uma conta? <a id="goLogin" href="javascript:void(0)" onclick="switchAuthTab('login'); return false;">Fazer Login</a>
-        </div>
-      </div>
+      <button type="submit" class="btn-auth">Entrar no Sistema</button>
+    </form>
+    <div class="auth-toggle">
+      Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
     </div>
   </div>
 
+  <!-- Recuperar Senha -->
+  <div class="auth-box" id="forgotBox" style="display:none;">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+    </div>
+    <h2>Recuperar Senha</h2>
+    <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos sua senha</p>
+
+    <form id="forgotStep1">
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
+      </div>
+      <button type="submit" class="btn-auth" id="btnSendPassword">Enviar Senha por E-mail</button>
+    </form>
+
+    <div class="auth-toggle">
+      Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
+    </div>
+  </div>
+
+  <!-- Cadastro -->
+  <div class="auth-box" id="registerBox" style="display:none;">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+    </div>
+    <h2>Criar Conta</h2>
+    <p class="sub">Preencha seus dados para começar</p>
+    <form id="registerForm">
+      <div class="field">
+        <label>Nome Completo</label>
+        <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
+      </div>
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+      </div>
+      <button type="submit" class="btn-auth">Cadastrar Conta</button>
+    </form>
+    <div class="auth-toggle">
+      Já tem uma conta? <a id="goLogin">Fazer Login</a>
+    </div>
+  </div>
   <div class="auth-dev-credit">
     <div class="dev-chip">
       <span class="dev-avatar">PL</span>
@@ -1517,42 +933,24 @@ tr.trow:hover td{background:var(--hover);}
         </div>
         <div class="icon-btn" id="miniThemeBtn">🌙</div>
         <div class="user" id="userMenu" data-nav="config">
-          <div class="avatar" id="headerAvatar">--</div>
-          <div><div class="uname" id="headerName">...</div><div class="urole" id="headerRole">...</div></div>
-          <script>
-            (function(){
-              try {
-                var c = JSON.parse(localStorage.getItem('nexus_cached_user') || '{}');
-                if (c && c.name) {
-                  document.getElementById('headerName').textContent = c.name;
-                  document.getElementById('headerRole').textContent = c.role || 'Usuário';
-                  document.getElementById('headerAvatar').textContent = c.initials || 'U';
-                }
-              } catch(e){}
-            })();
-          </script>
+          <div class="avatar" id="headerAvatar">PL</div>
+          <div><div class="uname" id="headerName">Paulo Lima</div><div class="urole" id="headerRole">Usuário</div></div>
         </div>
         <button class="btn-ghost" id="logoutBtn">Sair</button>
       </div>
     </div>
     <nav class="menu" id="menu">
-      <!-- Menus Comuns para Usuários -->
-      <button data-page="dashboard" class="active" id="menuDashboardBtn"><span class="ic">▦</span> Dashboard</button>
-      <button data-page="transacoes" id="menuTransacoesBtn"><span class="ic">⇄</span> Transações</button>
-      <button data-page="cartoes" id="menuCartoesBtn"><span class="ic">▭</span> Cartões</button>
-      <button data-page="orcamentos" id="menuOrcamentosBtn"><span class="ic">◔</span> Orçamentos</button>
-      <button data-page="metas" id="menuMetasBtn"><span class="ic">◎</span> Metas</button>
-      <button data-page="relatorios" id="menuRelatoriosBtn"><span class="ic">▥</span> Relatórios</button>
-      <button data-page="recorrentes" id="menuRecorrentesBtn"><span class="ic">↻</span> Recorrentes</button>
-      <button data-page="importar" id="menuImportarBtn"><span class="ic">⇥</span> Importar</button>
-      <button data-page="anexos" id="menuAnexosBtn"><span class="ic">📎</span> Anexos</button>
-      <button data-page="openfinance" id="menuOpenFinanceBtn"><span class="ic">⚡</span> Open Finance (CPF)</button>
-      <button data-page="config" id="menuConfigBtn"><span class="ic">⚙</span> Configurações</button>
-      <button data-page="postgres" id="menuPostgresBtn"><span class="ic">🐘</span> PostgreSQL & VS Code</button>
-      
-      <!-- Menus Exclusivos de Administrador (Administrador de TI) -->
+      <button data-page="dashboard" class="active"><span class="ic">▦</span> Dashboard</button>
+      <button data-page="transacoes"><span class="ic">⇄</span> Transações</button>
+      <button data-page="cartoes"><span class="ic">▭</span> Cartões</button>
+      <button data-page="orcamentos"><span class="ic">◔</span> Orçamentos</button>
+      <button data-page="metas"><span class="ic">◎</span> Metas</button>
+      <button data-page="relatorios"><span class="ic">▥</span> Relatórios</button>
+      <button data-page="recorrentes"><span class="ic">↻</span> Recorrentes</button>
+      <button data-page="importar"><span class="ic">⇥</span> Importar</button>
+      <button data-page="anexos"><span class="ic">📎</span> Anexos</button>
+      <button data-page="config"><span class="ic">⚙</span> Configurações</button>
       <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic">👥</span> Usuários Cadastrados</button>
-      <button data-page="paineladmin" id="menuAdminTotalBtn" style="display:none;"><span class="ic">⚡</span> Painel Administrador Geral</button>
     </nav>
   </div>
 
@@ -1776,33 +1174,7 @@ tr.trow:hover td{background:var(--hover);}
 </div>
 
 <script>
-/* ==================== Prevenção de XSS & Chamadas de API Seguras ==================== */
-function escapeHTML(str) {
-  if (str === null || str === undefined) return '';
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-async function apiRequest(endpoint, options = {}) {
-  const token = localStorage.getItem('nexus_token');
-  const headers = options.headers || {};
-  if (token) {
-    headers['Authorization'] = 'Bearer ' + token;
-  }
-  if (options.body && typeof options.body === 'object' && !(options.body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json';
-    options.body = JSON.stringify(options.body);
-  }
-  options.headers = headers;
-
-  const res = await fetch(window.location.origin + endpoint, options);
-  return res;
-}
-
+/* ==================== Gerenciamento de LocalStorage e Servidor ==================== */
 function loadFromStorage(key, defaultVal) {
   const data = localStorage.getItem(key);
   return data ? JSON.parse(data) : defaultVal;
@@ -1815,173 +1187,115 @@ let registeredUsers = [];
 
 async function syncUsersWithServer() {
   try {
-    const res = await apiRequest('/api/users');
+    const res = await fetch(window.location.origin + '/api/users');
     if (res.ok) {
       registeredUsers = await res.json();
       saveToStorage('nexus_users', registeredUsers);
     }
   } catch(e) {
-    registeredUsers = loadFromStorage('nexus_users', []);
+    registeredUsers = loadFromStorage('nexus_users', [
+      { name: 'Paulo Lima', email: 'admin@nexusfinanceiro.com', password: '86266049', role: 'Administrador', active: true }
+    ]);
   }
+}
+
+async function saveUsersToServer() {
+  saveToStorage('nexus_users', registeredUsers);
+  try {
+    await fetch(window.location.origin + '/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(registeredUsers)
+    });
+  } catch(e){}
 }
 
 let currentUser = null;
 let isViewingOtherUser = false;
 let adminOriginalUser = null;
 
-// Formulários e Abas de Login/Cadastro/Recuperação
-window.switchAuthTab = function(tabName) {
-  const loginBox = document.getElementById('loginBox');
-  const registerBox = document.getElementById('registerBox');
-  const forgotBox = document.getElementById('forgotBox');
-  const tabLogin = document.getElementById('tabAuthLogin');
-  const tabRegister = document.getElementById('tabAuthRegister');
-  const tabForgot = document.getElementById('tabAuthForgot');
-
-  if (tabLogin) tabLogin.classList.remove('active');
-  if (tabRegister) tabRegister.classList.remove('active');
-  if (tabForgot) tabForgot.classList.remove('active');
-
-  if (loginBox) loginBox.style.display = 'none';
-  if (registerBox) registerBox.style.display = 'none';
-  if (forgotBox) forgotBox.style.display = 'none';
-
-  if (tabName === 'register') {
-    if (registerBox) registerBox.style.display = 'block';
-    if (tabRegister) tabRegister.classList.add('active');
-  } else if (tabName === 'forgot') {
-    if (forgotBox) forgotBox.style.display = 'block';
-    if (tabForgot) tabForgot.classList.add('active');
-  } else {
-    if (loginBox) loginBox.style.display = 'block';
-    if (tabLogin) tabLogin.classList.add('active');
-  }
+// Formulários de Login/Cadastro
+document.getElementById('goRegister').onclick = () => {
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('registerBox').style.display = 'block';
+};
+document.getElementById('goLogin').onclick = () => {
+  document.getElementById('registerBox').style.display = 'none';
+  document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('loginBox').style.display = 'block';
 };
 
-const tabLoginEl = document.getElementById('tabAuthLogin');
-const tabRegEl = document.getElementById('tabAuthRegister');
-const tabForgotEl = document.getElementById('tabAuthForgot');
-if (tabLoginEl) tabLoginEl.onclick = () => window.switchAuthTab('login');
-if (tabRegEl) tabRegEl.onclick = () => window.switchAuthTab('register');
-if (tabForgotEl) tabForgotEl.onclick = () => window.switchAuthTab('forgot');
-
-const goRegEl = document.getElementById('goRegister');
-if (goRegEl) goRegEl.onclick = (e) => { if(e) e.preventDefault(); window.switchAuthTab('register'); };
-
-const goLoginEl = document.getElementById('goLogin');
-if (goLoginEl) goLoginEl.onclick = (e) => { if(e) e.preventDefault(); window.switchAuthTab('login'); };
-
-const goLoginForgotEl = document.getElementById('goLoginFromForgot');
-if (goLoginForgotEl) goLoginForgotEl.onclick = (e) => { if(e) e.preventDefault(); window.switchAuthTab('login'); };
-
-const goForgotEl = document.getElementById('goForgot');
-if (goForgotEl) goForgotEl.onclick = (e) => {
-  if(e) e.preventDefault();
-  window.switchAuthTab('forgot');
-  const forgotForm = document.getElementById('forgotStep1');
-  if (forgotForm) forgotForm.reset();
-  const forgotSub = document.getElementById('forgotSub');
-  if (forgotSub) forgotSub.textContent = 'Informe seu e-mail para enviarmos sua nova senha temporária';
+// Esqueceu a senha - Enviar por E-mail
+document.getElementById('goForgot').onclick = async (e) => {
+  e.preventDefault();
+  document.getElementById('loginBox').style.display = 'none';
+  document.getElementById('registerBox').style.display = 'none';
+  document.getElementById('forgotBox').style.display = 'block';
+  document.getElementById('forgotStep1').reset();
+  document.getElementById('forgotSub').textContent = 'Informe seu e-mail para enviarmos sua senha';
 };
 
-const fillDemoBtn = document.getElementById('btnFillDemoAdmin');
-if (fillDemoBtn) {
-  fillDemoBtn.onclick = () => {
-    switchAuthTab('login');
-    document.getElementById('loginEmail').value = 'paulodelima21@gmail.com';
-    document.getElementById('loginPassword').value = '123456';
-    document.getElementById('loginPassword').focus();
-  };
-}
+document.getElementById('goLoginFromForgot').onclick = () => {
+  document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('loginBox').style.display = 'block';
+};
 
+document.getElementById('forgotStep1').onsubmit = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('forgotEmail').value.trim();
+  const btn = document.getElementById('btnSendPassword');
 
-
-const loginPassToggle = document.getElementById('loginPasswordToggle');
-if (loginPassToggle) {
-  loginPassToggle.onclick = (e) => {
-    e.preventDefault();
-    const passInput = document.getElementById('loginPassword');
-    if (passInput) {
-      const isPass = passInput.type === 'password';
-      passInput.type = isPass ? 'text' : 'password';
-      loginPassToggle.textContent = isPass ? '🙈' : '👁';
-    }
-  };
-}
-
-// Login Seguro Infalível
-window.handleLoginSubmit = async function(e) {
-  if (e) e.preventDefault();
-  const emailInput = document.getElementById('loginEmail');
-  const passwordInput = document.getElementById('loginPassword');
-  const btnSubmit = document.getElementById('btnLoginSubmit');
-
-  const email = emailInput && emailInput.value ? emailInput.value.trim() : 'paulodelima21@gmail.com';
-  const password = passwordInput && passwordInput.value ? passwordInput.value.trim() : '86266049';
-
-  if (btnSubmit) {
-    btnSubmit.disabled = true;
-    btnSubmit.textContent = 'Entrando...';
-  }
-
-  let loggedUser = {
-    id: 1,
-    name: 'Paulo Lima (Admin)',
-    email: email || 'paulodelima21@gmail.com',
-    role: 'Administrador',
-    active: true
-  };
-  let userToken = 'nexus_token_' + Date.now();
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
 
   try {
-    const res = await fetch(window.location.origin + '/api/login', {
+    const res = await fetch(window.location.origin + '/api/send-password', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email })
     });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success && data.user) {
-        loggedUser = data.user;
-        userToken = data.token;
-      }
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.error || 'Não encontramos nenhuma conta com esse e-mail ou falha no envio.');
+      return;
     }
-  } catch (err) {
-    console.warn('[Login Notice] Usando autenticação direta:', err);
-  }
 
-  localStorage.setItem('nexus_token', userToken);
-  localStorage.setItem('nexus_cached_user', JSON.stringify(loggedUser));
-  document.documentElement.classList.add('is-logged-in');
-  currentUser = loggedUser;
-  const initialPage = 'dashboard';
-  saveToStorage('nexus_session', { email: currentUser.email, page: initialPage });
-  
-  const authPageEl = document.getElementById('authPage');
-  const appMainEl = document.getElementById('appMain');
-  if (authPageEl) {
-    authPageEl.style.display = 'none';
-    authPageEl.classList.remove('show');
+    alert('Sua senha foi enviada para o seu e-mail com sucesso!');
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('forgotBox').style.display = 'none';
+    document.getElementById('loginBox').style.display = 'block';
+  } catch(err) {
+    alert('Erro ao processar solicitação de e-mail. Verifique suas credenciais SMTP no Render.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enviar Senha por E-mail';
   }
-  if (appMainEl) {
-    appMainEl.style.display = 'flex';
-    appMainEl.classList.add('show');
-  }
-  
-  currentPage = initialPage;
+};
 
-  try {
+// Login
+document.getElementById('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  await syncUsersWithServer();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+
+  const user = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+  if (user) {
+    if (user.active === false) {
+      showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
+      return;
+    }
+    currentUser = user;
+    saveToStorage('nexus_session', { email: user.email });
     await loadUserData();
-  } catch(errData) {
-    console.warn('Carregamento de dados prévios:', errData);
-  }
-  
-  render();
-  showLoginSuccessPopup('Bem-vindo(a) de volta, ' + (currentUser.name ? currentUser.name.split(' ')[0] : 'Usuário') + '!');
-
-  if (btnSubmit) {
-    btnSubmit.disabled = false;
-    btnSubmit.textContent = 'Entrar no Meu Painel →';
+    document.getElementById('authPage').classList.remove('show');
+    document.getElementById('appMain').classList.add('show');
+    render();
+    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + user.name.split(' ')[0] + '!');
+  } else {
+    alert('E-mail ou senha incorretos!');
   }
 };
 
@@ -2008,73 +1322,55 @@ function hideAccountDisabledPopup(){
   setTimeout(()=> overlay.classList.remove('show'), 250);
 }
 
-// Cadastro Seguro
-window.handleRegisterSubmit = async function(e) {
-  if (e) e.preventDefault();
-  const nameInput = document.getElementById('regName');
-  const emailInput = document.getElementById('regEmail');
-  const passwordInput = document.getElementById('regPassword');
-  const btnSubmit = document.getElementById('btnRegisterSubmit');
+// Cadastro absoluto com requisição direta para o Render
+document.getElementById('registerForm').onsubmit = async (e) => {
+  e.preventDefault();
+  await syncUsersWithServer();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value.trim();
 
-  const name = nameInput ? nameInput.value.trim() : '';
-  const email = emailInput ? emailInput.value.trim() : '';
-  const password = passwordInput ? passwordInput.value.trim() : '';
-
-  if (!name || !email || !password) {
-    alert('Por favor, preencha todos os campos.');
+  if (registeredUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+    alert('Este e-mail já está cadastrado!');
     return;
   }
 
-  if (btnSubmit) {
-    btnSubmit.disabled = true;
-    btnSubmit.textContent = 'Criando conta...';
-  }
+  const newUser = { name, email, password, role: 'Usuário', active: true };
+  registeredUsers.push(newUser);
 
   try {
-    const response = await fetch(window.location.origin + '/api/register', {
+    const response = await fetch(window.location.origin + '/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password })
+      body: JSON.stringify(registeredUsers)
     });
-    const data = await response.json();
     
-    if (!response.ok || !data.success) {
-      alert(data.error || 'Falha ao registrar conta no servidor.');
-      return;
+    if (!response.ok) {
+      throw new Error('Falha ao comunicar com o servidor');
     }
 
+    saveToStorage('nexus_users', registeredUsers);
     alert('Conta criada com sucesso! Faça login para continuar.');
 
-    if (nameInput) nameInput.value = '';
-    if (emailInput) emailInput.value = '';
-    if (passwordInput) passwordInput.value = '';
-    if (document.getElementById('loginEmail')) document.getElementById('loginEmail').value = email;
-    if (document.getElementById('loginPassword')) document.getElementById('loginPassword').value = password;
-    window.switchAuthTab('login');
+    document.getElementById('regName').value = '';
+    document.getElementById('regEmail').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('loginPassword').value = password;
+    document.getElementById('goLogin').click();
   } catch (err) {
+    registeredUsers.pop();
     alert('Erro ao registrar no servidor. Verifique sua conexão e tente novamente.');
-  } finally {
-    if (btnSubmit) {
-      btnSubmit.disabled = false;
-      btnSubmit.textContent = 'Criar Minha Conta Pessoal →';
-    }
   }
 };
 
-// Logout Seguro
+// Logout
 document.getElementById('logoutBtn').onclick = async () => {
-  try {
-    await apiRequest('/api/logout', { method: 'POST' });
-  } catch(e) {}
   await saveUserData();
   currentUser = null;
   isViewingOtherUser = false;
   adminOriginalUser = null;
-  document.documentElement.classList.remove('is-logged-in');
-  localStorage.removeItem('nexus_token');
   localStorage.removeItem('nexus_session');
-  localStorage.removeItem('nexus_cached_user');
-  categories = []; accounts = []; transactions = []; budgets = []; goals = []; recurringList = []; alerts = []; attachments = []; notifications = [];
   document.getElementById('appMain').classList.remove('show');
   document.getElementById('authPage').classList.add('show');
   showToast('Sessão encerrada.');
@@ -2150,11 +1446,8 @@ async function loadUserData() {
   let data = null;
 
   try {
-    const res = await apiRequest('/api/data?email=' + encodeURIComponent(currentUser.email));
-    if (res.ok) {
-      const json = await res.json();
-      if (json && json.success) data = json.data;
-    }
+    const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(currentUser.email));
+    if (res.ok) data = await res.json();
   } catch(e) {
     data = loadFromStorage(userKey, null);
   }
@@ -2205,9 +1498,10 @@ async function saveUserData() {
   saveToStorage(userKey, payloadData);
 
   try {
-    await apiRequest('/api/data', {
+    await fetch(window.location.origin + '/api/data', {
       method: 'POST',
-      body: { email: currentUser.email, data: payloadData }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: currentUser.email, data: payloadData })
     });
   } catch(e) {}
 }
@@ -2373,19 +1667,16 @@ async function pushNotification(text, icon){
 }
 function renderNotifications(){
   const dot = document.getElementById('notifDot');
-  const list = document.getElementById('notifPanel');
+  const list = document.getElementById('notifList');
   if(!dot || !list) return;
   const unread = notifications.filter(n=>!n.read).length;
   dot.style.display = unread > 0 ? 'block' : 'none';
-  const listEl = document.getElementById('notifList');
-  if(listEl) {
-    listEl.innerHTML = notifications.length ? notifications.map(n=>\`
-      <div class="notif-item \${n.read?'':'unread'}">
-        \${n.read? '' : '<span class="unread-dot"></span>'}
-        <span class="ic">\${n.icon}</span>
-        <div class="body"><div class="txt">\${n.text}</div><div class="time">\${timeAgo(n.time)}</div></div>
-      </div>\`).join('') : \`<div class="notif-empty">Nenhuma notificação por aqui.</div>\`;
-  }
+  list.innerHTML = notifications.length ? notifications.map(n=>\`
+    <div class="notif-item \${n.read?'':'unread'}">
+      \${n.read? '' : '<span class="unread-dot"></span>'}
+      <span class="ic">\${n.icon}</span>
+      <div class="body"><div class="txt">\${n.text}</div><div class="time">\${timeAgo(n.time)}</div></div>
+    </div>\`).join('') : \`<div class="notif-empty">Nenhuma notificação por aqui.</div>\`;
 }
 
 /* ==================== Atualização parcial da tabela de Transações (evita flicker) ==================== */
@@ -2417,12 +1708,8 @@ async function render(){
 
   let newHTML = '';
   if(currentPage==='usuarios') {
-    await fetchAdminGlobalData();
+    await syncUsersWithServer();
     newHTML = pageUsuarios();
-  }
-  else if(currentPage==='paineladmin') {
-    await fetchAdminGlobalData();
-    newHTML = pageAdminTotal();
   }
   else if(currentPage==='dashboard') newHTML = pageDashboard();
   else if(currentPage==='transacoes') newHTML = pageTransacoes();
@@ -2434,12 +1721,7 @@ async function render(){
   else if(currentPage==='importar') newHTML = pageImportar();
   else if(currentPage==='anexos') newHTML = pageAnexos();
   else if(currentPage==='alertas') newHTML = pageAlertas();
-  else if(currentPage==='openfinance') newHTML = pageOpenFinance();
   else if(currentPage==='config') newHTML = pageConfig();
-  else if(currentPage==='postgres') {
-    await fetchPostgresStatus();
-    newHTML = pagePostgres();
-  }
 
   requestAnimationFrame(() => {
     el.innerHTML = newHTML;
@@ -2453,24 +1735,10 @@ async function render(){
 }
 
 function updateAdminMenuVisibility(){
-  const isTiAdmin = currentUser && currentUser.role === 'Administrador' && currentUser.email.toLowerCase() === 'paulodelima21@gmail.com';
-
-  const commonMenuIds = [
-    'menuDashboardBtn', 'menuTransacoesBtn', 'menuCartoesBtn', 'menuOrcamentosBtn',
-    'menuMetasBtn', 'menuRelatoriosBtn', 'menuRecorrentesBtn', 'menuImportarBtn',
-    'menuAnexosBtn', 'menuOpenFinanceBtn', 'menuConfigBtn', 'menuPostgresBtn'
-  ];
-
-  commonMenuIds.forEach(id => {
-    const btn = document.getElementById(id);
-    if(btn) btn.style.display = '';
-  });
-
-  const btnUsuarios = document.getElementById('menuUsuariosBtn');
-  const btnAdminTotal = document.getElementById('menuAdminTotalBtn');
-  
-  if(btnUsuarios) btnUsuarios.style.display = isTiAdmin ? '' : 'none';
-  if(btnAdminTotal) btnAdminTotal.style.display = isTiAdmin ? '' : 'none';
+  const btn = document.getElementById('menuUsuariosBtn');
+  if(!btn) return;
+  const isAdmin = currentUser && currentUser.role === 'Administrador';
+  btn.style.display = (isAdmin && !isViewingOtherUser) ? '' : 'none';
 }
 
 function updateViewModeBanner(){
@@ -2490,16 +1758,9 @@ function updateHeaderUser(){
   const avatarEl = document.getElementById('headerAvatar');
   const roleEl = document.getElementById('headerRole');
 
-  const initials = currentUser.name.trim().split(/\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
-  const role = currentUser.role || 'Usuário';
-
   if(unameEl) unameEl.textContent = currentUser.name;
-  if(roleEl) roleEl.textContent = role;
-  if(avatarEl) avatarEl.textContent = initials;
-
-  try {
-    saveToStorage('nexus_cached_user', { name: currentUser.name, email: currentUser.email, role: role, initials: initials });
-  } catch(e){}
+  if(roleEl) roleEl.textContent = currentUser.role || 'Usuário';
+  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
 }
 
 function periodPickerHTML(){
@@ -2519,7 +1780,7 @@ function periodPickerHTML(){
   </div>\`;
 }
 
-/* ==================== Dashboard Fintech Pro ==================== */
+/* ==================== Dashboard ==================== */
 function pageDashboard(){
   const periodTx = transactions.filter(inPeriod);
   const {receitas,despesas,saldo} = computeTotals(periodTx);
@@ -2528,157 +1789,55 @@ function pageDashboard(){
   const recPct = Math.round(receitas/(receitas+despesas||1)*100) || 0;
   const despPct = 100-recPct;
   const lastTx = periodTx.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
-  
-  // Taxa de economia (% poupada da receita)
-  const economizado = receitas - despesas;
-  const taxaPoupança = receitas > 0 ? Math.round((economizado / receitas) * 100) : 0;
-  
-  // Saudação dinâmica por horário
-  const hr = new Date().getHours();
-  const saudacao = hr < 12 ? 'Bom dia' : hr < 18 ? 'Boa tarde' : 'Boa noite';
-  const firstName = currentUser ? currentUser.name.split(' ')[0] : 'Usuário';
-
-  // Pendências a vencer
-  const pendingTx = transactions.filter(t => t.status === 'Pendente');
-
   return \`
-  <div class="page-head" style="margin-bottom:20px;">
-    <div>
-      <h1 style="font-size:24px; font-weight:800; display:flex; align-items:center; gap:8px;">
-        \${saudacao}, \${escapeHTML(firstName)}! 👋
-      </h1>
-      <p style="font-size:13px; color:var(--text-dim);">Acompanhe a evolução do seu patrimônio e controle de contas pessoais</p>
-    </div>
-    <div class="head-actions" style="display:flex; gap:10px; flex-wrap:wrap;">
+  <div class="page-head">
+    <div><h1>Olá, \${currentUser ? currentUser.name.split(' ')[0] : 'Usuário'} 👋</h1><p>Aqui está o resumo da sua vida financeira</p></div>
+    <div class="head-actions">
       \${periodPickerHTML()}
-      <button class="btn-ghost" data-nav="openfinance" style="border:1px solid rgba(232,176,75,0.4); color:var(--green); font-weight:700;">⚡ Open Finance CPF</button>
       <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
     </div>
   </div>
 
-  <!-- KPIs de Alto Nível -->
-  <div class="kpis" style="margin-bottom:24px;">
-    <div class="kpi" style="border-top:3px solid var(--green);">
-      <div class="row1">Saldo Total Consolidado <span class="ic" style="background:var(--green-soft);color:var(--green)">💼</span></div>
-      <div class="val" style="color:var(--green); font-size:24px; font-weight:800;">\${fmt(saldo)}</div>
-      <div class="sub">todas as contas e investimentos</div>
-    </div>
-    <div class="kpi" style="border-top:3px solid #26a69a;">
-      <div class="row1">Receitas do Mês <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div>
-      <div class="val" style="color:#26a69a;">\${fmt(receitas)}</div>
-      <div class="sub up">\${periodLabel()}</div>
-    </div>
-    <div class="kpi" style="border-top:3px solid #ef5350;">
-      <div class="row1">Despesas do Mês <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div>
-      <div class="val" style="color:#ef5350;">\${fmt(despesas)}</div>
-      <div class="sub">\${periodLabel()}</div>
-    </div>
-    <div class="kpi" style="border-top:3px solid \${economizado>=0?'var(--green)':'var(--red)'};">
-      <div class="row1">Resultado do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div>
-      <div class="val" style="color:\${economizado<0?'var(--red)':'var(--green)'}">\${fmt(economizado)}</div>
-      <div class="sub" style="color:\${economizado<0?'var(--red)':'var(--green)'}; font-weight:700;">\${taxaPoupança >= 0 ? '+' + taxaPoupança + '% da receita economizada' : 'Atenção aos gastos'}</div>
-    </div>
-    <div class="kpi" style="border-top:3px solid var(--purple);">
-      <div class="row1">Contas a Vencer / DDA <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">📋</span></div>
-      <div class="val" style="color:var(--purple);">\${pendingTx.length}</div>
-      <div class="sub">pendências em aberto no CPF</div>
-    </div>
+  <div class="kpis">
+    <div class="kpi"><div class="row1">Saldo Total <span>👁</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
+    <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div><div class="val">\${fmt(despesas)}</div><div class="sub">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
   </div>
 
-  <!-- Grid de Gráficos e Painéis -->
-  <div class="grid3" style="margin-bottom:24px;">
-    <!-- Resumo de Entrada vs Saída -->
+  <div class="grid3">
     <div class="panel">
-      <div class="panel-head">
-        <h3>Resumo Financeiro</h3>
-        <span class="tag">\${periodLabel()}</span>
-      </div>
+      <div class="panel-head"><h3>Resumo Financeiro</h3><span class="tag">\${periodLabel()}</span></div>
       <div class="donut-wrap">
-        <div class="donut-side">Receitas<b style="color:var(--green); display:block; margin-top:2px;">\${fmt(receitas)}</b></div>
-        <div class="donut-canvas">
-          <canvas id="chartResumo"></canvas>
-          <div class="donut-center">
-            <span style="font-size:10.5px;">Balanço</span>
-            <b style="font-size:13.5px; color:\${economizado<0?'var(--red)':'var(--green)'};">\${fmt(economizado)}</b>
-          </div>
+        <div class="donut-side">Receitas<b style="color:var(--green)">\${fmt(receitas)}</b></div>
+        <div class="donut-canvas"><canvas id="chartResumo"></canvas>
+          <div class="donut-center"><span>Saldo</span><b>\${fmt(saldo)}</b></div>
         </div>
-        <div class="donut-side r">Despesas<b style="color:var(--red); display:block; margin-top:2px;">\${fmt(despesas)}</b></div>
+        <div class="donut-side r">Despesas<b style="color:var(--red)">\${fmt(despesas)}</b></div>
       </div>
-      <div class="bar-split" style="margin-top:14px;"><div class="g" style="width:\${recPct}%;"></div></div>
-      <div class="split-labels" style="margin-top:6px;"><span>🟢 \${recPct}% Entradas</span><span>Saídas \${despPct}%</span></div>
+      <div class="bar-split"><div class="g" style="width:\${recPct}%"></div></div>
+      <div class="split-labels"><span>🟢 \${recPct}% Receitas</span><span>Despesas \${despPct}%</span></div>
     </div>
 
-    <!-- Despesas por Categoria -->
     <div class="panel">
-      <div class="panel-head">
-        <h3>Despesas por Categoria</h3>
-        <span class="tag">\${periodLabel()}</span>
-      </div>
+      <div class="panel-head"><h3>Despesas por Categoria</h3><span class="tag">\${periodLabel()}</span></div>
       <div class="cat-wrap">
         <div class="donut-canvas" style="width:130px;height:130px;"><canvas id="chartCategorias"></canvas></div>
         <div class="cat-legend">
-          \${cats.length ? cats.map(c=>\`
-          <div class="cat-row">
-            <span class="lbl"><span class="dot" style="background:\${c.color}"></span>\${c.name}</span>
-            <span><span class="amt">\${fmt(c.val)}</span><span class="pct">\${Math.round(c.val/totalDesp*100)}%</span></span>
-          </div>\`).join('') : \`<p style="color:var(--text-faint);font-size:12px">Sem despesas registradas neste período.</p>\`}
+          \${cats.length? cats.map(c=>\`<div class="cat-row"><span class="lbl"><span class="dot" style="background:\${c.color}"></span>\${c.name}</span><span><span class="amt">\${fmt(c.val)}</span><span class="pct">\${Math.round(c.val/totalDesp*100)}%</span></span></div>\`).join('') : \`<p style="color:var(--text-faint);font-size:12px">Sem despesas neste período.</p>\`}
         </div>
       </div>
     </div>
 
-    <!-- Minhas Contas & Bancos -->
     <div class="panel">
-      <div class="panel-head">
-        <h3>Minhas Contas & Cartões</h3>
-        <button class="tag" data-nav="cartoes" style="cursor:pointer;">Ver Todas (\${accounts.length})</button>
-      </div>
+      <div class="panel-head"><h3>Contas e Cartões</h3><button class="tag" data-nav="cartoes">Editar</button></div>
       <div class="accounts-list">
-        \${accounts.length > 0 ? accounts.slice(0,4).map(a=>\`
-          <div class="acc-row" style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.05);">
-            <div class="acc-ic" style="background:\${a.color || 'var(--green)'}; font-weight:800;">\${a.name.slice(0,2).toUpperCase()}</div>
-            <div class="acc-info">
-              <div class="n" style="font-weight:700; color:#fff;">\${escapeHTML(a.name)}</div>
-              <div class="t" style="font-size:11px; color:var(--text-faint);">\${escapeHTML(a.type)}</div>
-            </div>
-            <div class="acc-val \${a.balance<0?'neg':''}" style="font-weight:800; font-size:14px;">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
-          </div>\`).join('') : \`<p style="color:var(--text-faint); font-size:12px; margin-bottom:12px;">Nenhuma conta bancária cadastrada.</p>\`}
-      </div>
-      <button class="btn-ghost" style="width:100%; margin-top:12px; font-weight:700; color:var(--green);" data-nav="cartoes">+ Gerenciar Minhas Contas</button>
-    </div>
-  </div>
-
-  <!-- Minhas Metas Ativas -->
-  \${goals.length > 0 ? \`
-  <div class="panel" style="margin-bottom:24px;">
-    <div class="panel-head">
-      <h3>Progresso de Metas Financeiras</h3>
-      <button class="tag" data-nav="metas" style="cursor:pointer;">Ver Todas</button>
-    </div>
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:14px;">
-      \${goals.slice(0,3).map(g => {
-        const pct = Math.min(100, Math.round((g.current / g.target) * 100));
-        return \`
-        <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px;">
-          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-            <strong style="font-size:13.5px; color:#fff;">\${escapeHTML(g.name)}</strong>
-            <span style="font-size:12px; font-weight:800; color:var(--green);">\${pct}%</span>
-          </div>
-          <div style="font-size:16px; font-weight:800; color:#fff;">\${fmt(g.current)} <span style="font-size:11.5px; color:var(--text-faint); font-weight:400;">/ \${fmt(g.target)}</span></div>
-          <div class="bar-split" style="background:var(--card-border); margin-top:8px;"><div class="g" style="width:\${pct}%;"></div></div>
-        </div>\`;
-      }).join('')}
-    </div>
-  </div>\` : ''}
-
-  <!-- Tabela de Últimas Transações -->
-  <div class="table-panel">
-    <div class="panel-head">
-      <h3>Últimas Movimentações</h3>
-      <span class="tag" data-nav="transacoes" style="cursor:pointer;">Ver Todas (\${transactions.length})</span>
-    </div>
-    \${transactionsTable(lastTx, false)}
-  </div>\`;
-}ance))}</div>
+        \${accounts.map(a=>\`
+          <div class="acc-row">
+            <div class="acc-ic" style="background:\${a.color}">\${a.name.slice(0,2).toUpperCase()}</div>
+            <div class="acc-info"><div class="n">\${a.name}</div><div class="t">\${a.type}</div></div>
+            <div class="acc-val \${a.balance<0?'neg':''}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
             <button class="acc-edit" data-editacc="\${a.id}">✎</button>
           </div>\`).join('')}
       </div>
@@ -2702,11 +1861,11 @@ function transactionsTable(list, showActions){
       \${list.map(t=>\`
         <tr class="trow">
           <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
-          <td>\${escapeHTML(t.desc)}</td>
-          <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${escapeHTML(t.cat)}</span></td>
+          <td>\${t.desc}</td>
+          <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${t.cat}</span></td>
           <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
           <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
-          <td><span class="pill status-\${(t.status||'').toLowerCase()}">\${escapeHTML(t.status)}</span></td>
+          <td><span class="pill status-\${t.status.toLowerCase()}">\${t.status}</span></td>
           \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}">✎</button><button data-del="\${t.id}">🗑</button></div></td>\`:''}
         </tr>\`).join('')}
     </tbody>
@@ -2906,169 +2065,6 @@ function pageAlertas(){
   </div>\`;
 }
 
-/* ==================== Open Finance Brasil / Consulta por CPF & Pendências ==================== */
-function pageOpenFinance(){
-  const userCpf = (currentUser && currentUser.cpf) || '';
-  const pendingTx = transactions.filter(t => t.status === 'Pendente');
-  const totalPendingVal = pendingTx.reduce((s,t) => s + (t.type==='out'?t.val:-t.val), 0);
-
-  return \`
-  <div class="page-head">
-    <div>
-      <h1>⚡ Open Finance Brasil — Busca por CPF & Pendências em Aberto</h1>
-      <p>Consulte, conecte e personalize suas contas bancárias, cartões, faturas e boletos reais do seu CPF</p>
-    </div>
-  </div>
-
-  <div class="panel" style="margin-bottom:20px; background:linear-gradient(135deg, rgba(232,176,75,0.08) 0%, rgba(20,24,33,0.95) 100%); border:1px solid rgba(232,176,75,0.25);">
-    <div style="display:flex; align-items:center; gap:16px; margin-bottom:16px;">
-      <div style="width:48px; height:48px; border-radius:14px; background:linear-gradient(135deg,var(--green),#c9862a); color:#1f1400; font-size:24px; font-weight:800; display:flex; align-items:center; justify-content:center; flex-shrink:0;">🏛️</div>
-      <div>
-        <h3 style="font-size:17px; font-weight:800; color:#fff; margin-bottom:2px;">Consulta Completa de Pendências no CPF (BACEN & DDA)</h3>
-        <p style="font-size:12.5px; color:var(--text-dim); margin:0;">Informe seu CPF para consultar faturas de cartão, boletos DDA a vencer, empréstimos e contas em aberto em todos os bancos do Brasil.</p>
-      </div>
-    </div>
-
-    <form id="openFinanceForm" onsubmit="handleOpenFinanceSync(event)" style="display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;">
-      <div style="flex:1; min-width:240px;">
-        <label style="display:block; font-size:12.5px; font-weight:700; color:var(--text-dim); margin-bottom:6px;">Seu CPF (Somente números ou formatado)</label>
-        <div class="field-input-wrapper">
-          <span class="ic">🪪</span>
-          <input type="text" id="ofCpf" placeholder="000.000.000-00" value="\${escapeHTML(userCpf)}" maxlength="14" required style="font-size:15px; font-weight:700; letter-spacing:1px;">
-        </div>
-      </div>
-      <button type="submit" id="btnSyncCpf" class="btn-auth-premium" style="width:auto; padding:12px 20px; margin:0; height:46px;">
-        ⚡ Puxar Contas do CPF →
-      </button>
-      <button type="button" onclick="openAccountModal()" class="btn-ghost" style="height:46px; border:1px solid rgba(232,176,75,0.4); color:var(--green); font-weight:700;">
-        ➕ Adicionar Minha Conta/Cartão Real
-      </button>
-      <button type="button" onclick="resetCpfTestData()" class="btn-ghost" style="height:46px; color:var(--red); font-size:12px;">
-        🗑️ Limpar Dados de Teste
-      </button>
-    </form>
-    <div id="ofSyncStatus" style="display:none; margin-top:14px; padding:12px 16px; border-radius:10px; background:rgba(232,176,75,0.12); border:1px solid rgba(232,176,75,0.3); color:var(--green); font-size:13px; font-weight:600;"></div>
-  </div>
-
-  <!-- KPIs do CPF -->
-  <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px; margin-bottom:20px;">
-    <div class="kpi">
-      <div class="row1">Total em Aberto no CPF <span class="ic" style="background:var(--red-soft);color:var(--red)">📋</span></div>
-      <div class="val" style="color:var(--red);">\${fmt(Math.max(0, totalPendingVal))}</div>
-      <div class="sub">contas, faturas e DDA pendentes</div>
-    </div>
-    <div class="kpi">
-      <div class="row1">Contas Pendentes <span class="ic" style="background:rgba(232,176,75,0.14);color:var(--green)">⏳</span></div>
-      <div class="val">\${pendingTx.length}</div>
-      <div class="sub">registros a vencer</div>
-    </div>
-    <div class="kpi">
-      <div class="row1">Situação do CPF <span class="ic" style="background:rgba(62,199,199,0.14);color:var(--teal)">🛡️</span></div>
-      <div class="val" style="font-size:16px; color:var(--green); font-weight:800; margin-top:4px;">🟢 REGULAR</div>
-      <div class="sub">Receita Federal & BACEN</div>
-    </div>
-  </div>
-
-  <div class="panel-head" style="margin-bottom:14px; display:flex; justify-content:space-between; align-items:center;">
-    <h3>Faturas & Pendências Sincronizadas do CPF</h3>
-    <button type="button" onclick="openModal()" class="btn-ghost" style="font-size:12px; border:1px solid rgba(255,255,255,0.15); padding:6px 12px;">➕ Cadastrar Conta/Fatura Real em Aberto</button>
-  </div>
-
-  <div class="panel" style="margin-bottom:24px;">
-    \${pendingTx.length > 0 ? \`
-    <div class="table-panel">
-      <table>
-        <thead>
-          <tr>
-            <th>Descrição / Emissor</th>
-            <th>Categoria</th>
-            <th>Vencimento</th>
-            <th>Valor (R$)</th>
-            <th>Status</th>
-            <th>Ação</th>
-          </tr>
-        </thead>
-        <tbody>
-          \${pendingTx.map(t => \`
-          <tr>
-            <td><strong>\${escapeHTML(t.desc)}</strong></td>
-            <td><span class="pill" style="background:rgba(255,255,255,0.05);">\${escapeHTML(t.cat)}</span></td>
-            <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
-            <td style="font-weight:800; color:var(--red);">\${fmt(t.val)}</td>
-            <td><span class="pill" style="background:var(--red-soft); color:var(--red);">⏳ Em Aberto</span></td>
-            <td><button class="row-del" data-del="\${t.id}" title="Excluir">🗑</button></td>
-          </tr>\`).join('')}
-        </tbody>
-      </table>
-    </div>\` : \`
-    <div class="placeholder">
-      <div class="big">📋</div>
-      <h3>Nenhuma pendência em aberto cadastrada</h3>
-      <p>Clique em "➕ Cadastrar Conta/Fatura Real em Aberto" acima para registrar seus boletos e faturas reais do seu CPF.</p>
-    </div>\`}
-  </div>
-
-  <div class="panel-head" style="margin-bottom:14px;">
-    <h3>Instituições Financeiras do Brasil Suportadas</h3>
-    <span class="tag" style="cursor:default;">11 Bancos Integrados</span>
-  </div>
-
-  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; margin-bottom:24px;">
-    \${[
-      {name:'Nubank', icon:'💜', color:'#820ad1', type:'Conta & Cartão Roxinho'},
-      {name:'Banco do Brasil', icon:'💛', color:'#fbf800', type:'Conta & Poupança BB'},
-      {name:'Itaú Unibanco', icon:'🧡', color:'#ec7000', type:'Conta & Cartões Itaú'},
-      {name:'Bradesco', icon:'🔴', color:'#cc092f', type:'Conta Corrente & Cartões'},
-      {name:'Santander', icon:'🔴', color:'#ec0000', type:'Conta & Cartão Select'},
-      {name:'Banco Inter', icon:'🧡', color:'#ff7a00', type:'Conta Digital & Investimentos'},
-      {name:'Caixa Econômica', icon:'🔵', color:'#005ca9', type:'Poupança & FGTS'},
-      {name:'C6 Bank', icon:'🖤', color:'#242424', type:'Conta & Cartão C6'},
-      {name:'BTG Pactual', icon:'🔷', color:'#001e62', type:'Investimentos & Conta'},
-      {name:'Mercado Pago', icon:'💛', color:'#009ee3', type:'Conta Rendimento'},
-      {name:'PicPay', icon:'💚', color:'#11c76f', type:'Carteira Digital'}
-    ].map(b => {
-      const isConnected = accounts.some(a => a.name.toLowerCase().includes(b.name.toLowerCase()));
-      return \`
-      <div style="background:var(--card); border:1px solid \${isConnected?'rgba(232,176,75,0.4)':'var(--card-border)'}; border-radius:14px; padding:16px; display:flex; align-items:center; justify-content:space-between; gap:12px;">
-        <div style="display:flex; align-items:center; gap:12px;">
-          <div style="width:38px; height:38px; border-radius:10px; background:\${b.color}22; border:1px solid \${b.color}55; display:flex; align-items:center; justify-content:center; font-size:18px;">\${b.icon}</div>
-          <div>
-            <strong style="display:block; font-size:13.5px; color:#fff;">\${b.name}</strong>
-            <span style="font-size:11px; color:var(--text-faint);">\${b.type}</span>
-          </div>
-        </div>
-        <span style="font-size:11px; font-weight:700; padding:4px 8px; border-radius:6px; background:\${isConnected?'var(--green-soft)':'rgba(255,255,255,0.05)'}; color:\${isConnected?'var(--green)':'var(--text-dim)'};">
-          \${isConnected ? '✓ Conectado' : 'Disponível'}
-        </span>
-      </div>\`;
-    }).join('')}
-  </div>
-
-  <div class="panel">
-    <div class="panel-head">
-      <h3>Contas Sincronizadas por CPF</h3>
-      <span class="tag" style="cursor:default;">\${accounts.length} Conta\${accounts.length===1?'':'s'} Ativa\${accounts.length===1?'':'s'}</span>
-    </div>
-    \${accounts.length > 0 ? \`
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px;">
-      \${accounts.map(a => \`
-      <div style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:16px; border-left:4px solid \${a.color || 'var(--green)'};">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <strong style="font-size:14px; color:#fff;">\${escapeHTML(a.name)}</strong>
-          <span style="font-size:10px; font-weight:700; text-transform:uppercase; padding:3px 6px; border-radius:4px; background:rgba(232,176,75,0.15); color:var(--green);">\${escapeHTML(a.type)}</span>
-        </div>
-        <div style="font-size:18px; font-weight:800; color:var(--green);">\${fmt(a.balance)}</div>
-        <div style="font-size:11px; color:var(--text-faint); margin-top:4px;">Sincronizado via Open Finance</div>
-      </div>\`).join('')}
-    </div>\` : \`
-    <div class="placeholder">
-      <div class="big">🏦</div>
-      <h3>Nenhuma conta bancária conectada ainda</h3>
-      <p>Digite seu CPF acima ou clique em "➕ Adicionar Minha Conta/Cartão Real" para registrar suas contas bancárias reais.</p>
-    </div>\`}
-  </div>\`;
-}
-
 function pageConfig(){
   return \`
   <div class="page-head"><div><h1>Configurações</h1><p>Preferências da conta e do sistema</p></div></div>
@@ -3107,190 +2103,10 @@ function pageConfig(){
   <div class="cfg-save-bar"><button class="btn-primary" id="btnSalvarConfig">Salvar Alterações</button></div>\`}\`;
 }
 
-/* ==================== PostgreSQL & VS Code (Central de Cadastro & Deploy) ==================== */
-let postgresInfo = {
-  connected: false,
-  dbHost: 'localhost',
-  dbPort: 5432,
-  dbUser: 'postgres',
-  dbName: 'FINANCEIRO',
-  userCount: 0,
-  dataCount: 0,
-  users: [],
-  tables: ['usuarios', 'dados_financeiros'],
-  error: null
-};
-
-async function fetchPostgresStatus() {
-  try {
-    const res = await apiRequest('/api/postgres/status');
-    if (res.ok) {
-      postgresInfo = await res.json();
-    }
-  } catch(e) {
-    console.error('Erro ao buscar status do PostgreSQL:', e);
-  }
-}
-
-function pagePostgres() {
-  const isOnline = postgresInfo.connected;
-  const users = postgresInfo.users || [];
-  const dbHost = postgresInfo.dbHost || 'localhost';
-  const dbPort = postgresInfo.dbPort || 5432;
-  const dbName = postgresInfo.dbName || 'FINANCEIRO';
-  const dbUser = postgresInfo.dbUser || 'postgres';
-
-  const envText = 'DB_HOST=' + dbHost + '\n' +
-    'DB_PORT=' + dbPort + '\n' +
-    'DB_USER=' + dbUser + '\n' +
-    'DB_PASSWORD=86266049\n' +
-    'DB_NAME=' + dbName + '\n' +
-    'PORT=3000';
-
-  const ddlText = '-- Executar no Editor SQL do VS Code (Extensão PostgreSQL ou psql)\n' +
-    'CREATE TABLE IF NOT EXISTS usuarios (\n' +
-    '  id SERIAL PRIMARY KEY,\n' +
-    '  name VARCHAR(150) NOT NULL,\n' +
-    '  email VARCHAR(150) UNIQUE NOT NULL,\n' +
-    '  password VARCHAR(255) NOT NULL,\n' +
-    '  role VARCHAR(50) NOT NULL DEFAULT \'Usuário\',\n' +
-    '  active BOOLEAN NOT NULL DEFAULT true,\n' +
-    '  created_at TIMESTAMP NOT NULL DEFAULT now()\n' +
-    ');\n\n' +
-    'CREATE TABLE IF NOT EXISTS dados_financeiros (\n' +
-    '  id SERIAL PRIMARY KEY,\n' +
-    '  email VARCHAR(150) UNIQUE NOT NULL REFERENCES usuarios(email) ON DELETE CASCADE ON UPDATE CASCADE,\n' +
-    '  dados JSONB NOT NULL DEFAULT \'{}\'::jsonb,\n' +
-    '  updated_at TIMESTAMP NOT NULL DEFAULT now()\n' +
-    ');';
-
-  const terminalText = '# 1. Abrir terminal no VS Code e acessar o banco no PostgreSQL local:\n' +
-    'psql -U ' + dbUser + ' -d ' + dbName + '\n\n' +
-    '# 2. Criar a base de dados caso ainda não exista no PostgreSQL:\n' +
-    'CREATE DATABASE "' + dbName + '";\n\n' +
-    '# 3. Subir e rodar o servidor Node.js conectado ao PostgreSQL:\n' +
-    'npm start';
-
-  return \`
-  <div class="page-head">
-    <div>
-      <h1>🐘 PostgreSQL & VS Code — Central de Cadastro & Deploy</h1>
-      <p>Acompanhe os dados de cadastro no banco PostgreSQL, copie os arquivos de configuração e scripts de migração para o VS Code</p>
-    </div>
-    <div class="head-actions">
-      <button class="btn-primary" id="btnRefreshPgStatus">🔄 Testar Conexão em Tempo Real</button>
-    </div>
-  </div>
-
-  <div class="kpis">
-    <div class="kpi">
-      <div class="row1">Status do PostgreSQL</div>
-      <div class="val" style="font-size:18px; margin-top:4px;">
-        <span class="pg-status-badge \${isOnline ? 'online' : 'offline'}">
-          \${isOnline ? '🟢 Conectado ao DB' : '🔴 Desconectado (Offline)'}
-        </span>
-      </div>
-      <div class="sub" style="margin-top:6px;">\${isOnline ? 'PostgreSQL ativo em ' + escapeHTML(String(dbHost)) + ':' + escapeHTML(String(dbPort)) : escapeHTML(postgresInfo.error || 'Verifique se o servidor PostgreSQL está rodando')}</div>
-    </div>
-    <div class="kpi">
-      <div class="row1">Banco de Dados (DB_NAME)</div>
-      <div class="val" style="color:var(--green)">\${escapeHTML(dbName)}</div>
-      <div class="sub">Usuário DB: \${escapeHTML(dbUser)}</div>
-    </div>
-    <div class="kpi">
-      <div class="row1">Cadastros no DB (Tabela usuarios)</div>
-      <div class="val">\${postgresInfo.userCount || users.length || 0}</div>
-      <div class="sub">usuários ativos & administradores</div>
-    </div>
-    <div class="kpi">
-      <div class="row1">Registros Financeiros (JSONB)</div>
-      <div class="val">\${postgresInfo.dataCount || 0}</div>
-      <div class="sub">registros na tabela dados_financeiros</div>
-    </div>
-  </div>
-
-  <div class="panel" style="margin-bottom:24px;">
-    <div class="panel-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
-      <h3>📋 Dados de Cadastro de Usuários (Tabela usuarios do PostgreSQL)</h3>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btn-primary" id="btnCopyPgSqlSeed" style="padding:6px 12px; font-size:12px;">📋 Copiar SQL INSERTs</button>
-        <button class="btn-ghost" id="btnDownloadPgSqlSeed" style="padding:6px 12px; font-size:12px;">📥 Baixar cadastro.sql</button>
-        <button class="btn-ghost" id="btnDownloadPgJson" style="padding:6px 12px; font-size:12px;">📥 Baixar cadastro.json</button>
-      </div>
-    </div>
-    <p class="cfg-hint" style="margin-bottom:14px;">Tabela oficial de cadastros gravada no banco de dados PostgreSQL. Estes dados são carregados quando o projeto sobe no VS Code.</p>
-    <div class="user-admin-list">
-      \${users.length ? users.map(u => {
-        const nameEsc = escapeHTML(u.name);
-        const emailEsc = escapeHTML(u.email);
-        const roleEsc = escapeHTML(u.role || 'Usuário');
-        const dtStr = u.created_at ? new Date(u.created_at).toLocaleDateString('pt-BR') : 'Data N/D';
-        return \`
-        <div class="user-row \${u.active===false?'inactive':''}">
-          <div class="user-ic">\${nameEsc.slice(0,2).toUpperCase()}</div>
-          <div class="user-info">
-            <div class="n">\${nameEsc} <small style="color:var(--text-dim); font-weight:400;">(ID DB: \${u.id || '-'})</small></div>
-            <div class="e">\${emailEsc}</div>
-            <div class="stats">Cadastrado no DB em \${dtStr}</div>
-          </div>
-          <span class="role-badge \${u.role==='Administrador'?'admin':'user'}">\${roleEsc}</span>
-          \${u.active===false ? '<span class="role-badge inactive">Desativado</span>' : '<span class="role-badge" style="background:rgba(16,185,129,0.15); color:#10b981;">Ativo</span>'}
-        </div>\`;
-      }).join('') : \`
-        <div class="placeholder"><div class="big">📂</div><h3>Nenhum usuário localizado na tabela do banco</h3><p>Certifique-se de configurar o arquivo .env no VS Code e rodar <code>npm start</code>.</p></div>
-      \`}
-    </div>
-  </div>
-
-  <div class="cfg-grid">
-    <div class="panel">
-      <div class="pg-code-header">
-        <span class="pg-code-title">1. Arquivo de Configuração (.env) para o VS Code</span>
-        <button class="btn-ghost" id="btnCopyPgEnv" style="padding:4px 10px; font-size:11.5px;">📋 Copiar .env</button>
-      </div>
-      <p class="cfg-hint">Crie o arquivo <code>.env</code> na raiz do projeto no VS Code:</p>
-      <pre class="pg-code-block" id="pgEnvCode">\${escapeHTML(envText)}</pre>
-    </div>
-
-    <div class="panel">
-      <div class="pg-code-header">
-        <span class="pg-code-title">2. Script de Criação das Tabelas (DDL SQL)</span>
-        <button class="btn-ghost" id="btnCopyPgDdl" style="padding:4px 10px; font-size:11.5px;">📋 Copiar DDL SQL</button>
-      </div>
-      <p class="cfg-hint">Script para criar as tabelas no PostgreSQL via extensão do VS Code ou psql:</p>
-      <pre class="pg-code-block" id="pgDdlCode">\${escapeHTML(ddlText)}</pre>
-    </div>
-  </div>
-
-  <div class="panel" style="margin-top:20px;">
-    <div class="pg-code-header">
-      <span class="pg-code-title">3. Comandos para o Terminal do VS Code</span>
-      <button class="btn-ghost" id="btnCopyPgTerminal" style="padding:4px 10px; font-size:11.5px;">📋 Copiar Comandos</button>
-    </div>
-    <p class="cfg-hint">Execute no Terminal Integrado do VS Code (Ctrl + ') para testar e rodar o projeto com o banco:</p>
-    <pre class="pg-code-block" id="pgTerminalCode">\${escapeHTML(terminalText)}</pre>
-  </div>
-  \`;
-}
-
-let adminGlobalAllUsers = [];
-
-async function fetchAdminGlobalData() {
-  try {
-    const res = await apiRequest('/api/admin/all-data');
-    if (res.ok) {
-      adminGlobalAllUsers = await res.json();
-    }
-  } catch(e) {
-    adminGlobalAllUsers = [];
-  }
-}
-
 /* ==================== Admin: Usuários Cadastrados ==================== */
 function getUserActivitySummary(email){
-  const target = adminGlobalAllUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-  if(!target || !target.dados) return { hasData:false, txCount:0, accCount:0, budCount:0, goalCount:0, lastDate:null };
-  const data = target.dados;
+  const data = loadFromStorage('nexus_data_' + email, null);
+  if(!data) return { hasData:false, txCount:0, accCount:0, budCount:0, goalCount:0, lastDate:null };
   const txs = data.transactions || [];
   let lastDate = null;
   txs.forEach(t=>{ if(t.date && (!lastDate || t.date > lastDate)) lastDate = t.date; });
@@ -3309,208 +2125,31 @@ function pageUsuarios(){
   if(!isAdmin || isViewingOtherUser){
     return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>\`;
   }
-  const usersList = adminGlobalAllUsers.length ? adminGlobalAllUsers : registeredUsers;
   return \`
   <div class="page-head"><div><h1>Usuários Cadastrados</h1><p>Administre as contas do sistema e acompanhe a atividade de cada usuário</p></div></div>
   <div class="panel" style="margin-bottom:0;">
-    <div class="panel-head"><h3>Todos os usuários</h3><span class="tag" style="cursor:default;">\${usersList.length} usuário\${usersList.length===1?'':'s'}</span></div>
+    <div class="panel-head"><h3>Todos os usuários</h3><span class="tag" style="cursor:default;">\${registeredUsers.length} usuário\${registeredUsers.length===1?'':'s'}</span></div>
     <p class="cfg-hint" style="margin-bottom:14px;">Clique no ícone 👁 para entrar na conta de um usuário em modo de visualização e ver tudo que ele cadastrou (transações, cartões, orçamentos, metas, relatórios, anexos etc.).</p>
     <div class="user-admin-list">
-      \${usersList.map(u=>{
+      \${registeredUsers.map(u=>{
         const stats = getUserActivitySummary(u.email);
-        const nameEsc = escapeHTML(u.name);
-        const emailEsc = escapeHTML(u.email);
-        const roleEsc = escapeHTML(u.role);
         return \`
         <div class="user-row \${u.active===false?'inactive':''}">
-          <div class="user-ic">\${nameEsc.slice(0,2).toUpperCase()}</div>
+          <div class="user-ic">\${u.name.slice(0,2).toUpperCase()}</div>
           <div class="user-info">
-            <div class="n">\${nameEsc}</div>
-            <div class="e">\${emailEsc}</div>
+            <div class="n">\${u.name}</div>
+            <div class="e">\${u.email}</div>
             <div class="stats">\${stats.hasData ? \`\${stats.txCount} transaç\${stats.txCount===1?'ão':'ões'} · \${stats.accCount} conta\${stats.accCount===1?'':'s'} · \${stats.budCount} orçamento\${stats.budCount===1?'':'s'} · \${stats.goalCount} meta\${stats.goalCount===1?'':'s'}\${stats.lastDate ? \` · última mov. em \${new Date(stats.lastDate+'T00:00').toLocaleDateString('pt-BR')}\` : ''}\` : 'Ainda sem atividade registrada'}</div>
           </div>
-          <span class="role-badge \${u.role==='Administrador'?'admin':'user'}">\${roleEsc}</span>
+          <span class="role-badge \${u.role==='Administrador'?'admin':'user'}">\${u.role}</span>
           \${u.active===false ? '<span class="role-badge inactive">Desativado</span>' : ''}
-          \${u.email!==currentUser.email ? \`<button class="row-view" data-viewuser="\${emailEsc}" title="Visualizar tudo que este usuário fez">👁</button>\` : ''}
-          \${u.email!==currentUser.email ? \`<button class="row-toggle" data-toggleuser="\${emailEsc}" title="\${u.active===false?'Ativar usuário':'Desativar usuário'}">\${u.active===false?'✅':'🚫'}</button>\` : ''}
-          <button class="row-edit" data-edituser="\${emailEsc}" title="Editar usuário">✎</button>
+          \${u.email!==currentUser.email ? \`<button class="row-view" data-viewuser="\${u.email}" title="Visualizar tudo que este usuário fez">👁</button>\` : ''}
+          \${u.email!==currentUser.email ? \`<button class="row-toggle" data-toggleuser="\${u.email}" title="\${u.active===false?'Ativar usuário':'Desativar usuário'}">\${u.active===false?'✅':'🚫'}</button>\` : ''}
+          <button class="row-edit" data-edituser="\${u.email}" title="Editar usuário">✎</button>
         </div>\`;
       }).join('')}
     </div>
   </div>\`;
-}
-
-/* ==================== Painel Administrador Geral (Visão de Tudo e Correções de Tudo) ==================== */
-function pageAdminTotal(){
-  const isAdmin = currentUser && currentUser.role === 'Administrador';
-  if(!isAdmin || isViewingOtherUser){
-    return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>\`;
-  }
-
-  let totalGlobalReceitas = 0;
-  let totalGlobalDespesas = 0;
-  let allGlobalTransactions = [];
-  let allGlobalAccounts = [];
-  let allGlobalBudgets = [];
-  let allGlobalGoals = [];
-
-  adminGlobalAllUsers.forEach(u => {
-    const data = u.dados || {};
-    const txs = data.transactions || [];
-    txs.forEach(t => {
-      allGlobalTransactions.push({...t, userName: u.name, userEmail: u.email});
-      if(t.type === 'in') totalGlobalReceitas += (t.val || 0);
-      if(t.type === 'out') totalGlobalDespesas += (t.val || 0);
-    });
-    const accs = data.accounts || [];
-    accs.forEach(a => {
-      allGlobalAccounts.push({...a, userName: u.name, userEmail: u.email});
-    });
-    const buds = data.budgets || [];
-    buds.forEach(b => {
-      allGlobalBudgets.push({...b, userName: u.name, userEmail: u.email});
-    });
-    const gols = data.goals || [];
-    gols.forEach(g => {
-      allGlobalGoals.push({...g, userName: u.name, userEmail: u.email});
-    });
-  });
-
-  allGlobalTransactions.sort((a,b) => (b.date || '').localeCompare(a.date || ''));
-
-  return \`
-  <div class="page-head">
-    <div><h1>Painel Administrador Geral</h1><p>Visão completa, consolidação e capacidade de correção de todos os dados de todos os usuários do sistema</p></div>
-    <div class="head-actions">
-      <button class="btn-primary" id="btnAdminAddAnyTx">+ Inserir Transação p/ Qualquer Usuário</button>
-    </div>
-  </div>
-
-  <div class="kpis">
-    <div class="kpi"><div class="row1">Usuários no Sistema</div><div class="val">\${adminGlobalAllUsers.length}</div><div class="sub">cadastrados</div></div>
-    <div class="kpi"><div class="row1">Total Receitas (Geral)</div><div class="val" style="color:var(--green)">\${fmt(totalGlobalReceitas)}</div><div class="sub">somatório de todas as contas</div></div>
-    <div class="kpi"><div class="row1">Total Despesas (Geral)</div><div class="val" style="color:var(--red)">\${fmt(totalGlobalDespesas)}</div><div class="sub">somatório de todas as contas</div></div>
-    <div class="kpi"><div class="row1">Transações Totais</div><div class="val">\${allGlobalTransactions.length}</div><div class="sub">registros globais</div></div>
-    <div class="kpi"><div class="row1">Contas / Cartões Totais</div><div class="val">\${allGlobalAccounts.length}</div><div class="sub">contas globais</div></div>
-  </div>
-
-  <div class="panel" style="margin-bottom:20px;">
-    <div class="panel-head"><h3>Todas as Transações de Todos os Usuários (Correção Total)</h3><span class="tag">Administração Global</span></div>
-    <div class="table-panel" style="padding:0;background:transparent;border:none;">
-      \${allGlobalTransactions.length ? \`
-      <table>
-        <thead><tr><th>Usuário</th><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th><th>Ações Admin</th></tr></thead>
-        <tbody>
-          \${allGlobalTransactions.map(t=>{
-            const uNameEsc = escapeHTML(t.userName);
-            const uEmailEsc = escapeHTML(t.userEmail);
-            const descEsc = escapeHTML(t.desc);
-            const catEsc = escapeHTML(t.cat);
-            return \`
-            <tr class="trow">
-              <td><strong>\${uNameEsc}</strong><br><small style="color:var(--text-faint)">\${uEmailEsc}</small></td>
-              <td>\${t.date ? new Date(t.date+'T00:00').toLocaleDateString('pt-BR') : ''}</td>
-              <td>\${descEsc}</td>
-              <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${catEsc}</span></td>
-              <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
-              <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
-              <td><span class="pill status-\${(t.status||'').toLowerCase()}">\${escapeHTML(t.status)}</span></td>
-              <td>
-                <div class="row-actions">
-                  <button data-adm-edittx="\${uEmailEsc}:\${t.id}" title="Corrigir/Editar transação">✎</button>
-                  <button data-adm-deltx="\${uEmailEsc}:\${t.id}" title="Excluir transação">🗑</button>
-                </div>
-              </td>
-            </tr>\`;
-          }).join('')}
-        </tbody>
-      </table>\` : \`<div class="placeholder"><div class="big">📂</div><h3>Nenhuma transação cadastrada por nenhum usuário</h3></div>\`}
-    </div>
-  </div>
-
-  <div class="grid3" style="grid-template-columns:1fr 1fr;">
-    <div class="panel">
-      <div class="panel-head"><h3>Contas e Cartões de Todos os Usuários</h3></div>
-      <div class="accounts-list">
-        \${allGlobalAccounts.length ? allGlobalAccounts.map(a=>{
-          const aNameEsc = escapeHTML(a.name);
-          const uNameEsc = escapeHTML(a.userName);
-          const uEmailEsc = escapeHTML(a.userEmail);
-          const aTypeEsc = escapeHTML(a.type);
-          return \`
-          <div class="acc-row">
-            <div class="acc-ic" style="background:\${a.color}">\${aNameEsc.slice(0,2).toUpperCase()}</div>
-            <div class="acc-info"><div class="n">\${aNameEsc} <small style="color:var(--green)">(\${uNameEsc})</small></div><div class="t">\${aTypeEsc}</div></div>
-            <div class="acc-val \${a.balance<0?'neg':''}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
-            <button class="acc-edit" data-adm-editacc="\${uEmailEsc}:\${a.id}" title="Corrigir conta">✎</button>
-          </div>\`;
-        }).join('') : '<p style="color:var(--text-faint);font-size:12.5px;">Nenhuma conta cadastrada.</p>'}
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="panel-head"><h3>Metas de Todos os Usuários</h3></div>
-      <div class="cat-cards" style="grid-template-columns:1fr;">
-        \${allGlobalGoals.length ? allGlobalGoals.map(g=>{
-          const gNameEsc = escapeHTML(g.name);
-          const uNameEsc = escapeHTML(g.userName);
-          const uEmailEsc = escapeHTML(g.userEmail);
-          return \`
-          <div class="acc-card" style="padding:12px;">
-            <div class="top" style="margin-bottom:4px;">
-              <h4 style="font-size:13.5px;">\${gNameEsc} <small style="color:var(--green)">(\${uNameEsc})</small></h4>
-              <div class="row-actions"><button data-adm-editgoal="\${uEmailEsc}:\${g.id}" title="Corrigir meta">✎</button></div>
-            </div>
-            <div style="font-size:13px;font-weight:700;">\${fmt(g.current)} / \${fmt(g.target)}</div>
-          </div>\`;
-        }).join('') : '<p style="color:var(--text-faint);font-size:12.5px;">Nenhuma meta cadastrada.</p>'}
-      </div>
-    </div>
-  </div>\`;
-}
-
-// Funções globais de correção de admin com sincronização direta no servidor PostgreSQL
-async function adminEditTransaction(userEmail, txId){
-  const targetUser = adminGlobalAllUsers.find(u => u.email.toLowerCase() === userEmail.toLowerCase());
-  if(!targetUser || !targetUser.dados || !targetUser.dados.transactions) return;
-  const data = targetUser.dados;
-  const t = data.transactions.find(x => x.id === parseInt(txId));
-  if(!t) return;
-
-  const newDesc = prompt('Corrigir Descrição:', t.desc);
-  if(newDesc === null) return;
-  const newValStr = prompt('Corrigir Valor (R$):', t.val);
-  if(newValStr === null) return;
-  const newVal = parseFloat(newValStr.replace(',','.'));
-  if(isNaN(newVal)){ showToast('Valor inválido'); return; }
-
-  t.desc = newDesc.trim();
-  t.val = newVal;
-
-  try {
-    await apiRequest('/api/data', {
-      method: 'POST',
-      body: { email: userEmail, data }
-    });
-    showToast('Transação corrigida com sucesso pelo Administrador!');
-    render();
-  } catch(e) {
-    showToast('Erro ao salvar no servidor.');
-  }
-}
-
-async function adminDeleteTransaction(userEmail, txId){
-  if(!confirm('Excluir esta transação do usuário ' + userEmail + '?')) return;
-  const data = loadFromStorage('nexus_data_' + userEmail, null);
-  if(!data || !data.transactions) return;
-  data.transactions = data.transactions.filter(x => x.id !== parseInt(txId));
-  saveToStorage('nexus_data_' + userEmail, data);
-
-  if(currentUser && currentUser.email === userEmail){
-    await loadUserData();
-  }
-  showToast('Transação excluída pelo Administrador!');
-  render();
 }
 
 /* ==================== Charts ==================== */
@@ -3609,86 +2248,6 @@ async function deleteTransaction(id){
   await saveUserData();
   showToast('Transação removida');
   if(currentPage!=='transacoes' || !refreshTxTable()) render();
-}
-
-async function handleOpenFinanceSync(e) {
-  if (e) e.preventDefault();
-  const cpfInput = document.getElementById('ofCpf');
-  const statusEl = document.getElementById('ofSyncStatus');
-  const btnSync = document.getElementById('btnSyncCpf');
-  if (!cpfInput) return;
-
-  const rawCpf = cpfInput.value.replace(/\D/g, '');
-  if (rawCpf.length !== 11) {
-    showToast('Por favor, informe um CPF válido com 11 dígitos.');
-    return;
-  }
-
-  if (currentUser) {
-    currentUser.cpf = cpfInput.value;
-  }
-
-  if (btnSync) btnSync.disabled = true;
-  if (statusEl) {
-    statusEl.style.display = 'block';
-    statusEl.innerHTML = '🔄 <strong>Consultando Banco Central (Open Finance)...</strong> Buscando instituições vinculadas ao CPF ' + escapeHTML(cpfInput.value) + '...';
-  }
-
-  setTimeout(async () => {
-    if (statusEl) {
-      statusEl.innerHTML = '⚡ <strong>Importando Contas & Saldos...</strong> Conectando Nubank, Banco do Brasil, Itaú e Bradesco...';
-    }
-
-    setTimeout(async () => {
-      const defaultCpfAccounts = [
-        { id: nextAccId++, name: 'Nubank (CPF)', type: 'Conta Corrente', balance: 3450.80, color: '#820ad1', openFinance: true },
-        { id: nextAccId++, name: 'Banco do Brasil (Poupança)', type: 'Conta Poupança', balance: 8200.00, color: '#fbf800', openFinance: true },
-        { id: nextAccId++, name: 'Cartão Itaú Select', type: 'Cartão de Crédito', balance: -1250.00, color: '#ec7000', openFinance: true },
-        { id: nextAccId++, name: 'Banco Inter (Investimentos)', type: 'Investimento', balance: 15400.50, color: '#ff7a00', openFinance: true }
-      ];
-
-      defaultCpfAccounts.forEach(newAcc => {
-        if (!accounts.some(a => a.name.toLowerCase() === newAcc.name.toLowerCase())) {
-          accounts.push(newAcc);
-        }
-      });
-
-      // Contas e Faturas em Aberto no CPF (DDA)
-      const today = new Date();
-      const dateIn5Days = new Date(today.getTime() + 5*86400000).toISOString().split('T')[0];
-      const dateIn12Days = new Date(today.getTime() + 12*86400000).toISOString().split('T')[0];
-      const dateIn18Days = new Date(today.getTime() + 18*86400000).toISOString().split('T')[0];
-
-      const defaultPendingTxs = [
-        { id: nextTxId++, desc: 'Fatura Cartão Itaú Select (CPF)', val: 1250.00, date: dateIn5Days, cat: 'Cartão de Crédito', status: 'Pendente', type: 'out' },
-        { id: nextTxId++, desc: 'Boleto Financiamento Santander (DDA)', val: 840.00, date: dateIn12Days, cat: 'Moradia', status: 'Pendente', type: 'out' },
-        { id: nextTxId++, desc: 'Conta de Energia Elétrica (Enel)', val: 215.40, date: dateIn5Days, cat: 'Contas Fixas', status: 'Pendente', type: 'out' },
-        { id: nextTxId++, desc: 'Fatura Internet Fibra 500MB', val: 119.90, date: dateIn18Days, cat: 'Contas Fixas', status: 'Pendente', type: 'out' }
-      ];
-
-      defaultPendingTxs.forEach(pt => {
-        if (!transactions.some(t => t.desc.toLowerCase() === pt.desc.toLowerCase())) {
-          transactions.push(pt);
-        }
-      });
-
-      await saveUserData();
-      await pushNotification('Open Finance: 4 contas bancárias e 4 pendências/faturas em aberto no CPF ' + cpfInput.value + ' foram puxadas com sucesso!', '🏛️');
-
-      if (btnSync) btnSync.disabled = false;
-      showToast('Todas as contas e pendências em aberto do CPF foram puxadas com sucesso!');
-      render();
-    }, 1200);
-  }, 1000);
-}
-
-async function resetCpfTestData() {
-  if(!confirm('Deseja limpar os dados de teste e redefinir para cadastrar suas contas e faturas reais do CPF?')) return;
-  accounts = accounts.filter(a => !a.openFinance);
-  transactions = transactions.filter(t => t.status !== 'Pendente' || (!t.desc.includes('CPF') && !t.desc.includes('DDA')));
-  await saveUserData();
-  showToast('Dados de teste removidos! Agora você pode cadastrar suas contas e faturas reais.');
-  render();
 }
 
 function openAccountModal(id){
@@ -4202,58 +2761,6 @@ function attachPageEvents(){
   document.querySelectorAll('[data-edit]').forEach(el=>el.onclick = ()=>openModal(parseInt(el.getAttribute('data-edit'))));
   document.querySelectorAll('[data-del]').forEach(el=>el.onclick = ()=>deleteTransaction(parseInt(el.getAttribute('data-del'))));
 
-  // Eventos do Painel Administrador Geral
-  document.querySelectorAll('[data-adm-edittx]').forEach(el => {
-    el.onclick = () => {
-      const parts = el.getAttribute('data-adm-edittx').split(':');
-      adminEditTransaction(parts[0], parts[1]);
-    };
-  });
-  document.querySelectorAll('[data-adm-deltx]').forEach(el => {
-    el.onclick = () => {
-      const parts = el.getAttribute('data-adm-deltx').split(':');
-      adminDeleteTransaction(parts[0], parts[1]);
-    };
-  });
-  const btnAddAny = document.getElementById('btnAdminAddAnyTx');
-  if(btnAddAny){
-    btnAddAny.onclick = () => {
-      if(registeredUsers.length === 0){ showToast('Nenhum usuário cadastrado'); return; }
-      const email = prompt('Informe o e-mail do usuário para o qual deseja adicionar a transação:', registeredUsers[0].email);
-      if(!email) return;
-      const targetUser = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if(!targetUser){ showToast('Usuário não encontrado'); return; }
-      
-      const desc = prompt('Descrição da Transação:');
-      if(!desc) return;
-      const valStr = prompt('Valor (R$):');
-      const val = parseFloat((valStr||'').replace(',','.'));
-      if(isNaN(val) || val <= 0){ showToast('Valor inválido'); return; }
-      const type = prompt('Tipo (in para receita, out para despesa):', 'out') || 'out';
-
-      const data = loadFromStorage('nexus_data_' + targetUser.email, {transactions: [], nextTxId: 1});
-      if(!data.transactions) data.transactions = [];
-      const now = new Date();
-      const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-      
-      data.transactions.push({
-        id: data.nextTxId || Date.now(),
-        desc: desc.trim(),
-        val,
-        date: todayStr,
-        cat: 'Outros',
-        status: type === 'in' ? 'Recebido' : 'Pago',
-        type: type === 'in' ? 'in' : 'out'
-      });
-      data.nextTxId = (data.nextTxId || 1) + 1;
-      saveToStorage('nexus_data_' + targetUser.email, data);
-      
-      if(currentUser && currentUser.email === targetUser.email) loadUserData();
-      showToast('Transação adicionada com sucesso pelo Admin!');
-      render();
-    };
-  }
-
   const novaConta = document.getElementById('btnNovaConta'); if(novaConta) novaConta.onclick = ()=>openAccountModal(null);
   document.querySelectorAll('[data-editacc]').forEach(el=>el.onclick = ()=>openAccountModal(parseInt(el.getAttribute('data-editacc'))));
   document.querySelectorAll('[data-delacc]').forEach(el=>el.onclick = ()=>deleteAccount(parseInt(el.getAttribute('data-delacc'))));
@@ -4387,111 +2894,10 @@ function attachPageEvents(){
   if(search){
     [search,fTipo,fCat,fStatus].forEach(el=>el.addEventListener('input', refreshTxTable));
   }
-
-  // Eventos da aba PostgreSQL & VS Code
-  const btnRefreshPg = document.getElementById('btnRefreshPgStatus');
-  if (btnRefreshPg) {
-    btnRefreshPg.onclick = async () => {
-      showToast('Verificando conexão com o PostgreSQL...');
-      await fetchPostgresStatus();
-      render();
-      showToast(postgresInfo.connected ? '✅ PostgreSQL conectado com sucesso!' : '⚠️ PostgreSQL desconectado.');
-    };
-  }
-
-  const btnCopyEnv = document.getElementById('btnCopyPgEnv');
-  if (btnCopyEnv) {
-    btnCopyEnv.onclick = () => {
-      const code = document.getElementById('pgEnvCode').textContent;
-      navigator.clipboard.writeText(code);
-      showToast('Conteúdo do .env copiado!');
-    };
-  }
-
-  const btnCopyDdl = document.getElementById('btnCopyPgDdl');
-  if (btnCopyDdl) {
-    btnCopyDdl.onclick = () => {
-      const code = document.getElementById('pgDdlCode').textContent;
-      navigator.clipboard.writeText(code);
-      showToast('Script DDL (CREATE TABLE) copiado!');
-    };
-  }
-
-  const btnCopyTerm = document.getElementById('btnCopyPgTerminal');
-  if (btnCopyTerm) {
-    btnCopyTerm.onclick = () => {
-      const code = document.getElementById('pgTerminalCode').textContent;
-      navigator.clipboard.writeText(code);
-      showToast('Comandos do terminal copiados!');
-    };
-  }
-
-  const btnCopySqlSeed = document.getElementById('btnCopyPgSqlSeed');
-  if (btnCopySqlSeed) {
-    btnCopySqlSeed.onclick = async () => {
-      try {
-        const res = await apiRequest('/api/postgres/export-cadastro');
-        if (res.ok) {
-          const data = await res.json();
-          navigator.clipboard.writeText(data.sqlScript);
-          showToast('SQL INSERTs de cadastro copiados!');
-        } else {
-          showToast('Erro ao obter dados de cadastro');
-        }
-      } catch(e) {
-        showToast('Erro ao exportar cadastro');
-      }
-    };
-  }
-
-  const btnDownSql = document.getElementById('btnDownloadPgSqlSeed');
-  if (btnDownSql) {
-    btnDownSql.onclick = async () => {
-      try {
-        const res = await apiRequest('/api/postgres/export-cadastro');
-        if (res.ok) {
-          const data = await res.json();
-          const blob = new Blob([data.sqlScript], { type: 'text/plain;charset=utf-8' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = 'cadastro_postgresql.sql';
-          a.click();
-          showToast('Download do cadastro.sql iniciado!');
-        }
-      } catch(e) {
-        showToast('Erro ao baixar cadastro.sql');
-      }
-    };
-  }
-
-  const btnDownJson = document.getElementById('btnDownloadPgJson');
-  if (btnDownJson) {
-    btnDownJson.onclick = async () => {
-      try {
-        const res = await apiRequest('/api/postgres/export-cadastro');
-        if (res.ok) {
-          const data = await res.json();
-          const blob = new Blob([JSON.stringify(data.users, null, 2)], { type: 'application/json;charset=utf-8' });
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(blob);
-          a.download = 'cadastro_postgresql.json';
-          a.click();
-          showToast('Download do cadastro.json iniciado!');
-        }
-      } catch(e) {
-        showToast('Erro ao baixar cadastro.json');
-      }
-    };
-  }
 }
 
 function navigate(page){
   currentPage = page;
-  const session = loadFromStorage('nexus_session', null);
-  if(session){
-    session.page = page;
-    saveToStorage('nexus_session', session);
-  }
   document.querySelectorAll('.menu button').forEach(b=>b.classList.toggle('active', b.dataset.page===page));
   render();
 }
@@ -4595,453 +3001,161 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 
 /* ==================== Restaurar sessão ao atualizar a página ==================== */
 (async function restoreSession(){
-  const token = localStorage.getItem('nexus_token');
-  const cachedUserStr = localStorage.getItem('nexus_cached_user');
-  
-  if (!token && !cachedUserStr) {
-    document.documentElement.classList.remove('is-logged-in');
-    const authPageEl = document.getElementById('authPage');
-    const appMainEl = document.getElementById('appMain');
-    if (authPageEl) { authPageEl.style.display = 'flex'; authPageEl.classList.add('show'); }
-    if (appMainEl) { appMainEl.style.display = 'none'; appMainEl.classList.remove('show'); }
+  await syncUsersWithServer();
+  const session = loadFromStorage('nexus_session', null);
+  if (!session || !session.email) {
+    document.getElementById('authPage').classList.add('show');
     return;
   }
-
-  let userToRestore = null;
-  if (cachedUserStr) {
-    try { userToRestore = JSON.parse(cachedUserStr); } catch(e){}
-  }
-
-  try {
-    const res = await fetch(window.location.origin + '/api/me', {
-      headers: { 'Authorization': 'Bearer ' + (token || '') }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (data.success && data.user) {
-        userToRestore = data.user;
-      }
-    }
-  } catch(e) {
-    console.warn('[Session Restore Warning]', e.message);
-  }
-
-  if (!userToRestore || !userToRestore.email) {
-    userToRestore = {
-      id: 1,
-      name: 'Paulo Lima (Admin)',
-      email: 'paulodelima21@gmail.com',
-      role: 'Administrador',
-      active: true
-    };
-  }
-
-  currentUser = userToRestore;
-  if (currentUser.active === false) {
-    document.documentElement.classList.remove('is-logged-in');
-    localStorage.removeItem('nexus_token');
+  const user = registeredUsers.find(u => u.email.toLowerCase() === session.email.toLowerCase());
+  if (!user) {
     localStorage.removeItem('nexus_session');
-    localStorage.removeItem('nexus_cached_user');
-    const authPageEl = document.getElementById('authPage');
-    const appMainEl = document.getElementById('appMain');
-    if (authPageEl) { authPageEl.style.display = 'flex'; authPageEl.classList.add('show'); }
-    if (appMainEl) { appMainEl.style.display = 'none'; appMainEl.classList.remove('show'); }
+    document.getElementById('authPage').classList.add('show');
+    return;
+  }
+  if (user.active === false) {
+    localStorage.removeItem('nexus_session');
+    document.getElementById('authPage').classList.add('show');
     showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
     return;
   }
-
-  document.documentElement.classList.add('is-logged-in');
-  const authPageEl = document.getElementById('authPage');
-  const appMainEl = document.getElementById('appMain');
-  if (authPageEl) { authPageEl.style.display = 'none'; authPageEl.classList.remove('show'); }
-  if (appMainEl) { appMainEl.style.display = 'flex'; appMainEl.classList.add('show'); }
-
-  const session = loadFromStorage('nexus_session', {});
-  currentPage = session.page || 'dashboard';
-
-  try { await loadUserData(); } catch(e){}
-
-  updateHeaderUser();
+  currentUser = user;
+  await loadUserData();
+  document.getElementById('authPage').classList.remove('show');
+  document.getElementById('appMain').classList.add('show');
   render();
 })();
 </script>
 </body>
 </html>`;
 
-// Servidor HTTP com suporte para cargas de dados pesadas (JSON), agora com PostgreSQL e segurança por Token
-const server = http.createServer(async (req, res) => {
+// Servidor HTTP com suporte para cargas de dados pesadas (JSON), agora com PostgreSQL
+const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
 
-  // Helper para resposta JSON
-  const sendJSON = (statusCode, payload) => {
-    res.writeHead(statusCode, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(payload));
-  };
-
-  // Rota POST /api/login (Autenticação Segura)
-  if (req.method === 'POST' && parsedUrl.pathname === '/api/login') {
-    let body = '';
-    req.on('data', chunk => body += chunk.toString());
-    req.on('end', async () => {
-      try {
-        const { email, password } = JSON.parse(body || '{}');
-        if (!email || !password) {
-          return sendJSON(400, { success: false, error: 'E-mail e senha são obrigatórios' });
-        }
-
-        const trimmedEmail = email.trim();
-        const trimmedPass = password.trim();
-
-        let dbUser = null;
-        try {
-          const result = await pool.query(
-            'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
-            [trimmedEmail]
-          );
-          if (result.rows.length > 0) {
-            dbUser = result.rows[0];
-          }
-        } catch(dbErr) {
-          console.warn('[Login DB Warning]', dbErr.message);
-        }
-
-        // Se o usuário não foi localizado no DB ou se o DB falhou, tenta fallback para admin padrão ou cadastrados em memória
-        if (!dbUser) {
-          if (trimmedEmail.toLowerCase() === DEFAULT_ADMIN.email.toLowerCase()) {
-            dbUser = {
-              id: 1,
-              name: DEFAULT_ADMIN.name,
-              email: DEFAULT_ADMIN.email,
-              password: hashPassword(DEFAULT_ADMIN.password),
-              role: DEFAULT_ADMIN.role,
-              active: DEFAULT_ADMIN.active
-            };
-          } else {
-            const foundLocal = serverRegisteredUsers.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase());
-            if (foundLocal) {
-              dbUser = {
-                id: Date.now(),
-                name: foundLocal.name,
-                email: foundLocal.email,
-                password: foundLocal.password || hashPassword('123456'),
-                role: foundLocal.role || 'Usuário',
-                active: foundLocal.active !== false
-              };
-            }
-          }
-        }
-
-        if (!dbUser) {
-          return sendJSON(401, { success: false, error: 'E-mail ou senha incorretos!' });
-        }
-
-        const isMatch = verifyPassword(trimmedPass, dbUser.password) ||
-                        trimmedPass === DEFAULT_ADMIN.password ||
-                        trimmedPass === '86266049' ||
-                        trimmedPass === '123456' ||
-                        trimmedPass === dbUser.password;
-
-        if (!isMatch) {
-          return sendJSON(401, { success: false, error: 'E-mail ou senha incorretos!' });
-        }
-
-        if (dbUser.active === false) {
-          return sendJSON(403, { success: false, error: 'Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.' });
-        }
-
-        const token = createSessionToken(dbUser);
-        return sendJSON(200, {
-          success: true,
-          token,
-          user: { name: dbUser.name, email: dbUser.email, role: dbUser.role, active: dbUser.active }
-        });
-      } catch (err) {
-        console.error('Erro no login:', err);
-        return sendJSON(500, { success: false, error: 'Erro interno ao realizar login' });
-      }
-    });
-    return;
-  }
-
-  // Rota POST /api/register (Registro de Conta)
-  if (req.method === 'POST' && parsedUrl.pathname === '/api/register') {
-    let body = '';
-    req.on('data', chunk => body += chunk.toString());
-    req.on('end', async () => {
-      try {
-        const { name, email, password } = JSON.parse(body || '{}');
-        if (!name || !email || !password) {
-          return sendJSON(400, { success: false, error: 'Preencha todos os campos obrigatórios' });
-        }
-
-        const trimmedName = name.trim();
-        const trimmedEmail = email.trim();
-
-        let emailExists = false;
-        try {
-          const checkResult = await pool.query(
-            'SELECT id FROM usuarios WHERE LOWER(email) = LOWER($1)',
-            [trimmedEmail]
-          );
-          if (checkResult.rows.length > 0) emailExists = true;
-        } catch(e) {
-          console.warn('[Register DB Check Warning]', e.message);
-        }
-
-        if (!emailExists) {
-          emailExists = serverRegisteredUsers.some(u => u.email.toLowerCase() === trimmedEmail.toLowerCase());
-        }
-
-        if (emailExists) {
-          return sendJSON(400, { success: false, error: 'Este e-mail já está cadastrado!' });
-        }
-
-        const hashedPassword = hashPassword(password);
-        let newUser = { name: trimmedName, email: trimmedEmail, role: 'Usuário', active: true };
-
-        try {
-          const userInsert = await pool.query(
-            `INSERT INTO usuarios (name, email, password, role, active)
-             VALUES ($1, $2, $3, 'Usuário', true)
-             RETURNING name, email, role, active`,
-            [trimmedName, trimmedEmail, hashedPassword]
-          );
-          if (userInsert.rows.length > 0) newUser = userInsert.rows[0];
-
-          await pool.query(
-            `INSERT INTO dados_financeiros (email, dados, updated_at)
-             VALUES ($1, '{}'::jsonb, now())
-             ON CONFLICT (email) DO NOTHING`,
-            [newUser.email]
-          );
-        } catch(dbErr) {
-          console.warn('[Register DB Insert Warning]', dbErr.message);
-        }
-
-        // Adiciona à lista local para manter sincronismo em memória
-        if (!serverRegisteredUsers.some(u => u.email.toLowerCase() === trimmedEmail.toLowerCase())) {
-          serverRegisteredUsers.push({
-            name: trimmedName,
-            email: trimmedEmail,
-            password: hashedPassword,
-            role: 'Usuário',
-            active: true
-          });
-        }
-
-        const token = createSessionToken(newUser);
-        return sendJSON(200, { success: true, token, user: newUser });
-      } catch (err) {
-        console.error('Erro no registro:', err);
-        return sendJSON(500, { success: false, error: 'Erro ao cadastrar usuário' });
-      }
-    });
-    return;
-  }
-
-  // Rota GET /api/me (Verificar sessão atual)
-  if (req.method === 'GET' && parsedUrl.pathname === '/api/me') {
-    const authUser = getAuthUser(req);
-    if (!authUser) {
-      return sendJSON(401, { success: false, error: 'Sessão inválida ou expirada' });
-    }
-    return sendJSON(200, { success: true, user: authUser });
-  }
-
-  // Rota POST /api/logout
-  if (req.method === 'POST' && parsedUrl.pathname === '/api/logout') {
-    const authHeader = req.headers['authorization'] || '';
-    if (authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7).trim();
-      activeSessions.delete(token);
-    }
-    return sendJSON(200, { success: true });
-  }
-
-  // Rota POST /api/send-password (Recuperação de Senha Segura com Resend API + Fallback)
+  // Rota POST para Enviar a Senha Atual por E-mail
   if (req.method === 'POST' && parsedUrl.pathname === '/api/send-password') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', async () => {
       try {
-        const { email } = JSON.parse(body || '{}');
+        const { email } = JSON.parse(body);
         if (!email) {
-          return sendJSON(400, { success: false, error: 'E-mail é obrigatório' });
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'E-mail é obrigatório' }));
         }
 
-        const trimmedEmail = email.trim();
-        let user = null;
+        const result = await pool.query(
+          'SELECT name, email, password FROM usuarios WHERE LOWER(email) = LOWER($1)',
+          [email]
+        );
 
-        try {
-          const result = await pool.query(
-            'SELECT id, name, email FROM usuarios WHERE LOWER(email) = LOWER($1)',
-            [trimmedEmail]
-          );
-          if (result.rows.length > 0) user = result.rows[0];
-        } catch(dbErr) {
-          console.warn('[Forgot Password DB Warning]', dbErr.message);
+        if (result.rows.length === 0) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'E-mail não cadastrado.' }));
         }
 
-        if (!user) {
-          if (trimmedEmail.toLowerCase() === DEFAULT_ADMIN.email.toLowerCase()) {
-            user = { id: 1, name: DEFAULT_ADMIN.name, email: DEFAULT_ADMIN.email };
-          } else {
-            const foundLocal = serverRegisteredUsers.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase());
-            if (foundLocal) {
-              user = { id: Date.now(), name: foundLocal.name, email: foundLocal.email };
-            }
-          }
+        const user = result.rows[0];
+
+        const emailSent = await sendPasswordEmail(user.email, user.name, user.password);
+
+        if (!emailSent) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'Falha ao enviar e-mail. Verifique as credenciais SMTP no Render.' }));
         }
 
-        if (!user) {
-          return sendJSON(404, { success: false, error: 'Nenhuma conta cadastrada encontrada com este e-mail.' });
-        }
-
-        // Senha temporária numérica simples de 6 dígitos
-        const tempPassword = Math.floor(100000 + Math.random() * 900000).toString();
-        const hashedTemp = hashPassword(tempPassword);
-
-        try {
-          await pool.query('UPDATE usuarios SET password = $1 WHERE LOWER(email) = LOWER($2)', [hashedTemp, user.email.toLowerCase()]);
-        } catch(dbErr) {
-          console.warn('[Forgot Password DB Update Warning]', dbErr.message);
-        }
-
-        const foundLocal = serverRegisteredUsers.find(u => u.email.toLowerCase() === trimmedEmail.toLowerCase());
-        if (foundLocal) {
-          foundLocal.password = hashedTemp;
-        }
-
-        const emailSent = await sendPasswordEmail(user.email, user.name, tempPassword);
-
-        if (emailSent) {
-          return sendJSON(200, { success: true, mode: 'email' });
-        } else {
-          return sendJSON(200, { 
-            success: true, 
-            mode: 'direct',
-            tempPassword: tempPassword
-          });
-        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
       } catch (err) {
         console.error('Erro ao enviar e-mail com senha:', err);
-        return sendJSON(500, { success: false, error: 'Falha ao processar a solicitação de senha.' });
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Falha ao enviar e-mail.' }));
       }
     });
     return;
   }
 
-  // Rota GET /api/users (Listar Usuários - Protegido por Token Admin)
+  // Rota GET de Usuários
   if (req.method === 'GET' && parsedUrl.pathname === '/api/users') {
-    const authUser = getAuthUser(req);
-    if (!authUser || authUser.role !== 'Administrador') {
-      return sendJSON(403, { success: false, error: 'Acesso restrito a administradores' });
-    }
-
-    pool.query('SELECT name, email, role, active, created_at FROM usuarios ORDER BY id ASC')
-      .then(result => sendJSON(200, result.rows))
+    pool.query('SELECT name, email, password, role, active FROM usuarios ORDER BY id ASC')
+      .then(result => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result.rows));
+      })
       .catch(err => {
         console.error('Erro ao buscar usuários:', err);
-        sendJSON(500, { success: false, error: 'Erro no banco de dados' });
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Erro no banco de dados' }));
       });
     return;
   }
 
-  // Rota POST /api/admin/toggle-user (Ativar/Desativar Usuário)
-  if (req.method === 'POST' && parsedUrl.pathname === '/api/admin/toggle-user') {
-    const authUser = getAuthUser(req);
-    if (!authUser || authUser.role !== 'Administrador') {
-      return sendJSON(403, { success: false, error: 'Acesso negado' });
-    }
-
+  // Rota POST de Usuários (recebe a lista completa e sincroniza com a tabela)
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/users') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', async () => {
+      const client = await pool.connect();
       try {
-        const { email, active } = JSON.parse(body || '{}');
-        if (!email) return sendJSON(400, { success: false, error: 'E-mail obrigatório' });
+        const users = JSON.parse(body);
+        if (!Array.isArray(users)) throw new Error('Formato inválido');
 
-        await pool.query('UPDATE usuarios SET active = $1 WHERE LOWER(email) = LOWER($2)', [active !== false, email.trim()]);
-        return sendJSON(200, { success: true });
+        await client.query('BEGIN');
+
+        const emails = users.map(u => u.email);
+        // Remove usuários que não estão mais na lista enviada (ex: exclusão pelo admin)
+        await client.query(
+          `DELETE FROM usuarios WHERE email <> ALL($1::text[])`,
+          [emails.length ? emails : ['__nunca__']]
+        );
+
+        // Insere ou atualiza cada usuário da lista (upsert por e-mail)
+        for (const u of users) {
+          await client.query(
+            `INSERT INTO usuarios (name, email, password, role, active)
+             VALUES ($1, $2, $3, $4, $5)
+             ON CONFLICT (email) DO UPDATE
+             SET name = EXCLUDED.name,
+                 password = EXCLUDED.password,
+                 role = EXCLUDED.role,
+                 active = EXCLUDED.active;`,
+            [u.name, u.email, u.password, u.role, u.active !== false]
+          );
+        }
+
+        await client.query('COMMIT');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
       } catch (e) {
-        return sendJSON(500, { success: false, error: 'Erro ao atualizar status' });
+        await client.query('ROLLBACK');
+        console.error('Erro ao salvar usuários:', e);
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false }));
+      } finally {
+        client.release();
       }
     });
     return;
   }
 
-  // Rota POST /api/admin/edit-user (Editar Dados do Usuário pelo Admin)
-  if (req.method === 'POST' && parsedUrl.pathname === '/api/admin/edit-user') {
-    const authUser = getAuthUser(req);
-    if (!authUser || authUser.role !== 'Administrador') {
-      return sendJSON(403, { success: false, error: 'Acesso negado' });
-    }
-
-    let body = '';
-    req.on('data', chunk => body += chunk.toString());
-    req.on('end', async () => {
-      try {
-        const { email, name, role } = JSON.parse(body || '{}');
-        if (!email || !name || !role) return sendJSON(400, { success: false, error: 'Campos obrigatórios ausentes' });
-
-        await pool.query('UPDATE usuarios SET name = $1, role = $2 WHERE LOWER(email) = LOWER($3)', [name.trim(), role.trim(), email.trim()]);
-        return sendJSON(200, { success: true });
-      } catch (e) {
-        return sendJSON(500, { success: false, error: 'Erro ao editar usuário' });
-      }
-    });
-    return;
-  }
-
-  // Rota GET /api/admin/all-data (Buscar Dados de Todos os Usuários para Consolidação Geral)
-  if (req.method === 'GET' && parsedUrl.pathname === '/api/admin/all-data') {
-    const authUser = getAuthUser(req);
-    if (!authUser || authUser.role !== 'Administrador') {
-      return sendJSON(403, { success: false, error: 'Acesso restrito a administradores' });
-    }
-
-    pool.query(`
-      SELECT u.name, u.email, u.role, u.active, u.created_at, d.dados
-      FROM usuarios u
-      LEFT JOIN dados_financeiros d ON LOWER(u.email) = LOWER(d.email)
-      ORDER BY u.id ASC
-    `)
-      .then(result => sendJSON(200, result.rows))
-      .catch(err => {
-        console.error('Erro ao buscar dados globais:', err);
-        sendJSON(500, { success: false, error: 'Erro ao buscar dados no banco' });
-      });
-    return;
-  }
-
-  // Rota GET /api/data (Buscar Dados Financeiros do Usuário - Protegida por Token)
+  // Rota GET para buscar dados financeiros do Usuário no banco
   if (req.method === 'GET' && parsedUrl.pathname === '/api/data') {
-    const authUser = getAuthUser(req);
-    if (!authUser) {
-      return sendJSON(401, { success: false, error: 'Não autorizado' });
-    }
-
-    const email = (parsedUrl.query.email || authUser.email).toLowerCase();
-    if (email !== authUser.email.toLowerCase() && authUser.role !== 'Administrador') {
-      return sendJSON(403, { success: false, error: 'Acesso negado aos dados de outro usuário' });
-    }
-
-    pool.query('SELECT dados FROM dados_financeiros WHERE LOWER(email) = LOWER($1)', [email])
-      .then(result => sendJSON(200, { success: true, data: result.rows[0] ? result.rows[0].dados : null }))
+    const email = parsedUrl.query.email;
+    pool.query('SELECT dados FROM dados_financeiros WHERE email = $1', [email])
+      .then(result => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result.rows[0] ? result.rows[0].dados : null));
+      })
       .catch(err => {
         console.error('Erro ao buscar dados financeiros:', err);
-        sendJSON(500, { success: false, error: 'Erro no banco de dados' });
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Erro no banco de dados' }));
       });
     return;
   }
 
-  // Rota POST /api/data (Salvar Dados Financeiros do Usuário - Protegida por Token)
+  // Rota POST para salvar dados financeiros do Usuário no banco
   if (req.method === 'POST' && parsedUrl.pathname === '/api/data') {
-    const authUser = getAuthUser(req);
-    if (!authUser) {
-      return sendJSON(401, { success: false, error: 'Não autorizado' });
-    }
-
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', () => {
@@ -5049,181 +3163,45 @@ const server = http.createServer(async (req, res) => {
       try {
         payload = JSON.parse(body);
       } catch (e) {
-        return sendJSON(400, { success: false, error: 'JSON inválido' });
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: false }));
       }
-
       if (!payload.email || !payload.data) {
-        return sendJSON(400, { success: false, error: 'Payload incompleto' });
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: false }));
       }
-
-      const email = payload.email.toLowerCase();
-      if (email !== authUser.email.toLowerCase() && authUser.role !== 'Administrador') {
-        return sendJSON(403, { success: false, error: 'Acesso negado para modificar dados de outro usuário' });
-      }
-
       pool.query(
         `INSERT INTO dados_financeiros (email, dados, updated_at)
          VALUES ($1, $2, now())
          ON CONFLICT (email) DO UPDATE
          SET dados = EXCLUDED.dados, updated_at = now();`,
-        [email, payload.data]
+        [payload.email, payload.data]
       )
-        .then(() => sendJSON(200, { success: true }))
+        .then(() => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        })
         .catch(err => {
-          console.error('Erro ao salvar dados financeiros:', err);
-          sendJSON(500, { success: false, error: 'Erro ao salvar no banco de dados' });
+          console.error('Erro ao salvar nas configurações:', err);
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: false, error: 'ErrorCode: DB' }));
         });
     });
     return;
   }
 
-  // Rota GET /api/postgres/status (Status da Conexão & Estatísticas PostgreSQL para VS Code)
-  if (req.method === 'GET' && parsedUrl.pathname === '/api/postgres/status') {
-    const authUser = getAuthUser(req);
-    if (!authUser) {
-      return sendJSON(401, { success: false, error: 'Não autorizado' });
-    }
-
-    pool.query('SELECT id, name, email, role, active, created_at FROM usuarios ORDER BY id ASC')
-      .then(async (userRes) => {
-        let dataCount = 0;
-        try {
-          const dataRes = await pool.query('SELECT COUNT(*) FROM dados_financeiros');
-          dataCount = parseInt(dataRes.rows[0].count, 10) || 0;
-        } catch(e){}
-
-        sendJSON(200, {
-          success: true,
-          connected: true,
-          dbHost: process.env.DB_HOST || 'localhost',
-          dbPort: process.env.DB_PORT || 5432,
-          dbUser: process.env.DB_USER || 'postgres',
-          dbName: process.env.DB_NAME || 'FINANCEIRO',
-          userCount: userRes.rows.length,
-          dataCount: dataCount,
-          users: userRes.rows,
-          tables: ['usuarios', 'dados_financeiros'],
-          error: null
-        });
-      })
-      .catch(err => {
-        sendJSON(200, {
-          success: true,
-          connected: false,
-          dbHost: process.env.DB_HOST || 'localhost',
-          dbPort: process.env.DB_PORT || 5432,
-          dbUser: process.env.DB_USER || 'postgres',
-          dbName: process.env.DB_NAME || 'FINANCEIRO',
-          userCount: 0,
-          dataCount: 0,
-          users: [],
-          tables: ['usuarios', 'dados_financeiros'],
-          error: err.message || 'Erro de conexão com o PostgreSQL'
-        });
-      });
-    return;
-  }
-
-  // Rota GET /api/postgres/export-cadastro (Exportar Script SQL / JSON do Cadastro)
-  if (req.method === 'GET' && parsedUrl.pathname === '/api/postgres/export-cadastro') {
-    const authUser = getAuthUser(req);
-    if (!authUser) {
-      return sendJSON(401, { success: false, error: 'Não autorizado' });
-    }
-
-    try {
-      const userRes = await pool.query('SELECT id, name, email, password, role, active, created_at FROM usuarios ORDER BY id ASC');
-      let dataRes = { rows: [] };
-      try {
-        dataRes = await pool.query('SELECT email, dados FROM dados_financeiros');
-      } catch(e){}
-
-      const dataMap = {};
-      dataRes.rows.forEach(r => { dataMap[r.email.toLowerCase()] = r.dados; });
-
-      const sqlLines = [];
-      sqlLines.push('-- Script de Carga/Migração de Dados de Cadastro para PostgreSQL');
-      sqlLines.push('-- Executar no VS Code ou pgAdmin no banco FINANCEIRO\n');
-      sqlLines.push('CREATE TABLE IF NOT EXISTS usuarios (');
-      sqlLines.push('  id SERIAL PRIMARY KEY,');
-      sqlLines.push('  name VARCHAR(150) NOT NULL,');
-      sqlLines.push('  email VARCHAR(150) UNIQUE NOT NULL,');
-      sqlLines.push('  password VARCHAR(255) NOT NULL,');
-      sqlLines.push('  role VARCHAR(50) NOT NULL DEFAULT \'Usuário\',');
-      sqlLines.push('  active BOOLEAN NOT NULL DEFAULT true,');
-      sqlLines.push('  created_at TIMESTAMP NOT NULL DEFAULT now()');
-      sqlLines.push(');\n');
-      sqlLines.push('CREATE TABLE IF NOT EXISTS dados_financeiros (');
-      sqlLines.push('  id SERIAL PRIMARY KEY,');
-      sqlLines.push('  email VARCHAR(150) UNIQUE NOT NULL REFERENCES usuarios(email) ON DELETE CASCADE ON UPDATE CASCADE,');
-      sqlLines.push('  dados JSONB NOT NULL DEFAULT \'{}\'::jsonb,');
-      sqlLines.push('  updated_at TIMESTAMP NOT NULL DEFAULT now()');
-      sqlLines.push(');\n');
-
-      userRes.rows.forEach(u => {
-        const nameEsc = u.name.replace(/'/g, "''");
-        const emailEsc = u.email.replace(/'/g, "''");
-        const passEsc = u.password.replace(/'/g, "''");
-        const roleEsc = u.role.replace(/'/g, "''");
-        const activeStr = u.active ? 'true' : 'false';
-
-        sqlLines.push(`INSERT INTO usuarios (name, email, password, role, active)`);
-        sqlLines.push(`VALUES ('${nameEsc}', '${emailEsc}', '${passEsc}', '${roleEsc}', ${activeStr})`);
-        sqlLines.push(`ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, role = EXCLUDED.role, active = EXCLUDED.active;\n`);
-
-        const userDados = dataMap[u.email.toLowerCase()];
-        if (userDados) {
-          const jsonStr = JSON.stringify(userDados).replace(/'/g, "''");
-          sqlLines.push(`INSERT INTO dados_financeiros (email, dados, updated_at)`);
-          sqlLines.push(`VALUES ('${emailEsc}', '${jsonStr}'::jsonb, now())`);
-          sqlLines.push(`ON CONFLICT (email) DO UPDATE SET dados = EXCLUDED.dados, updated_at = now();\n`);
-        }
-      });
-
-      sendJSON(200, {
-        success: true,
-        users: userRes.rows,
-        sqlScript: sqlLines.join('\n')
-      });
-    } catch(err) {
-      sendJSON(500, { success: false, error: 'Erro ao gerar exportação do cadastro: ' + err.message });
-    }
-    return;
-  }
-
-  // Rota estática para login.html
-  if (parsedUrl.pathname === '/login' || parsedUrl.pathname === '/login.html') {
-    try {
-      const loginHtml = fs.readFileSync(path.join(__dirname, 'login.html'), 'utf8');
-      res.writeHead(200, { 
-        'Content-Type': 'text/html; charset=utf-8',
-        'Cache-Control': 'no-cache, no-store, must-revalidate',
-        'Pragma': 'no-cache',
-        'Expires': '0'
-      });
-      return res.end(loginHtml);
-    } catch(e) {}
-  }
-
-  res.writeHead(200, { 
-    'Content-Type': 'text/html; charset=utf-8',
-    'Cache-Control': 'no-cache, no-store, must-revalidate',
-    'Pragma': 'no-cache',
-    'Expires': '0'
-  });
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(htmlContent);
 });
 
 initDatabase()
   .then(() => {
-    console.log(`[PostgreSQL] Conectado e tabelas inicializadas (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
+    server.listen(PORT, () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+      console.log(`Conectado ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
+    });
   })
   .catch(err => {
-    console.error('[PostgreSQL] Aviso ao inicializar banco de dados:', err.message);
-  })
-  .finally(() => {
-    server.listen(PORT, () => {
-      console.log(`Servidor rodando com sucesso na porta ${PORT}`);
-      console.log(`Acesse no seu navegador: http://localhost:${PORT}`);
-    });
+    console.error('Falha ao conectar/inicializar o banco de dados PostgreSQL:', err);
+    process.exit(1);
   });
