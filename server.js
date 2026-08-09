@@ -1688,9 +1688,9 @@ async function toggleUserActive(email){
 
 /* ==================== Período ==================== */
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const YEARS = [2026,2027,2028,2029];
-const PERIOD_MIN = {year:2026, month:1};
-const PERIOD_MAX = {year:2029, month:12};
+const YEARS = [2024,2025,2026,2027,2028,2029,2030];
+const PERIOD_MIN = {year:2024, month:1};
+const PERIOD_MAX = {year:2030, month:12};
 const EYE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_OFF_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.22 4.44M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
 
@@ -1884,15 +1884,17 @@ async function render(){
 
 function updateActiveMenu(){
   const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'config'];
-  const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
-  const savedPage = localStorage.getItem('nexus_current_page');
   
-  if (hashPage && validPages.includes(hashPage)) {
-    currentPage = hashPage;
-  } else if (savedPage && validPages.includes(savedPage)) {
-    currentPage = savedPage;
-  } else if (!currentPage || !validPages.includes(currentPage)) {
-    currentPage = 'dashboard';
+  if (!currentPage || !validPages.includes(currentPage)) {
+    const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+    const savedPage = localStorage.getItem('nexus_current_page');
+    if (hashPage && validPages.includes(hashPage)) {
+      currentPage = hashPage;
+    } else if (savedPage && validPages.includes(savedPage)) {
+      currentPage = savedPage;
+    } else {
+      currentPage = 'dashboard';
+    }
   }
 
   const buttons = document.querySelectorAll('#menu button[data-page]');
@@ -2363,8 +2365,12 @@ function openModal(id){
     document.getElementById('fValor').value = '';
     
     const now = new Date();
-    const todayStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    document.getElementById('fData').value = todayStr;
+    let defaultDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
+    if (currentPeriod.year !== now.getFullYear() || currentPeriod.month !== (now.getMonth() + 1)) {
+      const targetDay = Math.min(now.getDate(), new Date(currentPeriod.year, currentPeriod.month, 0).getDate());
+      defaultDate = pd(targetDay);
+    }
+    document.getElementById('fData').value = defaultDate;
     document.getElementById('fStatus').value = 'Pago';
     setType('out');
   }
@@ -3150,17 +3156,19 @@ window.addEventListener('hashchange', ()=>{
 
 /* ==================== Eventos Globais ==================== */
 document.getElementById('menu').addEventListener('click', e=>{
-  const btn = e.target.closest('button[data-page]');
-  if(btn) navigate(btn.dataset.page);
+  const targetEl = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+  const btn = targetEl ? targetEl.closest('button[data-page]') : null;
+  if(btn && btn.dataset.page) navigate(btn.dataset.page);
 });
 document.addEventListener('click', e=>{
+  const targetEl = e.target.nodeType === 3 ? e.target.parentElement : e.target;
   const panel = document.getElementById('periodPanel');
-  if(panel && panel.classList.contains('show') && !e.target.closest('.period-wrap')){
+  if(panel && panel.classList.contains('show') && targetEl && !targetEl.closest('.period-wrap')){
     panel.classList.remove('show');
     const pBtn = document.getElementById('periodBtn'); if(pBtn) pBtn.classList.remove('open');
   }
   const notifPanel = document.getElementById('notifPanel');
-  if(notifPanel && notifPanel.classList.contains('show') && !e.target.closest('.notif-wrap')) notifPanel.classList.remove('show');
+  if(notifPanel && notifPanel.classList.contains('show') && targetEl && !targetEl.closest('.notif-wrap')) notifPanel.classList.remove('show');
 });
 
 document.getElementById('notifBtn').onclick = async (e)=>{
