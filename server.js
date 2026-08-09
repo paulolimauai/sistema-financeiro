@@ -2208,26 +2208,26 @@ function pageConfig(){
   <div class="cfg-grid">
     <div class="panel">
       <div class="panel-head"><h3>Minha Conta</h3></div>
-      <div class="field"><label>Nome</label><input id="cfgName" value="\${currentUser ? currentUser.name : ''}" placeholder="Seu nome completo"></div>
-      <div class="field"><label>E-mail</label><input id="cfgEmail" type="text" value="\${currentUser ? currentUser.email : ''}" placeholder="seu.email@exemplo.com"></div>
+      <div class="field"><label>Nome</label><input id="cfgName" value="\${currentUser ? currentUser.name : ''}" placeholder="Seu nome completo" autocomplete="name"></div>
+      <div class="field"><label>E-mail</label><input id="cfgEmail" type="text" value="\${currentUser ? currentUser.email : ''}" placeholder="seu.email@exemplo.com" autocomplete="email"></div>
       <div class="field" style="margin-bottom:0;"><label>Tema</label>
-        <select id="cfgTheme"><option value="dark">Escuro</option><option value="light">Claro</option></select>
+        <select id="cfgTheme"><option value="dark">Escuro 🌙</option><option value="light">Claro ☀️</option></select>
       </div>
     </div>
     <div class="panel">
       <div class="panel-head"><h3>Alterar Senha</h3></div>
-      <p class="cfg-hint">Deixe em branco para manter a senha atual</p>
+      <p class="cfg-hint">Preencha apenas se quiser alterar sua senha de acesso</p>
       <div class="field">
-        <label>Nova Senha</label>
+        <label>Nova Senha <span style="color:var(--text-faint); font-size:11px;">(opcional)</span></label>
         <div class="pass-field">
-          <input id="cfgPassword" type="password" placeholder="••••••••" minlength="6">
+          <input id="cfgPassword" type="password" placeholder="••••••••" minlength="6" autocomplete="new-password">
           <button type="button" class="pass-toggle" id="cfgPasswordToggle" tabindex="-1" aria-label="Mostrar senha">\${EYE_ICON}</button>
         </div>
       </div>
       <div class="field" style="margin-bottom:0;">
-        <label>Confirmar Nova Senha</label>
+        <label>Confirmar Nova Senha <span style="color:var(--text-faint); font-size:11px;">(opcional)</span></label>
         <div class="pass-field">
-          <input id="cfgPasswordConfirm" type="password" placeholder="••••••••" minlength="6">
+          <input id="cfgPasswordConfirm" type="password" placeholder="••••••••" minlength="6" autocomplete="new-password">
           <button type="button" class="pass-toggle" id="cfgPasswordConfirmToggle" tabindex="-1" aria-label="Mostrar senha">\${EYE_ICON}</button>
         </div>
       </div>
@@ -2943,24 +2943,26 @@ function attachPageEvents(){
         await syncUsersWithServer();
         const newName = document.getElementById('cfgName').value.trim();
         const newEmail = document.getElementById('cfgEmail').value.trim();
-        const newPass = document.getElementById('cfgPassword').value;
-        const newPassConfirm = document.getElementById('cfgPasswordConfirm').value;
+        const newPass = document.getElementById('cfgPassword').value.trim();
+        const newPassConfirm = document.getElementById('cfgPasswordConfirm').value.trim();
 
         if(!newName){ showToast('Informe um nome válido'); return; }
         if(!newEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)){ showToast('Informe um e-mail válido'); return; }
         const emailTaken = registeredUsers.some(u => u.email.toLowerCase()===newEmail.toLowerCase() && u.email.toLowerCase()!==currentUser.email.toLowerCase());
         if(emailTaken){ showToast('Este e-mail já está em uso por outro usuário'); return; }
-        if(newPass || newPassConfirm){
+        
+        // Apenas valida senha se o usuário tiver digitado uma nova senha propositalmente
+        if(newPass && newPass.length > 0){
           if(newPass.length < 6){ showToast('A nova senha deve ter ao menos 6 caracteres'); return; }
-          if(newPass !== newPassConfirm){ showToast('As senhas não coincidem'); return; }
+          if(newPassConfirm && newPass !== newPassConfirm){ showToast('As senhas não coincidem'); return; }
         }
 
         const oldEmail = currentUser.email;
-        const u = registeredUsers.find(x => x.email === oldEmail);
+        const u = registeredUsers.find(x => x.email.toLowerCase() === oldEmail.toLowerCase());
         if (u) {
           u.name = newName;
           u.email = newEmail;
-          if(newPass) u.password = newPass;
+          if(newPass && newPass.length >= 6) u.password = newPass;
         }
         await saveUsersToServer();
 
