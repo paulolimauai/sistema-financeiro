@@ -3149,14 +3149,6 @@ document.getElementById('closeUserAdminModal').onclick = closeUserAdminModal;
 document.getElementById('userAdminCancelBtn').onclick = closeUserAdminModal;
 document.getElementById('userAdminSaveBtn').onclick = saveUserAdmin;
 document.getElementById('overlayUserAdmin').addEventListener('click', e=>{ if(e.target.id==='overlayUserAdmin') closeUserAdminModal(); });
-
-function toggleTheme(){
-  document.body.classList.toggle('light');
-  const isLight = document.body.classList.contains('light');
-  document.getElementById('miniThemeBtn').textContent = isLight ? '☀️' : '🌙';
-  if(currentPage==='dashboard') drawDashboardCharts();
-}
-document.getElementById('miniThemeBtn').onclick = toggleTheme;
 document.getElementById('viewModeExitBtn').onclick = exitViewMode;
 document.getElementById('accountDisabledCloseBtn').onclick = hideAccountDisabledPopup;
 bindPasswordToggle('loginPassword', 'loginPasswordToggle');
