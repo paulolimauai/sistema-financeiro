@@ -3015,24 +3015,53 @@ async function addContribution(id){
   render();
 }
 
+function populateRecAccountOptions(selectedAcc) {
+  const aSel = document.getElementById('recConta');
+  if(!aSel) return;
+
+  const filteredAccounts = currentRecType === 'in' 
+    ? accounts.filter(a => a.type !== 'Cartão de Crédito')
+    : accounts;
+
+  let optionsArr = filteredAccounts.map(a => ({
+    value: a.name,
+    label: a.name + ' — ' + a.type
+  }));
+
+  const extraOptions = [
+    { value: 'Boleto / Outros', label: '📄 Boleto / Pix / Outros' },
+    { value: 'Dinheiro', label: '💵 Dinheiro em Espécie' }
+  ];
+
+  extraOptions.forEach(opt => {
+    if (!accounts.some(a => a.name.toLowerCase().trim() === opt.value.toLowerCase().trim())) {
+      optionsArr.push(opt);
+    }
+  });
+
+  aSel.innerHTML = optionsArr.map(opt => {
+    return '<option value="' + opt.value + '"' + (selectedAcc === opt.value ? ' selected' : '') + '>' + opt.label + '</option>';
+  }).join('');
+}
+
 function openRecurringModal(id){
   if(categories.length===0){ showToast('Cadastre uma categoria antes de criar um recorrente'); return; }
-  if(accounts.length===0){ showToast('Cadastre uma conta antes de criar um recorrente'); return; }
   editingRecId = id || null;
   document.getElementById('overlayRecurring').classList.add('show');
-  const cSel = document.getElementById('recCategoria'); cSel.innerHTML = categories.map(c=>\`<option>\${c.name}</option>\`).join('');
-  const aSel = document.getElementById('recConta'); aSel.innerHTML = accounts.map(a=>\`<option>\${a.name} — \${a.type}</option>\`).join('');
+  
+  let selectedAcc = accounts[0] ? accounts[0].name : 'Boleto / Outros';
+
   if(id){
     const r = recurringList.find(x=>x.id===id);
     document.getElementById('recModalTitle').textContent = 'Editar Recorrente';
     document.getElementById('recDesc').value = r.desc;
     document.getElementById('recVal').value = r.val;
     document.getElementById('recDay').value = r.day;
-    cSel.value = r.cat;
-    const am = accounts.find(a=>a.name===r.acc);
-    aSel.value = am ? \`\${r.acc} — \${am.type}\` : (aSel.options[0] ? aSel.options[0].value : '');
     document.getElementById('recFreq').value = r.freq;
+    if(r.acc) selectedAcc = r.acc;
     setRecType(r.type);
+    const cSel = document.getElementById('recCategoria');
+    if(cSel) cSel.value = r.cat;
   } else {
     document.getElementById('recModalTitle').textContent = 'Novo Lançamento Recorrente';
     document.getElementById('recDesc').value = '';
@@ -3041,19 +3070,39 @@ function openRecurringModal(id){
     document.getElementById('recFreq').value = 'Mensal';
     setRecType('out');
   }
+  populateRecAccountOptions(selectedAcc);
 }
+
 function closeRecurringModal(){ document.getElementById('overlayRecurring').classList.remove('show'); }
+
+function populateRecCategoriaOptions(type){
+  const fCat = document.getElementById('recCategoria');
+  if(!fCat) return;
+  const wantType = type==='in' ? 'receita' : 'despesa';
+  const hasOfType = categories.some(c => (c.type||'despesa') === wantType);
+  const prev = fCat.value;
+  fCat.innerHTML = hasOfType ? catOptionsHTML(wantType) : catOptionsHTML(null);
+  const list = hasOfType ? categories.filter(c => (c.type||'despesa') === wantType) : categories;
+  if(list.some(c=>c.name===prev)) fCat.value = prev;
+}
+
 function setRecType(t){
   currentRecType = t;
-  document.getElementById('recTypeInBtn').className = t==='in'?'sel-in':'';
-  document.getElementById('recTypeOutBtn').className = t==='out'?'sel-out':'';
+  document.getElementById('recTypeInBtn').className = t==='in' ? 'sel-in' : '';
+  document.getElementById('recTypeOutBtn').className = t==='out' ? 'sel-out' : '';
+  populateRecCategoriaOptions(t);
+  const aSel = document.getElementById('recConta');
+  if(aSel) {
+    populateRecAccountOptions(aSel.value);
+  }
 }
+
 async function saveRecurring(){
   const desc = document.getElementById('recDesc').value.trim();
   const val = parseFloat(document.getElementById('recVal').value);
   const day = parseInt(document.getElementById('recDay').value);
   const cat = document.getElementById('recCategoria').value;
-  const accSel = document.getElementById('recConta').value.split(' — ')[0];
+  const accSel = document.getElementById('recConta') ? document.getElementById('recConta').value : '';
   const freq = document.getElementById('recFreq').value;
   if(!desc || isNaN(val) || val<=0 || isNaN(day) || day<1 || day>31){ showToast('Preencha os campos corretamente'); return; }
   if(editingRecId){
