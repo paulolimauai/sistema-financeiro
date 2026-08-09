@@ -1951,22 +1951,34 @@ window.handleLoginSubmit = async function(e) {
     }
 
     localStorage.setItem('nexus_token', data.token);
+    localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
     document.documentElement.classList.add('is-logged-in');
     currentUser = data.user;
     const initialPage = 'dashboard';
     saveToStorage('nexus_session', { email: currentUser.email, page: initialPage });
-    await loadUserData();
+    
+    try {
+      await loadUserData();
+    } catch(errData) {
+      console.warn('Erro ao carregar dados do usuário:', errData);
+    }
     
     const authPageEl = document.getElementById('authPage');
     const appMainEl = document.getElementById('appMain');
-    if (authPageEl) authPageEl.classList.remove('show');
-    if (appMainEl) appMainEl.classList.add('show');
+    if (authPageEl) {
+      authPageEl.style.display = 'none';
+      authPageEl.classList.remove('show');
+    }
+    if (appMainEl) {
+      appMainEl.style.display = 'flex';
+      appMainEl.classList.add('show');
+    }
     
     currentPage = initialPage;
-
     render();
     showLoginSuccessPopup('Bem-vindo(a) de volta, ' + (currentUser.name ? currentUser.name.split(' ')[0] : 'Usuário') + '!');
   } catch (err) {
+    console.error('Erro no login JS:', err);
     alert('Erro ao conectar ao servidor. Verifique sua conexão.');
   } finally {
     if (btnSubmit) {
