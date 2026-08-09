@@ -1974,7 +1974,7 @@ function updateHeaderUser(){
 
   if(unameEl) unameEl.textContent = currentUser.name;
   if(roleEl) roleEl.textContent = currentUser.role || 'Usuário';
-  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
+  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
 }
 
 function periodPickerHTML(){
@@ -2003,6 +2003,8 @@ function pageDashboard(){
   const recPct = Math.round(receitas/(receitas+despesas||1)*100) || 0;
   const despPct = 100-recPct;
   const lastTx = periodTx.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  const cardSummary = computeCardSummary();
+
   return \`
   <div class="page-head">
     <div><h1>Olá, \${currentUser ? currentUser.name.split(' ')[0] : 'Usuário'} 👋</h1><p>Aqui está o resumo da sua vida financeira</p></div>
@@ -2019,6 +2021,42 @@ function pageDashboard(){
     <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
     <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
   </div>
+
+  \${cardSummary.creditCards.length > 0 ? \`
+  <!-- Resumo de Limite de Cartões de Crédito no Dashboard -->
+  <div class="panel" style="margin-bottom:20px; background: linear-gradient(135deg, rgba(20,24,33,0.95), rgba(15,19,27,0.98)); border:1px solid rgba(232,176,75,0.25);">
+    <div class="panel-head" style="margin-bottom:12px;">
+      <h3 style="display:flex;align-items:center;gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        Cartões de Crédito — Limite & Faturas
+      </h3>
+      <span class="tag" data-nav="cartoes" style="cursor:pointer; background:var(--green-soft); color:var(--green);">Ver todos os cartões</span>
+    </div>
+    <div class="kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+      <div class="kpi" style="background:rgba(255,255,255,0.03); padding:12px 14px; border-radius:10px; border:1px solid var(--card-border);">
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Limite Disponível Total</div>
+        <div class="val" style="font-size:20px; font-weight:800; color:var(--green); margin-top:2px;">\${fmt(cardSummary.availableLimitGeral)}</div>
+      </div>
+      <div class="kpi" style="background:rgba(255,255,255,0.03); padding:12px 14px; border-radius:10px; border:1px solid var(--card-border);">
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Total em Faturas / Uso</div>
+        <div class="val" style="font-size:20px; font-weight:800; color:var(--orange); margin-top:2px;">\${fmt(cardSummary.spentTotalGeral)}</div>
+      </div>
+      <div class="kpi" style="background:rgba(255,255,255,0.03); padding:12px 14px; border-radius:10px; border:1px solid var(--card-border);">
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Limite Aprovado Total</div>
+        <div class="val" style="font-size:20px; font-weight:800; color:var(--blue); margin-top:2px;">\${fmt(cardSummary.totalLimitGeral)}</div>
+      </div>
+    </div>
+    <div style="margin-top:10px;">
+      <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-bottom:4px;">
+        <span>Comprometimento Global dos Cartões</span>
+        <span style="font-weight:700; color:\${cardSummary.usagePctGeral>=90?'var(--red)':cardSummary.usagePctGeral>=70?'var(--orange)':'var(--green)'};">\${cardSummary.usagePctGeral}% comprometido</span>
+      </div>
+      <div class="bar-split" style="height:6px; background:var(--card-border); border-radius:4px; overflow:hidden;">
+        <div class="g" style="width:\${cardSummary.usagePctGeral}%; height:100%; background:\${cardSummary.usagePctGeral>=90?'var(--red)':cardSummary.usagePctGeral>=70?'var(--orange)':'var(--green)'}; border-radius:4px;"></div>
+      </div>
+    </div>
+  </div>
+  \` : ''}
 
   <div class="grid3">
     <div class="panel">
@@ -2047,13 +2085,26 @@ function pageDashboard(){
     <div class="panel">
       <div class="panel-head"><h3>Contas e Cartões</h3><button class="tag" data-nav="cartoes">Editar</button></div>
       <div class="accounts-list">
-        \${accounts.map(a=>\`
-          <div class="acc-row">
+        \${accounts.map(a=>{
+          const stats = getCardStats(a);
+          return \`
+          <div class="acc-row" style="align-items:center;">
             <div class="acc-ic" style="background:\${a.color}">\${a.name.slice(0,2).toUpperCase()}</div>
-            <div class="acc-info"><div class="n">\${a.name}</div><div class="t">\${a.type}</div></div>
-            <div class="acc-val \${a.balance<0?'neg':''}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
+            <div class="acc-info">
+              <div class="n" style="font-weight:600;">\${a.name}</div>
+              <div class="t" style="font-size:11px; color:var(--text-faint);">\${a.type}</div>
+            </div>
+            <div style="text-align:right;">
+              \${stats.isCreditCard ? \`
+                <div class="acc-val" style="color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}; font-weight:700; font-size:12.5px;">Disp: \${fmt(stats.availableLimit)}</div>
+                <div style="font-size:10px; color:var(--text-faint);">Fat: \${fmt(stats.spentTotal)}</div>
+              \` : \`
+                <div class="acc-val \${a.balance<0?'neg':''}" style="font-weight:700; font-size:12.5px;">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
+              \`}
+            </div>
             <button class="acc-edit" data-editacc="\${a.id}">✎</button>
-          </div>\`).join('')}
+          </div>\`;
+        }).join('')}
       </div>
       <button class="btn-ghost" style="width:100%" data-nav="cartoes">Ver todas as contas</button>
     </div>
