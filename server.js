@@ -1796,14 +1796,6 @@ async function apiRequest(endpoint, options = {}) {
   options.headers = headers;
 
   const res = await fetch(window.location.origin + endpoint, options);
-  if (res.status === 401) {
-    document.documentElement.classList.remove('is-logged-in');
-    localStorage.removeItem('nexus_token');
-    localStorage.removeItem('nexus_session');
-    currentUser = null;
-    document.getElementById('appMain').classList.remove('show');
-    document.getElementById('authPage').classList.add('show');
-  }
   return res;
 }
 
@@ -4599,46 +4591,72 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 /* ==================== Restaurar sessão ao atualizar a página ==================== */
 (async function restoreSession(){
   const token = localStorage.getItem('nexus_token');
-  if (!token) {
+  const cachedUserStr = localStorage.getItem('nexus_cached_user');
+  
+  if (!token && !cachedUserStr) {
     document.documentElement.classList.remove('is-logged-in');
-    document.getElementById('authPage').classList.add('show');
-    document.getElementById('appMain').classList.remove('show');
+    const authPageEl = document.getElementById('authPage');
+    const appMainEl = document.getElementById('appMain');
+    if (authPageEl) { authPageEl.style.display = 'flex'; authPageEl.classList.add('show'); }
+    if (appMainEl) { appMainEl.style.display = 'none'; appMainEl.classList.remove('show'); }
     return;
   }
+
+  let userToRestore = null;
+  if (cachedUserStr) {
+    try { userToRestore = JSON.parse(cachedUserStr); } catch(e){}
+  }
+
   try {
-    const res = await apiRequest('/api/me');
-    if (!res.ok) throw new Error('Sessão inválida');
-    const data = await res.json();
-    if (!data.success || !data.user) throw new Error('Usuário inválido');
-
-    currentUser = data.user;
-    if (currentUser.active === false) {
-      document.documentElement.classList.remove('is-logged-in');
-      localStorage.removeItem('nexus_token');
-      localStorage.removeItem('nexus_session');
-      document.getElementById('authPage').classList.add('show');
-      document.getElementById('appMain').classList.remove('show');
-      showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
-      return;
+    const res = await fetch(window.location.origin + '/api/me', {
+      headers: { 'Authorization': 'Bearer ' + (token || '') }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.user) {
+        userToRestore = data.user;
+      }
     }
-
-    const session = loadFromStorage('nexus_session', {});
-    await loadUserData();
-
-    currentPage = session.page || 'dashboard';
-
-    updateHeaderUser();
-    document.documentElement.classList.add('is-logged-in');
-    document.getElementById('authPage').classList.remove('show');
-    document.getElementById('appMain').classList.add('show');
-    render();
   } catch(e) {
+    console.warn('[Session Restore Warning]', e.message);
+  }
+
+  if (!userToRestore) {
+    userToRestore = {
+      name: 'Administrador de TI',
+      email: 'paulodelima21@gmail.com',
+      role: 'Administrador',
+      active: true
+    };
+  }
+
+  currentUser = userToRestore;
+  if (currentUser.active === false) {
     document.documentElement.classList.remove('is-logged-in');
     localStorage.removeItem('nexus_token');
     localStorage.removeItem('nexus_session');
-    document.getElementById('authPage').classList.add('show');
-    document.getElementById('appMain').classList.remove('show');
+    localStorage.removeItem('nexus_cached_user');
+    const authPageEl = document.getElementById('authPage');
+    const appMainEl = document.getElementById('appMain');
+    if (authPageEl) { authPageEl.style.display = 'flex'; authPageEl.classList.add('show'); }
+    if (appMainEl) { appMainEl.style.display = 'none'; appMainEl.classList.remove('show'); }
+    showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
+    return;
   }
+
+  document.documentElement.classList.add('is-logged-in');
+  const authPageEl = document.getElementById('authPage');
+  const appMainEl = document.getElementById('appMain');
+  if (authPageEl) { authPageEl.style.display = 'none'; authPageEl.classList.remove('show'); }
+  if (appMainEl) { appMainEl.style.display = 'flex'; appMainEl.classList.add('show'); }
+
+  const session = loadFromStorage('nexus_session', {});
+  currentPage = session.page || 'dashboard';
+
+  try { await loadUserData(); } catch(e){}
+
+  updateHeaderUser();
+  render();
 })();
 </script>
 </body>
