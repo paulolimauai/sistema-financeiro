@@ -1029,6 +1029,10 @@ tr.trow:hover td{background:var(--hover);}
         <button type="button" id="fCategoriaAddBtn" title="Nova categoria" style="flex-shrink:0; width:40px; border:1px solid var(--card-border); background:var(--card); border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; color:var(--text);">+</button>
       </div>
     </div>
+    <div class="field"><label>Conta / Cartão</label>
+      <select id="fConta"></select>
+      <div id="cardLimitHint" style="display:none;margin-top:6px;font-size:12px;padding:8px 12px;border-radius:8px;background:var(--green-soft);color:var(--green);font-weight:600;align-items:center;gap:6px;"></div>
+    </div>
     <div class="field"><label>Status</label>
       <select id="fStatus"><option>Pago</option><option>Recebido</option><option>Pendente</option></select>
     </div>
@@ -1049,7 +1053,7 @@ tr.trow:hover td{background:var(--hover);}
       <select id="accType"><option>Conta Corrente</option><option>Conta Poupança</option><option>Cartão de Crédito</option><option>Investimento</option></select>
     </div>
     <div class="field-row">
-      <div class="field"><label>Saldo (R$)</label><input id="accBalance" type="number" step="0.01" placeholder="0,00"></div>
+      <div class="field"><label id="accBalanceLabel">Saldo (R$)</label><input id="accBalance" type="number" step="0.01" placeholder="0,00"></div>
       <div class="field"><label>Cor</label><input id="accColor" type="color" value="#e8b04b"></div>
     </div>
     <div class="modal-actions">
@@ -1749,6 +1753,46 @@ function catOptionsHTML(type, selected){
 const periodLabel = ()=> MONTHS[currentPeriod.month-1] + ' / ' + currentPeriod.year;
 const inPeriod = t => { const d=new Date(t.date+'T00:00'); return (d.getMonth()+1)===currentPeriod.month && d.getFullYear()===currentPeriod.year; };
 
+/* ==================== Cálculos de Cartões e Limites ==================== */
+function getCardStats(account) {
+  const isCreditCard = account.type === 'Cartão de Crédito';
+  const cardTx = transactions.filter(t => t.acc === account.name && t.type === 'out');
+  const periodCardTx = cardTx.filter(inPeriod);
+  
+  const spentPeriod = periodCardTx.reduce((s, t) => s + t.val, 0);
+  const spentTotal = cardTx.reduce((s, t) => s + t.val, 0);
+  
+  const totalLimit = account.balance || 0;
+  const availableLimit = isCreditCard ? Math.max(0, totalLimit - spentTotal) : totalLimit;
+  const usagePct = (isCreditCard && totalLimit > 0) ? Math.min(100, Math.round((spentTotal / totalLimit) * 100)) : 0;
+  
+  return {
+    spentPeriod,
+    spentTotal,
+    totalLimit,
+    availableLimit,
+    usagePct,
+    isCreditCard
+  };
+}
+
+function computeCardSummary() {
+  const creditCards = accounts.filter(a => a.type === 'Cartão de Crédito');
+  let totalLimitGeral = 0;
+  let spentTotalGeral = 0;
+  let availableLimitGeral = 0;
+  
+  creditCards.forEach(card => {
+    const stats = getCardStats(card);
+    totalLimitGeral += stats.totalLimit;
+    spentTotalGeral += stats.spentTotal;
+    availableLimitGeral += stats.availableLimit;
+  });
+  
+  const usagePctGeral = totalLimitGeral > 0 ? Math.min(100, Math.round((spentTotalGeral / totalLimitGeral) * 100)) : 0;
+  return { creditCards, totalLimitGeral, spentTotalGeral, availableLimitGeral, usagePctGeral };
+}
+
 /* ==================== Cálculos ==================== */
 function computeTotals(list=transactions){
   const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
@@ -2067,24 +2111,102 @@ function pageTransacoes(){
 
 function pageContas(){
   const list = accounts;
+  const summary = computeCardSummary();
+  
   return \`
   <div class="page-head">
-    <div><h1>Cartões</h1><p>Cadastre suas contas e cartões — corrente, poupança, crédito, investimento</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovaConta">+ Novo Cartão/Conta</button></div>
+    <div>
+      <h1>Cartões e Contas</h1>
+      <p>Acompanhe o limite disponível dos seus cartões de crédito e o saldo das suas contas</p>
+    </div>
+    <div class="head-actions">
+      \${periodPickerHTML()}
+      <button class="btn-primary" id="btnNovaConta">+ Novo Cartão/Conta</button>
+    </div>
   </div>
-  <div class="grid3" style="grid-template-columns:repeat(3,1fr);">
-    \${list.length? list.map(a=>\`
-      <div class="acc-card">
-        <div class="top">
-          <div class="id-group" style="display:flex;align-items:center;gap:10px;min-width:0;">
-            <span class="acc-ic" style="background:\${a.color};">\${a.name.slice(0,2).toUpperCase()}</span>
-            <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${a.name}</h3>
+
+  \${summary.creditCards.length > 0 ? \`
+  <!-- Resumo Consolidado de Limite de Cartões -->
+  <div class="panel" style="margin-bottom:20px; background: linear-gradient(135deg, rgba(20,24,33,0.95), rgba(15,19,27,0.98)); border:1px solid rgba(232,176,75,0.25);">
+    <div class="panel-head" style="margin-bottom:14px;">
+      <h3 style="display:flex;align-items:center;gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
+        Visão Geral dos Cartões de Crédito
+      </h3>
+      <span class="tag" style="cursor:default; background:var(--green-soft); color:var(--green);">\${summary.creditCards.length} cartão(ões)</span>
+    </div>
+    <div class="kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
+      <div class="kpi" style="background:rgba(255,255,255,0.03); padding:14px; border-radius:12px; border:1px solid var(--card-border);">
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Limite Disponível Total</div>
+        <div class="val" style="font-size:22px; font-weight:800; color:var(--green); margin-top:4px;">\${fmt(summary.availableLimitGeral)}</div>
+        <div class="sub" style="font-size:11px; color:var(--text-faint); margin-top:2px;">Disponível para compras</div>
+      </div>
+      <div class="kpi" style="background:rgba(255,255,255,0.03); padding:14px; border-radius:12px; border:1px solid var(--card-border);">
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Fatura / Limite Utilizado</div>
+        <div class="val" style="font-size:22px; font-weight:800; color:var(--orange); margin-top:4px;">\${fmt(summary.spentTotalGeral)}</div>
+        <div class="sub" style="font-size:11px; color:var(--text-faint); margin-top:2px;">Total de despesas em cartões</div>
+      </div>
+      <div class="kpi" style="background:rgba(255,255,255,0.03); padding:14px; border-radius:12px; border:1px solid var(--card-border);">
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Limite Total Aprovado</div>
+        <div class="val" style="font-size:22px; font-weight:800; color:var(--blue); margin-top:4px;">\${fmt(summary.totalLimitGeral)}</div>
+        <div class="sub" style="font-size:11px; color:var(--text-faint); margin-top:2px;">Soma de todos os cartões</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; color:var(--text-dim); margin-bottom:6px;">
+        <span>Uso global do limite de crédito</span>
+        <span style="font-weight:700; color:\${summary.usagePctGeral>=90?'var(--red)':summary.usagePctGeral>=70?'var(--orange)':'var(--green)'};">\${summary.usagePctGeral}% comprometido</span>
+      </div>
+      <div class="bar-split" style="height:8px; background:var(--card-border); border-radius:6px; overflow:hidden;">
+        <div class="g" style="width:\${summary.usagePctGeral}%; height:100%; background:\${summary.usagePctGeral>=90?'var(--red)':summary.usagePctGeral>=70?'var(--orange)':'var(--green)'}; border-radius:6px; transition:width .3s ease;"></div>
+      </div>
+    </div>
+  </div>
+  \` : ''}
+
+  <div class="grid3" style="grid-template-columns:repeat(auto-fill, minmax(310px, 1fr)); gap:16px;">
+    \${list.length ? list.map(a => {
+      const stats = getCardStats(a);
+      return \`
+      <div class="acc-card" style="position:relative; background:var(--card); border:1px solid var(--card-border); border-radius:14px; padding:18px; display:flex; flex-direction:column; justify-content:space-between;">
+        <div class="top" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
+          <div class="id-group" style="display:flex; align-items:center; gap:10px; min-width:0;">
+            <span class="acc-ic" style="background:\${a.color}; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:13px; flex-shrink:0;">\${a.name.slice(0,2).toUpperCase()}</span>
+            <div style="min-width:0;">
+              <h3 style="font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px;">\${a.name}</h3>
+              <span class="pill" style="font-size:10.5px; padding:2px 8px; border-radius:6px; background:\${stats.isCreditCard ? 'rgba(155,107,216,0.15)' : 'var(--green-soft)'}; color:\${stats.isCreditCard ? 'var(--purple)' : 'var(--green)'}; font-weight:600;">\${a.type}</span>
+            </div>
           </div>
           <div class="row-actions"><button data-editacc="\${a.id}" title="Editar">✎</button><button data-delacc="\${a.id}" title="Excluir">🗑</button></div>
         </div>
-        <p style="color:var(--text-faint);font-size:12px;margin-bottom:8px;">\${a.type}</p>
-        <div class="val" style="font-size:22px;font-weight:700;color:\${a.balance<0?'var(--red)':'var(--green)'}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
-      </div>\`).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
+
+        \${stats.isCreditCard ? \`
+          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-top:6px;">
+            <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:2px;">Limite Disponível</div>
+            <div class="val" style="font-size:22px; font-weight:800; color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}">
+              \${fmt(stats.availableLimit)}
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-top:8px; padding-top:8px; border-top:1px dashed var(--card-border);">
+              <span>Fatura: <strong style="color:var(--text);">\${fmt(stats.spentTotal)}</strong></span>
+              <span>Total: <strong style="color:var(--text);">\${fmt(stats.totalLimit)}</strong></span>
+            </div>
+            <div style="margin-top:8px;">
+              <div class="bar-split" style="height:6px; background:var(--card-border); border-radius:4px; overflow:hidden;">
+                <div class="g" style="width:\${stats.usagePct}%; height:100%; background:\${stats.usagePct >= 90 ? 'var(--red)' : stats.usagePct >= 70 ? 'var(--orange)' : 'var(--green)'}; border-radius:4px;"></div>
+              </div>
+              <div style="text-align:right; font-size:10.5px; color:var(--text-faint); margin-top:4px;">\${stats.usagePct}% utilizado</div>
+            </div>
+          </div>
+        \` : \`
+          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-top:6px;">
+            <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:2px;">Saldo Atual</div>
+            <div class="val" style="font-size:22px; font-weight:800; color:\${a.balance < 0 ? 'var(--red)' : 'var(--green)'}">
+              \${a.balance < 0 ? '-' : ''}\${fmt(Math.abs(a.balance))}
+            </div>
+          </div>
+        \`}
+      </div>\`;
+    }).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
   </div>\`;
 }
 
@@ -2345,11 +2467,58 @@ function drawDashboardCharts(){
   });
 }
 
+function populateAccountOptions(selectedAcc) {
+  const fConta = document.getElementById('fConta');
+  if(!fConta) return;
+  if(accounts.length === 0) {
+    fConta.innerHTML = '<option value="">Sem contas cadastradas</option>';
+    return;
+  }
+  fConta.innerHTML = accounts.map(a => {
+    const stats = getCardStats(a);
+    const label = stats.isCreditCard ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + ')') : (a.name + ' (' + a.type + ')');
+    return '<option value="' + a.name + '"' + (selectedAcc === a.name ? ' selected' : '') + '>' + label + '</option>';
+  }).join('');
+  updateCardLimitHint();
+}
+
+function updateCardLimitHint() {
+  const fConta = document.getElementById('fConta');
+  const hintEl = document.getElementById('cardLimitHint');
+  if(!fConta || !hintEl) return;
+  const accName = fConta.value;
+  const acc = accounts.find(a => a.name === accName);
+  if(acc && acc.type === 'Cartão de Crédito') {
+    const stats = getCardStats(acc);
+    hintEl.style.display = 'flex';
+    hintEl.style.background = stats.availableLimit < 200 ? 'var(--red-soft)' : 'var(--green-soft)';
+    hintEl.style.color = stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)';
+    hintEl.innerHTML = '💳 <span><strong>Limite disponível:</strong> ' + fmt(stats.availableLimit) + ' de ' + fmt(stats.totalLimit) + ' (Fatura: ' + fmt(stats.spentTotal) + ')</span>';
+  } else {
+    hintEl.style.display = 'none';
+  }
+}
+
+function updateAccBalanceLabel() {
+  const typeEl = document.getElementById('accType');
+  const lbl = document.getElementById('accBalanceLabel');
+  const inp = document.getElementById('accBalance');
+  if(!typeEl || !lbl || !inp) return;
+  if(typeEl.value === 'Cartão de Crédito') {
+    lbl.textContent = 'Limite Total do Cartão (R$)';
+    inp.placeholder = 'Ex: 5000,00';
+  } else {
+    lbl.textContent = 'Saldo (R$)';
+    inp.placeholder = '0,00';
+  }
+}
+
 /* ==================== Modais e Ações de Dados ==================== */
 function openModal(id){
   if(categories.length===0){ showToast('Cadastre uma categoria antes de lançar uma transação'); return; }
   editingId = id || null;
   document.getElementById('overlay').classList.add('show');
+  let selectedAcc = accounts[0] ? accounts[0].name : '';
   if(id){
     const t = transactions.find(x=>x.id===id);
     document.getElementById('modalTitle').textContent = 'Editar Transação';
@@ -2359,6 +2528,7 @@ function openModal(id){
     setType(t.type);
     document.getElementById('fCategoria').value = t.cat;
     document.getElementById('fStatus').value = t.status;
+    if(t.acc) selectedAcc = t.acc;
   } else {
     document.getElementById('modalTitle').textContent = 'Nova Transação';
     document.getElementById('fDesc').value = '';
@@ -2374,6 +2544,9 @@ function openModal(id){
     document.getElementById('fStatus').value = 'Pago';
     setType('out');
   }
+  populateAccountOptions(selectedAcc);
+  const fContaEl = document.getElementById('fConta');
+  if(fContaEl) fContaEl.onchange = updateCardLimitHint;
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
 function populateCategoriaOptions(type){
@@ -2398,6 +2571,7 @@ async function saveTransaction(){
   const date = document.getElementById('fData').value;
   const cat = document.getElementById('fCategoria').value;
   const status = document.getElementById('fStatus').value;
+  const accSel = document.getElementById('fConta') ? document.getElementById('fConta').value : '';
   if(!desc || isNaN(val) || val<=0 || !date){ showToast('Preencha todos os campos corretamente'); return; }
 
   if(editingId){
@@ -2406,10 +2580,10 @@ async function saveTransaction(){
       const newCatObj = categories.find(c=>c.name===cat);
       if(newCatObj) newCatObj.count = (newCatObj.count||0)+1;
     }
-    Object.assign(t, {desc, val, date, cat, status, type:currentType});
+    Object.assign(t, {desc, val, date, cat, status, type:currentType, acc:accSel});
     showToast('Transação atualizada!');
   } else {
-    transactions.push({id: nextTxId++, desc, val, date, cat, status, type: currentType});
+    transactions.push({id: nextTxId++, desc, val, date, cat, status, type: currentType, acc:accSel});
     const catObj = categories.find(c=>c.name===cat);
     if(catObj) catObj.count = (catObj.count||0)+1;
     showToast('Transação adicionada!');
@@ -2487,6 +2661,9 @@ function openAccountModal(id){
     document.getElementById('accBalance').value = '';
     document.getElementById('accColor').value = '#e8b04b';
   }
+  updateAccBalanceLabel();
+  const accTypeEl = document.getElementById('accType');
+  if(accTypeEl) accTypeEl.onchange = updateAccBalanceLabel;
 }
 function closeAccountModal(){ document.getElementById('overlayAccount').classList.remove('show'); }
 async function saveAccount(){
