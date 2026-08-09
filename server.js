@@ -2951,10 +2951,12 @@ function attachPageEvents(){
         const emailTaken = registeredUsers.some(u => u.email.toLowerCase()===newEmail.toLowerCase() && u.email.toLowerCase()!==currentUser.email.toLowerCase());
         if(emailTaken){ showToast('Este e-mail já está em uso por outro usuário'); return; }
         
-        // Apenas valida senha se o usuário tiver digitado uma nova senha propositalmente
-        if(newPass && newPass.length > 0){
+        // Atualiza a senha SOMENTE se AMBOS os campos de senha foram preenchidos propositalmente
+        let passwordChanged = false;
+        if(newPass && newPassConfirm){
           if(newPass.length < 6){ showToast('A nova senha deve ter ao menos 6 caracteres'); return; }
-          if(newPassConfirm && newPass !== newPassConfirm){ showToast('As senhas não coincidem'); return; }
+          if(newPass !== newPassConfirm){ showToast('As senhas de confirmação não coincidem'); return; }
+          passwordChanged = true;
         }
 
         const oldEmail = currentUser.email;
@@ -2962,7 +2964,7 @@ function attachPageEvents(){
         if (u) {
           u.name = newName;
           u.email = newEmail;
-          if(newPass && newPass.length >= 6) u.password = newPass;
+          if(passwordChanged) u.password = newPass;
         }
         await saveUsersToServer();
 
