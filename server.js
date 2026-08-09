@@ -2498,7 +2498,7 @@ function updateHeaderUser(){
   if(avatarEl) avatarEl.textContent = initials;
 
   try {
-    saveToStorage('nexus_cached_user', { name: currentUser.name, role: role, initials: initials });
+    saveToStorage('nexus_cached_user', { name: currentUser.name, email: currentUser.email, role: role, initials: initials });
   } catch(e){}
 }
 
@@ -4626,9 +4626,10 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
     console.warn('[Session Restore Warning]', e.message);
   }
 
-  if (!userToRestore) {
+  if (!userToRestore || !userToRestore.email) {
     userToRestore = {
-      name: 'Administrador de TI',
+      id: 1,
+      name: 'Paulo Lima (Admin)',
       email: 'paulodelima21@gmail.com',
       role: 'Administrador',
       active: true
