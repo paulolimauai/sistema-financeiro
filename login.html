@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login | Sistema Financeiro Pessoal</title>
+    <title>Login | Nexus Financeiro Hub</title>
     <!-- Tailwind CSS CDN para estilização rápida e moderna -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -22,6 +22,66 @@
             }
         }
     </script>
+    <style>
+        .auth-tab {
+            padding-bottom: 12px;
+            border-bottom: 2px solid transparent;
+            color: #9ca3af;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            padding-left: 16px;
+            padding-right: 16px;
+        }
+        .auth-tab:hover {
+            color: #e5e7eb;
+        }
+        .auth-tab.active {
+            border-bottom-color: #06D6A0;
+            color: #06D6A0;
+            font-weight: 700;
+        }
+    </style>
+    <script>
+        // Função Global de Troca de Abas
+        window.switchAuthTab = function(tabName) {
+            const loginBox = document.getElementById('loginBox');
+            const registerBox = document.getElementById('registerBox');
+            const forgotBox = document.getElementById('forgotBox');
+
+            const tabLogin = document.getElementById('tabAuthLogin') || document.getElementById('tabLogin');
+            const tabRegister = document.getElementById('tabAuthRegister') || document.getElementById('tabRegister');
+            const tabForgot = document.getElementById('tabAuthForgot') || document.getElementById('tabForgot');
+
+            const authTitle = document.getElementById('authTitle');
+            const authSub = document.getElementById('authSub');
+
+            if (tabLogin) tabLogin.classList.remove('active');
+            if (tabRegister) tabRegister.classList.remove('active');
+            if (tabForgot) tabForgot.classList.remove('active');
+
+            if (loginBox) loginBox.style.display = 'none';
+            if (registerBox) registerBox.style.display = 'none';
+            if (forgotBox) forgotBox.style.display = 'none';
+
+            if (tabName === 'register') {
+                if (registerBox) registerBox.style.display = 'block';
+                if (tabRegister) tabRegister.classList.add('active');
+                if (authTitle) authTitle.innerText = "Criar nova conta";
+                if (authSub) authSub.innerText = "Cadastre-se gratuitamente para gerenciar seu dinheiro.";
+            } else if (tabName === 'forgot') {
+                if (forgotBox) forgotBox.style.display = 'block';
+                if (tabForgot) tabForgot.classList.add('active');
+                if (authTitle) authTitle.innerText = "Recuperar sua senha";
+                if (authSub) authSub.innerText = "Informe seu e-mail para receber uma senha temporária.";
+            } else {
+                if (loginBox) loginBox.style.display = 'block';
+                if (tabLogin) tabLogin.classList.add('active');
+                if (authTitle) authTitle.innerText = "Acessar sua conta";
+                if (authSub) authSub.innerText = "Gerencie seu patrimônio com segurança e clareza.";
+            }
+        };
+    </script>
 </head>
 <body class="h-full bg-finance-dark text-gray-100 font-sans antialiased flex flex-col justify-between">
 
@@ -34,25 +94,37 @@
                 <!-- Logotipo e Título -->
                 <div>
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-xl bg-finance-accent/10 border border-finance-accent/30 flex items-center justify-center text-finance-accent">
-                            <!-- Ícone de Gráfico/Finanças -->
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <div class="w-10 h-10 rounded-xl bg-finance-accent/10 border border-finance-accent/30 flex items-center justify-center text-finance-accent font-extrabold text-xl">
+                            N
                         </div>
-                        <span class="text-xl font-bold tracking-tight text-white">Fin<span class="text-finance-accent">Control</span></span>
+                        <span class="text-xl font-bold tracking-tight text-white">NEXUS <span class="text-finance-accent">FINANCEIRO</span></span>
                     </div>
-                    <h2 class="mt-8 text-2xl font-bold tracking-tight text-white">Acesse sua conta</h2>
-                    <p class="mt-2 text-sm text-gray-400">
+                    <h2 id="authTitle" class="mt-8 text-2xl font-bold tracking-tight text-white">Acessar sua conta</h2>
+                    <p id="authSub" class="mt-2 text-sm text-gray-400">
                         Gerencie seu patrimônio com segurança e clareza.
                     </p>
                 </div>
 
-                <!-- Formulário de Login -->
-                <div class="mt-8">
-                    <form action="#" method="POST" class="space-y-5">
+                <!-- Seletor de Abas (Acessar / Criar Conta / Recuperar) -->
+                <div class="mt-6 flex border-b border-gray-800 text-sm font-medium">
+                    <button type="button" id="tabAuthLogin" onclick="switchAuthTab('login')" class="auth-tab active">
+                        Acessar
+                    </button>
+                    <button type="button" id="tabAuthRegister" onclick="switchAuthTab('register')" class="auth-tab">
+                        Criar Conta
+                    </button>
+                    <button type="button" id="tabAuthForgot" onclick="switchAuthTab('forgot')" class="auth-tab">
+                        Recuperar Senha
+                    </button>
+                </div>
+
+                <!-- Box 1: Formulário de Login -->
+                <div id="loginBox" class="mt-6" style="display: block;">
+                    <form id="loginForm" class="space-y-5" onsubmit="handleLoginSubmit(event); return false;">
                         <div>
                             <label class="block text-sm font-medium text-gray-300">E-mail</label>
                             <div class="mt-1">
-                                <input id="email" name="email" type="email" autocomplete="email" required 
+                                <input id="loginEmail" name="email" type="email" autocomplete="username" required 
                                     class="block w-full rounded-lg border border-gray-700 bg-finance-card/50 px-3.5 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-finance-accent focus:outline-none focus:ring-1 focus:ring-finance-accent text-sm"
                                     placeholder="seu.email@exemplo.com">
                             </div>
@@ -62,61 +134,102 @@
                             <div class="flex items-center justify-between">
                                 <label class="block text-sm font-medium text-gray-300">Senha</label>
                                 <div class="text-sm">
-                                    <a href="#" class="font-medium text-finance-accent hover:underline">Esqueceu a senha?</a>
+                                    <a href="javascript:void(0)" onclick="switchAuthTab('forgot')" class="font-medium text-finance-accent hover:underline">Esqueceu a senha?</a>
                                 </div>
                             </div>
                             <div class="mt-1">
-                                <input id="password" name="password" type="password" autocomplete="current-password" required 
+                                <input id="loginPassword" name="password" type="password" autocomplete="current-password" required 
                                     class="block w-full rounded-lg border border-gray-700 bg-finance-card/50 px-3.5 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-finance-accent focus:outline-none focus:ring-1 focus:ring-finance-accent text-sm"
                                     placeholder="••••••••">
                             </div>
                         </div>
 
-                        <div class="flex items-center justify-between">
-                            <div class="flex items-center">
-                                <input id="remember-me" name="remember-me" type="checkbox" 
-                                    class="h-4 w-4 rounded border-gray-700 bg-finance-card text-finance-accent focus:ring-finance-accent">
-                                <label for="remember-me" class="ml-2 block text-sm text-gray-400">Lembrar de mim</label>
+                        <div>
+                            <button type="submit" id="btnLoginSubmit"
+                                class="flex w-full justify-center rounded-lg bg-finance-accent px-3.5 py-2.5 text-sm font-semibold text-finance-dark shadow-sm hover:bg-finance-accentHover transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finance-accent">
+                                Entrar no Sistema →
+                            </button>
+                        </div>
+                    </form>
+                    <p class="mt-4 text-center text-xs text-gray-400">
+                        Não tem uma conta? <a href="javascript:void(0)" onclick="switchAuthTab('register')" class="text-finance-accent hover:underline font-semibold">Cadastrar-se grátis</a>
+                    </p>
+                </div>
+
+                <!-- Box 2: Formulário de Criar Conta (Registro) -->
+                <div id="registerBox" class="mt-6" style="display: none;">
+                    <form id="registerForm" class="space-y-5" onsubmit="handleRegisterSubmit(event); return false;">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Nome Completo</label>
+                            <div class="mt-1">
+                                <input id="regName" name="regName" type="text" required 
+                                    class="block w-full rounded-lg border border-gray-700 bg-finance-card/50 px-3.5 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-finance-accent focus:outline-none focus:ring-1 focus:ring-finance-accent text-sm"
+                                    placeholder="Seu nome completo">
                             </div>
                         </div>
 
                         <div>
-                            <button type="submit" 
+                            <label class="block text-sm font-medium text-gray-300">E-mail</label>
+                            <div class="mt-1">
+                                <input id="regEmail" name="regEmail" type="email" autocomplete="email" required 
+                                    class="block w-full rounded-lg border border-gray-700 bg-finance-card/50 px-3.5 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-finance-accent focus:outline-none focus:ring-1 focus:ring-finance-accent text-sm"
+                                    placeholder="seu.email@exemplo.com">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">Senha (mínimo 6 caracteres)</label>
+                            <div class="mt-1">
+                                <input id="regPassword" name="regPassword" type="password" minlength="6" required 
+                                    class="block w-full rounded-lg border border-gray-700 bg-finance-card/50 px-3.5 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-finance-accent focus:outline-none focus:ring-1 focus:ring-finance-accent text-sm"
+                                    placeholder="••••••••">
+                            </div>
+                        </div>
+
+                        <div>
+                            <button type="submit" id="btnRegisterSubmit"
                                 class="flex w-full justify-center rounded-lg bg-finance-accent px-3.5 py-2.5 text-sm font-semibold text-finance-dark shadow-sm hover:bg-finance-accentHover transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finance-accent">
-                                Entrar no Sistema
+                                Criar Minha Conta Pessoal →
                             </button>
                         </div>
                     </form>
-
-                    <!-- Divisor -->
-                    <div class="relative mt-8">
-                        <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                            <div class="w-full border-t border-gray-800"></div>
-                        </div>
-                        <div class="relative flex justify-center text-xs uppercase">
-                            <span class="bg-finance-dark px-2 text-gray-500">Ou continue com</span>
-                        </div>
-                    </div>
-
-                    <!-- Botões de Acesso Rápido / Biometria -->
-                    <div class="mt-6 grid grid-cols-2 gap-3">
-                        <button type="button" class="flex items-center justify-center gap-2 rounded-lg border border-gray-700 bg-finance-card/40 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-finance-card transition-colors">
-                            <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
-                            Google
-                        </button>
-                        <button type="button" class="flex items-center justify-center gap-2 rounded-lg border border-gray-700 bg-finance-card/40 px-3 py-2 text-sm font-medium text-gray-300 hover:bg-finance-card transition-colors">
-                            <svg class="w-5 h-5 text-finance-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 008 11a4 4 0 118 0c0 1.017-.07 2.019-.203 3m-2.118 6.844A21.88 21.88 0 0115.171 17m3.839-1.132c.645-2.266.99-4.659.99-7.138A8 8 0 000 8c0 1.62.492 3.128 1.342 4.38"></path></svg>
-                            Biometria
-                        </button>
-                    </div>
-
-                    <!-- Aviso de Segurança Rodapé do Formulário -->
-                    <div class="mt-8 flex items-center justify-center gap-1.5 text-xs text-gray-500">
-                        <svg class="w-4 h-4 text-finance-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-                        Ambiente 100% criptografado e seguro
-                    </div>
-
+                    <p class="mt-4 text-center text-xs text-gray-400">
+                        Já possui uma conta? <a href="javascript:void(0)" onclick="switchAuthTab('login')" class="text-finance-accent hover:underline font-semibold">Fazer Login</a>
+                    </p>
                 </div>
+
+                <!-- Box 3: Formulário de Recuperar Senha -->
+                <div id="forgotBox" class="mt-6" style="display: none;">
+                    <div id="forgotAlert" class="hidden mb-4 p-3 rounded-lg text-xs font-medium border"></div>
+
+                    <form id="forgotForm" class="space-y-5" onsubmit="handleForgotSubmit(event); return false;">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300">E-mail Cadastrado</label>
+                            <div class="mt-1">
+                                <input id="forgotEmail" name="forgotEmail" type="email" autocomplete="email" required 
+                                    class="block w-full rounded-lg border border-gray-700 bg-finance-card/50 px-3.5 py-2.5 text-white placeholder-gray-500 shadow-sm focus:border-finance-accent focus:outline-none focus:ring-1 focus:ring-finance-accent text-sm"
+                                    placeholder="seu.email@exemplo.com">
+                            </div>
+                        </div>
+
+                        <div>
+                            <button type="submit" id="btnSendPassword"
+                                class="flex w-full justify-center rounded-lg bg-finance-accent px-3.5 py-2.5 text-sm font-semibold text-finance-dark shadow-sm hover:bg-finance-accentHover transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-finance-accent">
+                                Enviar / Gerar Nova Senha →
+                            </button>
+                        </div>
+                    </form>
+                    <p class="mt-4 text-center text-xs text-gray-400">
+                        Lembrou da senha? <a href="javascript:void(0)" onclick="switchAuthTab('login')" class="text-finance-accent hover:underline font-semibold">Voltar para o Login</a>
+                    </p>
+                </div>
+
+                <!-- Aviso de Segurança Rodapé do Formulário -->
+                <div class="mt-8 flex items-center justify-center gap-1.5 text-xs text-gray-500">
+                    <svg class="w-4 h-4 text-finance-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                    Ambiente 100% criptografado e seguro
+                </div>
+
             </div>
         </div>
 
@@ -152,5 +265,154 @@
 
     </div>
 
+    <script>
+    const targetOrigin = (window.location.origin && window.location.origin.includes('http')) 
+        ? window.location.origin 
+        : 'http://localhost:3000';
+
+    // 1. Submit Login
+    async function handleLoginSubmit(e) {
+        if (e) e.preventDefault();
+        const email = document.getElementById('loginEmail').value.trim();
+        const password = document.getElementById('loginPassword').value.trim();
+        const btn = document.getElementById('btnLoginSubmit');
+
+        if (!email || !password) {
+            alert('Por favor, preencha o e-mail e a senha.');
+            return false;
+        }
+
+        btn.disabled = true;
+        btn.innerText = 'Entrando...';
+
+        try {
+            const res = await fetch(targetOrigin + '/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                alert(data.error || 'E-mail ou senha incorretos!');
+                btn.disabled = false;
+                btn.innerText = 'Entrar no Sistema →';
+                return false;
+            }
+
+            localStorage.setItem('nexus_token', data.token);
+            localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
+            window.location.href = targetOrigin;
+        } catch (err) {
+            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
+            btn.disabled = false;
+            btn.innerText = 'Entrar no Sistema →';
+        }
+        return false;
+    }
+
+    // 2. Submit Register
+    async function handleRegisterSubmit(e) {
+        if (e) e.preventDefault();
+        const name = document.getElementById('regName').value.trim();
+        const email = document.getElementById('regEmail').value.trim();
+        const password = document.getElementById('regPassword').value.trim();
+        const btn = document.getElementById('btnRegisterSubmit');
+
+        if (!name || !email || !password) {
+            alert('Por favor, preencha todos os campos obrigatórios.');
+            return false;
+        }
+
+        btn.disabled = true;
+        btn.innerText = 'Criando conta...';
+
+        try {
+            const res = await fetch(targetOrigin + '/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, email, password })
+            });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                alert(data.error || 'Erro ao criar conta.');
+                btn.disabled = false;
+                btn.innerText = 'Criar Minha Conta Pessoal →';
+                return false;
+            }
+
+            alert('Conta criada com sucesso! Você pode fazer login agora.');
+            document.getElementById('loginEmail').value = email;
+            document.getElementById('loginPassword').value = password;
+            switchAuthTab('login');
+        } catch (err) {
+            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Criar Minha Conta Pessoal →';
+        }
+        return false;
+    }
+
+    // 3. Submit Forgot Password
+    async function handleForgotSubmit(e) {
+        if (e) e.preventDefault();
+        const email = document.getElementById('forgotEmail').value.trim();
+        const btn = document.getElementById('btnSendPassword');
+        const forgotAlert = document.getElementById('forgotAlert');
+
+        if (!email) {
+            alert('Por favor, informe seu e-mail cadastrado.');
+            return false;
+        }
+
+        btn.disabled = true;
+        btn.innerText = 'Enviando...';
+        forgotAlert.classList.add('hidden');
+
+        try {
+            const res = await fetch(targetOrigin + '/api/send-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
+
+            if (!res.ok || !data.success) {
+                forgotAlert.className = "mb-4 p-3 rounded-lg text-xs font-medium border bg-red-900/30 border-red-500/40 text-red-300";
+                forgotAlert.innerText = '⚠️ ' + (data.error || 'E-mail não encontrado.');
+                forgotAlert.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerText = 'Enviar / Gerar Nova Senha →';
+                return false;
+            }
+
+            if (data.mode === 'direct' && data.tempPassword) {
+                forgotAlert.className = "mb-4 p-4 rounded-xl text-sm font-medium border bg-emerald-950/60 border-emerald-500/50 text-emerald-300 space-y-2";
+                forgotAlert.innerHTML = `
+                    <div>✅ <strong>Senha temporária gerada:</strong></div>
+                    <div class="text-xl font-bold tracking-widest text-white bg-black/40 p-2.5 rounded-lg text-center font-mono select-all">${data.tempPassword}</div>
+                    <p class="text-xs text-gray-300 mt-1">Sua nova senha temporária para <strong>${email}</strong> é <code>${data.tempPassword}</code>.</p>
+                    <button type="button" onclick="document.getElementById('loginEmail').value='${email}'; document.getElementById('loginPassword').value='${data.tempPassword}'; switchAuthTab('login');" class="mt-2 w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg transition-colors text-xs uppercase tracking-wider">
+                        🔑 Preencher e Entrar Agora →
+                    </button>
+                `;
+                forgotAlert.classList.remove('hidden');
+            } else {
+                forgotAlert.className = "mb-4 p-3 rounded-lg text-xs font-medium border bg-emerald-900/30 border-emerald-500/40 text-emerald-300";
+                forgotAlert.innerText = '✅ Instruções de redefinição enviadas para o seu e-mail com sucesso!';
+                forgotAlert.classList.remove('hidden');
+            }
+
+        } catch (err) {
+            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = 'Enviar / Gerar Nova Senha →';
+        }
+        return false;
+    }
+    </script>
 </body>
 </html>
