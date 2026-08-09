@@ -1371,6 +1371,8 @@ document.getElementById('logoutBtn').onclick = async () => {
   isViewingOtherUser = false;
   adminOriginalUser = null;
   localStorage.removeItem('nexus_session');
+  localStorage.removeItem('nexus_cached_user');
+  localStorage.removeItem('nexus_token');
   document.getElementById('appMain').classList.remove('show');
   document.getElementById('authPage').classList.add('show');
   showToast('Sessão encerrada.');
@@ -3008,27 +3010,57 @@ document.getElementById('viewModeExitBtn').onclick = exitViewMode;
 document.getElementById('accountDisabledCloseBtn').onclick = hideAccountDisabledPopup;
 bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 
-/* ==================== Restaurar sessão ao atualizar a página ==================== */
+/* ==================== Restaurar sessão ao atualizar a página sem flicker ==================== */
+(function initSessionStateImmediate() {
+  try {
+    const session = loadFromStorage('nexus_session', null);
+    const cachedUser = loadFromStorage('nexus_cached_user', null);
+    if ((session && session.email) || (cachedUser && cachedUser.email)) {
+      document.getElementById('authPage').classList.remove('show');
+      document.getElementById('appMain').classList.add('show');
+      if (cachedUser) {
+        currentUser = cachedUser;
+      }
+    }
+  } catch(e){}
+})();
+
 (async function restoreSession(){
-  await syncUsersWithServer();
   const session = loadFromStorage('nexus_session', null);
-  if (!session || !session.email) {
+  const cachedUser = loadFromStorage('nexus_cached_user', null);
+  const sessionEmail = session ? session.email : (cachedUser ? cachedUser.email : null);
+
+  await syncUsersWithServer();
+
+  if (!sessionEmail) {
+    localStorage.removeItem('nexus_session');
+    localStorage.removeItem('nexus_cached_user');
+    localStorage.removeItem('nexus_token');
+    document.getElementById('appMain').classList.remove('show');
     document.getElementById('authPage').classList.add('show');
     return;
   }
-  const user = registeredUsers.find(u => u.email.toLowerCase() === session.email.toLowerCase());
+  const user = registeredUsers.find(u => u.email.toLowerCase() === sessionEmail.toLowerCase());
   if (!user) {
     localStorage.removeItem('nexus_session');
+    localStorage.removeItem('nexus_cached_user');
+    localStorage.removeItem('nexus_token');
+    document.getElementById('appMain').classList.remove('show');
     document.getElementById('authPage').classList.add('show');
     return;
   }
   if (user.active === false) {
     localStorage.removeItem('nexus_session');
+    localStorage.removeItem('nexus_cached_user');
+    localStorage.removeItem('nexus_token');
+    document.getElementById('appMain').classList.remove('show');
     document.getElementById('authPage').classList.add('show');
     showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
     return;
   }
   currentUser = user;
+  saveToStorage('nexus_session', { email: user.email });
+  saveToStorage('nexus_cached_user', user);
   await loadUserData();
   document.getElementById('authPage').classList.remove('show');
   document.getElementById('appMain').classList.add('show');
@@ -3041,6 +3073,88 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 // Servidor HTTP com suporte para cargas de dados pesadas (JSON), agora com PostgreSQL
 const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
+
+  // Rota POST para Login de Usuário
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/login') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { email, password } = JSON.parse(body);
+        if (!email || !password) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'E-mail e senha são obrigatórios' }));
+        }
+
+        const result = await pool.query(
+          'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
+          [email]
+        );
+
+        if (result.rows.length === 0 || result.rows[0].password !== password) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'E-mail ou senha incorretos!' }));
+        }
+
+        const user = result.rows[0];
+        if (user.active === false) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'Seu usuário foi desativado pelo administrador.' }));
+        }
+
+        const token = 'token_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+          success: true,
+          token: token,
+          user: { id: user.id, name: user.name, email: user.email, role: user.role }
+        }));
+      } catch (err) {
+        console.error('Erro no endpoint de login:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Falha no servidor durante a autenticação.' }));
+      }
+    });
+    return;
+  }
+
+  // Rota POST para Cadastro de Usuário
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/register') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { name, email, password } = JSON.parse(body);
+        if (!name || !email || !password) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'Todos os campos são obrigatórios' }));
+        }
+
+        const existing = await pool.query(
+          'SELECT id FROM usuarios WHERE LOWER(email) = LOWER($1)',
+          [email]
+        );
+
+        if (existing.rows.length > 0) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'Este e-mail já está cadastrado!' }));
+        }
+
+        await pool.query(
+          'INSERT INTO usuarios (name, email, password, role, active) VALUES ($1, $2, $3, $4, $5)',
+          [name, email, password, 'Usuário', true]
+        );
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: true, message: 'Conta criada com sucesso!' }));
+      } catch (err) {
+        console.error('Erro no endpoint de cadastro:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Falha no servidor durante o cadastro.' }));
+      }
+    });
+    return;
+  }
 
   // Rota POST para Enviar a Senha por E-mail
   if (req.method === 'POST' && parsedUrl.pathname === '/api/send-password') {
