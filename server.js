@@ -3042,7 +3042,7 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
 
-  // Rota POST para Enviar a Senha Atual por E-mail
+  // Rota POST para Enviar a Senha por E-mail
   if (req.method === 'POST' && parsedUrl.pathname === '/api/send-password') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
@@ -3055,7 +3055,7 @@ const server = http.createServer((req, res) => {
         }
 
         const result = await pool.query(
-          'SELECT name, email, password FROM usuarios WHERE LOWER(email) = LOWER($1)',
+          'SELECT id, name, email, password FROM usuarios WHERE LOWER(email) = LOWER($1)',
           [email]
         );
 
@@ -3066,19 +3066,32 @@ const server = http.createServer((req, res) => {
 
         const user = result.rows[0];
 
-        const emailSent = await sendPasswordEmail(user.email, user.name, user.password);
-
-        if (!emailSent) {
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: false, error: 'Falha ao enviar e-mail. Verifique as credenciais SMTP no Render.' }));
+        // Se a senha for um hash criptografado longo ou vazia, gera uma nova senha legível e atualiza no banco
+        let sendPassword = user.password;
+        if (!sendPassword || sendPassword.length > 30 || sendPassword.includes(':')) {
+          sendPassword = Math.floor(100000 + Math.random() * 900000).toString();
+          await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [sendPassword, user.id]);
         }
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true }));
+        // Tenta o disparo de e-mail real via SMTP
+        const emailSent = await sendPasswordEmail(user.email, user.name, sendPassword);
+
+        if (emailSent) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: true, mode: 'email' }));
+        } else {
+          // Se o e-mail não puder ser enviado por falta de credenciais SMTP, exibe a nova senha temporária gerada na tela
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ 
+            success: true, 
+            mode: 'direct', 
+            tempPassword: sendPassword 
+          }));
+        }
       } catch (err) {
-        console.error('Erro ao enviar e-mail com senha:', err);
+        console.error('Erro ao processar recuperação de senha:', err);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Falha ao enviar e-mail.' }));
+        res.end(JSON.stringify({ success: false, error: 'Falha ao processar solicitação de senha.' }));
       }
     });
     return;
