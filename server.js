@@ -1550,15 +1550,20 @@ function applyDataPayload(data) {
   migrateCategories();
 }
 
+let isDataLoading = false;
+
 async function loadUserData() {
   if (!currentUser) return;
   const userKey = 'nexus_data_' + currentUser.email;
   
-  // 1. Carrega dados do cache local instantaneamente
+  // 1. Carrega dados do cache local instantaneamente se disponíveis
   let localData = loadFromStorage(userKey, null);
   if (localData) {
     applyDataPayload(localData);
+    isDataLoading = false;
     if (typeof render === 'function') render();
+  } else {
+    isDataLoading = true;
   }
 
   // 2. Sincroniza em segundo plano com o servidor
@@ -1597,6 +1602,8 @@ async function loadUserData() {
       nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
       await saveUserData();
     }
+  } finally {
+    isDataLoading = false;
   }
   if (typeof render === 'function' && document.getElementById('appMain') && document.getElementById('appMain').classList.contains('show')) {
     render();
@@ -1970,6 +1977,9 @@ function pageDashboard(){
 }
 
 function transactionsTable(list, showActions){
+  if (typeof isDataLoading !== 'undefined' && isDataLoading && list.length === 0) {
+    return \`<div class="placeholder" style="padding:40px 20px;"><div class="big" style="font-size:30px;margin-bottom:12px;">⏳</div><h3>Carregando suas transações...</h3><p>Sincronizando seus dados financeiros com o servidor.</p></div>\`;
+  }
   if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>\`;
   return \`
   <table>
