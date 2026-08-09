@@ -139,12 +139,74 @@ async function initDatabase() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS audit_logs (
+      id VARCHAR(100) PRIMARY KEY,
+      timestamp BIGINT NOT NULL,
+      user_name VARCHAR(255),
+      user_email VARCHAR(255),
+      user_role VARCHAR(50),
+      action VARCHAR(100),
+      details TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT now()
+    );
+  `);
+
   await pool.query(
     `INSERT INTO usuarios (name, email, password, role, active)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (email) DO NOTHING;`,
     [DEFAULT_ADMIN.name, DEFAULT_ADMIN.email, DEFAULT_ADMIN.password, DEFAULT_ADMIN.role, DEFAULT_ADMIN.active]
   );
+}
+
+/* ==================== High-Quality SVG Icons Dictionary ==================== */
+const SVG_ICONS = {
+  dashboard: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
+  transacoes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
+  cartoes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+  orcamentos: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>',
+  metas: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+  relatorios: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+  recorrentes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M21 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>',
+  importar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>',
+  anexos: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
+  config: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  usuarios: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  bell: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+  moon: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+  sun: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+  logout: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>',
+  plus: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  edit: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
+  trash: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
+  play: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+  eye: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>',
+  trendUp: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+  trendDown: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>',
+  arrowUp: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>',
+  arrowDown: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>',
+  exchange: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
+  list: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  tag: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l11.29 11.29a1 1 0 0 0 1.41 0l7.3-7.3a1 1 0 0 0 0-1.41L12 2z"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>',
+  check: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  block: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+  alertTriangle: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  lock: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  wallet: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3v4a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V7"/><path d="M18 12h.01"/></svg>',
+  bank: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="21"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 3 2 10 22 10 12 3"/></svg>',
+  folder: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>',
+  calendar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  close: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+};
+
+function getSvgIcon(name, extraClass, extraStyle) {
+  var svg = SVG_ICONS[name] || SVG_ICONS['folder'];
+  if (!extraClass && !extraStyle) return svg;
+  var cls = 'class="icon-svg' + (extraClass ? ' ' + extraClass : '') + '"';
+  var st = extraStyle ? ' style="' + extraStyle + '"' : '';
+  return svg.replace('class="icon-svg"', cls + st);
 }
 
 // Conteúdo HTML/JS/CSS da aplicação centralizada com isolamento por usuário
@@ -370,7 +432,41 @@ nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:1
 }
 .menu button:hover{background:var(--hover); color:var(--text);}
 .menu button.active{background:var(--green-soft); color:var(--green); font-weight:700;}
-.menu button .ic{width:18px; text-align:center; font-size:15.5px; flex-shrink:0;}
+.menu button .ic{width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;}
+.menu button .ic svg{width:18px; height:18px; stroke-width:2.2;}
+
+/* Custom Icon Styles & Alignment */
+svg.icon-svg{display:inline-block; vertical-align:middle; flex-shrink:0;}
+.ic, .icon-btn, .row-actions button, .row-view, .row-toggle, .type-ic, .close-x, .placeholder .big, .btn-primary, .btn-ghost, .pill{
+  display:inline-flex; align-items:center; justify-content:center;
+}
+.icon-btn svg{width:19px; height:19px; stroke-width:2;}
+.btn-primary svg, .btn-ghost svg{width:16px; height:16px; stroke-width:2.2;}
+.row-actions{display:inline-flex; align-items:center; gap:6px;}
+.row-actions button{
+  background:none; border:1px solid var(--card-border); color:var(--text-dim);
+  width:30px; height:30px; border-radius:8px; cursor:pointer; font-size:13px; flex-shrink:0;
+  display:inline-flex; align-items:center; justify-content:center; padding:0;
+  transition:background .15s, color .15s, border-color .15s, transform .1s;
+}
+.row-actions button:hover{background:var(--hover); color:var(--text); border-color:var(--text-faint); transform:translateY(-1px);}
+.row-actions button svg{width:14px; height:14px; stroke-width:2;}
+.type-ic{width:24px; height:24px; border-radius:6px;}
+.type-ic svg{width:14px; height:14px; stroke-width:2.5;}
+.kpi .ic{width:36px; height:36px; border-radius:10px; flex-shrink:0; box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
+.kpi .ic svg{width:18px; height:18px; stroke-width:2.2;}
+.placeholder .big{width:56px; height:56px; margin:0 auto 16px; border-radius:16px; background:var(--hover); color:var(--green);}
+.placeholder .big svg{width:28px; height:28px; stroke-width:1.8;}
+.close-x{
+  position:absolute; top:16px; right:18px; width:32px; height:32px; border-radius:10px;
+  background:var(--hover); border:1px solid var(--card-border); color:var(--text-dim);
+  display:inline-flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:background .15s, color .15s, border-color .15s;
+}
+.close-x:hover{background:var(--red-soft); color:var(--red); border-color:rgba(239,90,90,.3);}
+.close-x svg{width:16px; height:16px; stroke-width:2.5;}
+.pill{display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:7px; font-size:11.5px; font-weight:600; vertical-align:middle;}
+.pill svg{width:13px; height:13px; stroke-width:2;}
 
 /* ==================== Logo / Crédito de Desenvolvimento ==================== */
 .auth-dev-credit{
@@ -965,7 +1061,7 @@ tr.trow:hover td{background:var(--hover);}
       </div>
       <div class="right" style="margin-left:auto;">
         <div class="notif-wrap">
-          <div class="icon-btn" id="notifBtn">🔔<span class="dot" id="notifDot" style="display:none;"></span></div>
+          <div class="icon-btn" id="notifBtn">${getSvgIcon('bell')}<span class="dot" id="notifDot" style="display:none;"></span></div>
           <div class="notif-panel" id="notifPanel">
             <div class="notif-panel-head">
               <h4>Notificações</h4>
@@ -974,26 +1070,26 @@ tr.trow:hover td{background:var(--hover);}
             <div class="notif-list" id="notifList"></div>
           </div>
         </div>
-        <div class="icon-btn" id="miniThemeBtn">🌙</div>
+        <div class="icon-btn" id="miniThemeBtn">${getSvgIcon('moon')}</div>
         <div class="user" id="userMenu" data-nav="config">
           <div class="avatar" id="headerAvatar">PL</div>
           <div><div class="uname" id="headerName">Paulo Lima</div><div class="urole" id="headerRole">Usuário</div></div>
         </div>
-        <button class="btn-ghost" id="logoutBtn">Sair</button>
+        <button class="btn-ghost" id="logoutBtn">${getSvgIcon('logout')} Sair</button>
       </div>
     </div>
     <nav class="menu" id="menu">
-      <button data-page="dashboard"><span class="ic">▦</span> Dashboard</button>
-      <button data-page="transacoes"><span class="ic">⇄</span> Transações</button>
-      <button data-page="cartoes"><span class="ic">▭</span> Cartões</button>
-      <button data-page="orcamentos"><span class="ic">◔</span> Orçamentos</button>
-      <button data-page="metas"><span class="ic">◎</span> Metas</button>
-      <button data-page="relatorios"><span class="ic">▥</span> Relatórios</button>
-      <button data-page="recorrentes"><span class="ic">↻</span> Recorrentes</button>
-      <button data-page="importar"><span class="ic">⇥</span> Importar</button>
-      <button data-page="anexos"><span class="ic">📎</span> Anexos</button>
-      <button data-page="config"><span class="ic">⚙</span> Configurações</button>
-      <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic">👥</span> Usuários Cadastrados</button>
+      <button data-page="dashboard"><span class="ic">${getSvgIcon('dashboard')}</span> Dashboard</button>
+      <button data-page="transacoes"><span class="ic">${getSvgIcon('transacoes')}</span> Transações</button>
+      <button data-page="cartoes"><span class="ic">${getSvgIcon('cartoes')}</span> Cartões</button>
+      <button data-page="orcamentos"><span class="ic">${getSvgIcon('orcamentos')}</span> Orçamentos</button>
+      <button data-page="metas"><span class="ic">${getSvgIcon('metas')}</span> Metas</button>
+      <button data-page="relatorios"><span class="ic">${getSvgIcon('relatorios')}</span> Relatórios</button>
+      <button data-page="recorrentes"><span class="ic">${getSvgIcon('recorrentes')}</span> Recorrentes</button>
+      <button data-page="importar"><span class="ic">${getSvgIcon('importar')}</span> Importar</button>
+      <button data-page="anexos"><span class="ic">${getSvgIcon('anexos')}</span> Anexos</button>
+      <button data-page="config"><span class="ic">${getSvgIcon('config')}</span> Configurações</button>
+      <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic">${getSvgIcon('usuarios')}</span> Usuários Cadastrados</button>
     </nav>
   </div>
 
@@ -1011,11 +1107,11 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Transação -->
 <div class="overlay" id="overlay">
   <div class="modal">
-    <button class="close-x" id="closeModal">✕</button>
+    <button class="close-x" id="closeModal">${getSvgIcon('close')}</button>
     <h2 id="modalTitle">Nova Transação</h2>
     <div class="toggle-type">
-      <button type="button" id="typeInBtn">↓ Receita</button>
-      <button type="button" id="typeOutBtn">↑ Despesa</button>
+      <button type="button" id="typeInBtn">${getSvgIcon('arrowUp')} Receita</button>
+      <button type="button" id="typeOutBtn">${getSvgIcon('arrowDown')} Despesa</button>
     </div>
     <div class="field"><label>Descrição</label><input id="fDesc" placeholder="Ex: Supermercado"></div>
     <div class="field-row">
@@ -1041,7 +1137,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Conta -->
 <div class="overlay" id="overlayAccount">
   <div class="modal">
-    <button class="close-x" id="closeAccModal">✕</button>
+    <button class="close-x" id="closeAccModal">${getSvgIcon('close')}</button>
     <h2 id="accModalTitle">Nova Conta</h2>
     <div class="field"><label>Nome</label><input id="accName" placeholder="Ex: Nubank"></div>
     <div class="field"><label>Tipo</label>
@@ -1061,7 +1157,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Categoria -->
 <div class="overlay" id="overlayCategory">
   <div class="modal">
-    <button class="close-x" id="closeCatModal">✕</button>
+    <button class="close-x" id="closeCatModal">${getSvgIcon('close')}</button>
     <h2 id="catModalTitle">Nova Categoria</h2>
     <div class="field"><label>Nome</label><input id="catName" placeholder="Ex: Educação"></div>
     <div class="field"><label>Tipo</label>
@@ -1082,16 +1178,16 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Gerenciar Categorias -->
 <div class="overlay" id="overlayCatManage">
   <div class="modal" style="max-width:600px;">
-    <button class="close-x" id="closeCatManageModal">✕</button>
+    <button class="close-x" id="closeCatManageModal">${getSvgIcon('close')}</button>
     <h2>Gerenciar Categorias</h2>
     <div class="cat-manage-tabs">
-      <button type="button" class="cat-tab" data-cattab="despesa">↓ Despesas</button>
-      <button type="button" class="cat-tab" data-cattab="receita">↑ Receitas</button>
+      <button type="button" class="cat-tab" data-cattab="despesa">${getSvgIcon('arrowDown')} Despesas</button>
+      <button type="button" class="cat-tab" data-cattab="receita">${getSvgIcon('arrowUp')} Receitas</button>
     </div>
     <div id="catManageList" class="cat-cards" style="margin-top:14px;"></div>
     <div class="modal-actions">
       <button id="catManageCloseBtn">Fechar</button>
-      <button class="save" id="catManageAddBtn">+ Nova Categoria</button>
+      <button class="save" id="catManageAddBtn">${getSvgIcon('plus')} Nova Categoria</button>
     </div>
   </div>
 </div>
@@ -1099,7 +1195,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Orçamento -->
 <div class="overlay" id="overlayBudget">
   <div class="modal">
-    <button class="close-x" id="closeOrcModal">✕</button>
+    <button class="close-x" id="closeOrcModal">${getSvgIcon('close')}</button>
     <h2 id="orcModalTitle">Novo Orçamento</h2>
     <div class="field"><label>Categoria</label><select id="orcCategoria"></select></div>
     <div class="field"><label>Limite mensal (R$)</label><input id="orcLimite" type="number" step="0.01" placeholder="0,00"></div>
@@ -1113,7 +1209,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Meta -->
 <div class="overlay" id="overlayGoal">
   <div class="modal">
-    <button class="close-x" id="closeGoalModal">✕</button>
+    <button class="close-x" id="closeGoalModal">${getSvgIcon('close')}</button>
     <h2 id="goalModalTitle">Nova Meta</h2>
     <div class="field"><label>Nome da meta</label><input id="goalName" placeholder="Ex: Reserva de Emergência"></div>
     <div class="field-row">
@@ -1131,11 +1227,11 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Recorrente -->
 <div class="overlay" id="overlayRecurring">
   <div class="modal">
-    <button class="close-x" id="closeRecModal">✕</button>
+    <button class="close-x" id="closeRecModal">${getSvgIcon('close')}</button>
     <h2 id="recModalTitle">Novo Lançamento Recorrente</h2>
     <div class="toggle-type">
-      <button type="button" id="recTypeInBtn">↓ Receita</button>
-      <button type="button" id="recTypeOutBtn">↑ Despesa</button>
+      <button type="button" id="recTypeInBtn">${getSvgIcon('arrowUp')} Receita</button>
+      <button type="button" id="recTypeOutBtn">${getSvgIcon('arrowDown')} Despesa</button>
     </div>
     <div class="field"><label>Descrição</label><input id="recDesc" placeholder="Ex: Internet"></div>
     <div class="field-row">
@@ -1157,7 +1253,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Alerta -->
 <div class="overlay" id="overlayAlert">
   <div class="modal">
-    <button class="close-x" id="closeAlertModal">✕</button>
+    <button class="close-x" id="closeAlertModal">${getSvgIcon('close')}</button>
     <h2 id="alertModalTitle">Novo Alerta</h2>
     <div class="field"><label>Categoria</label><select id="alertCategoria"></select></div>
     <div class="field"><label>Acionar ao atingir (%) do orçamento</label><input id="alertThreshold" type="number" min="1" max="200" value="90"></div>
@@ -1171,7 +1267,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Usuário (Admin) -->
 <div class="overlay" id="overlayUserAdmin">
   <div class="modal">
-    <button class="close-x" id="closeUserAdminModal">✕</button>
+    <button class="close-x" id="closeUserAdminModal">${getSvgIcon('close')}</button>
     <h2>Editar Usuário</h2>
     <div class="field"><label>Nome</label><input id="userAdminName"></div>
     <div class="field"><label>E-mail</label><input id="userAdminEmail" disabled style="opacity:0.6;"></div>
@@ -1487,6 +1583,201 @@ let nextAccId = 1, nextTxId = 1, nextBudgetId = 1, nextGoalId = 1, nextRecId = 1
 const RECEITA_NAME_HINTS = ['salário','salario','renda','freela','freelance','bônus','bonus','valor extra','extra','13º','decimo terceiro','décimo terceiro','rendimento','dividendo','investimento','reembolso'];
 const BASE_CATEGORIES = [
   {name:'Alimentação', color:'#e8974b', type:'despesa', icon:'🍔'},
+};
+
+document.getElementById('goLoginFromForgot').onclick = () => {
+  document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('loginBox').style.display = 'block';
+};
+
+document.getElementById('forgotStep1').onsubmit = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('forgotEmail').value.trim();
+  const btn = document.getElementById('btnSendPassword');
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  try {
+    const res = await fetch(window.location.origin + '/api/send-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      alert(data.error || 'Não encontramos nenhuma conta com esse e-mail ou falha no envio.');
+      return;
+    }
+
+    alert('Sua senha foi enviada para o seu e-mail com sucesso!');
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('forgotBox').style.display = 'none';
+    document.getElementById('loginBox').style.display = 'block';
+  } catch(err) {
+    alert('Erro ao processar solicitação de e-mail. Verifique suas credenciais SMTP no Render.');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Enviar Senha por E-mail';
+  }
+};
+
+// Login
+document.getElementById('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  await syncUsersWithServer();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+
+  const user = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+  if (user) {
+    if (user.active === false) {
+      showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
+      return;
+    }
+    currentUser = user;
+    saveToStorage('nexus_session', { email: user.email });
+    saveToStorage('nexus_cached_user', user);
+    saveToStorage('nexus_token', 'token_' + Date.now());
+    document.documentElement.classList.add('user-logged-in');
+    await loadUserData();
+    document.getElementById('authPage').classList.remove('show');
+    document.getElementById('appMain').classList.add('show');
+    render();
+    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + user.name.split(' ')[0] + '!');
+  } else {
+    alert('E-mail ou senha incorretos!');
+  }
+};
+
+function showLoginSuccessPopup(msg){
+  const overlay = document.getElementById('loginSuccessOverlay');
+  document.getElementById('loginSuccessMsg').textContent = msg;
+  overlay.classList.add('show');
+  requestAnimationFrame(()=> overlay.classList.add('in'));
+  setTimeout(()=>{
+    overlay.classList.remove('in');
+    setTimeout(()=> overlay.classList.remove('show'), 250);
+  }, 1800);
+}
+
+function showAccountDisabledPopup(msg){
+  const overlay = document.getElementById('accountDisabledOverlay');
+  if(msg) document.getElementById('accountDisabledMsg').textContent = msg;
+  overlay.classList.add('show');
+  requestAnimationFrame(()=> overlay.classList.add('in'));
+}
+function hideAccountDisabledPopup(){
+  const overlay = document.getElementById('accountDisabledOverlay');
+  overlay.classList.remove('in');
+  setTimeout(()=> overlay.classList.remove('show'), 250);
+}
+
+let logoutTimer = null;
+function showLogoutPopup(msg){
+  const overlay = document.getElementById('logoutSuccessOverlay');
+  if(!overlay) return;
+  if(msg) document.getElementById('logoutSuccessMsg').textContent = msg;
+  overlay.classList.add('show');
+  requestAnimationFrame(()=> overlay.classList.add('in'));
+
+  // Foco imediato no campo de email para permitir digitar sem travar
+  setTimeout(() => {
+    const loginEmailInput = document.getElementById('loginEmail');
+    if (loginEmailInput) loginEmailInput.focus();
+  }, 50);
+
+  // Auto-dismiss em 1.8 segundos para NUNCA prender a tela do próximo login
+  if (logoutTimer) clearTimeout(logoutTimer);
+  logoutTimer = setTimeout(() => {
+    hideLogoutPopup();
+  }, 1800);
+}
+
+function hideLogoutPopup(){
+  const overlay = document.getElementById('logoutSuccessOverlay');
+  if(!overlay) return;
+  overlay.classList.remove('in');
+  setTimeout(()=> {
+    overlay.classList.remove('show');
+  }, 250);
+}
+
+// Cadastro absoluto com requisição direta para o Render
+document.getElementById('registerForm').onsubmit = async (e) => {
+  e.preventDefault();
+  await syncUsersWithServer();
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const password = document.getElementById('regPassword').value.trim();
+
+  if (registeredUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
+    alert('Este e-mail já está cadastrado!');
+    return;
+  }
+
+  const newUser = { name, email, password, role: 'Usuário', active: true };
+  registeredUsers.push(newUser);
+
+  try {
+    const response = await fetch(window.location.origin + '/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(registeredUsers)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Falha ao comunicar com o servidor');
+    }
+
+    saveToStorage('nexus_users', registeredUsers);
+    alert('Conta criada com sucesso! Faça login para continuar.');
+
+    document.getElementById('regName').value = '';
+    document.getElementById('regEmail').value = '';
+    document.getElementById('regPassword').value = '';
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('loginPassword').value = password;
+    document.getElementById('goLogin').click();
+  } catch (err) {
+    registeredUsers.pop();
+    alert('Erro ao registrar no servidor. Verifique sua conexão e tente novamente.');
+  }
+};
+
+// Logout
+document.getElementById('logoutBtn').onclick = async () => {
+  try { await saveUserData(); } catch(e){}
+  currentUser = null;
+  isViewingOtherUser = false;
+  adminOriginalUser = null;
+  localStorage.removeItem('nexus_session');
+  localStorage.removeItem('nexus_cached_user');
+  localStorage.removeItem('nexus_token');
+  document.documentElement.classList.remove('user-logged-in');
+  document.getElementById('appMain').classList.remove('show');
+  document.getElementById('authPage').classList.add('show');
+  showLogoutPopup('Você saiu da sua conta com segurança. Suas informações estão salvas e protegidas.');
+};
+
+/* ==================== Isolamento de Dados por Usuário ==================== */
+let categories = [];
+let accounts = [];
+let transactions = [];
+let budgets = [];
+let goals = [];
+let recurringList = [];
+let alerts = [];
+let attachments = [];
+let notifications = [];
+
+let nextAccId = 1, nextTxId = 1, nextBudgetId = 1, nextGoalId = 1, nextRecId = 1, nextAlertId = 1, nextAttId = 1, nextNotifId = 1;
+
+/* ==================== Migração: tipo de categoria ==================== */
+const RECEITA_NAME_HINTS = ['salário','salario','renda','freela','freelance','bônus','bonus','valor extra','extra','13º','decimo terceiro','décimo terceiro','rendimento','dividendo','investimento','reembolso'];
+const BASE_CATEGORIES = [
+  {name:'Alimentação', color:'#e8974b', type:'despesa', icon:'🍔'},
   {name:'Supermercado', color:'#d8a34b', type:'despesa', icon:'🛒'},
   {name:'Moradia', color:'#c98a3f', type:'despesa', icon:'🏠'},
   {name:'Contas da Casa', color:'#f0a63a', type:'despesa', icon:'💡'},
@@ -1562,7 +1853,6 @@ async function loadUserData() {
   if (!currentUser) return;
   const userKey = 'nexus_data_' + currentUser.email;
   
-  // 1. Carrega dados do cache local instantaneamente se disponíveis
   let localData = loadFromStorage(userKey, null);
   if (localData) {
     applyDataPayload(localData);
@@ -1572,7 +1862,6 @@ async function loadUserData() {
     isDataLoading = true;
   }
 
-  // 2. Sincroniza em segundo plano com o servidor
   try {
     const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(currentUser.email));
     if (res.ok) {
@@ -1606,7 +1895,6 @@ async function loadUserData() {
       attachments = [];
       notifications = [];
       nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
-      await saveUserData();
     }
   } finally {
     isDataLoading = false;
@@ -1685,26 +1973,55 @@ async function toggleUserActive(email){
   render();
 }
 
-/* ==================== Período ==================== */
-const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-const YEARS = [2026,2027,2028,2029];
-const PERIOD_MIN = {year:2026, month:1};
-const PERIOD_MAX = {year:2029, month:12};
-const EYE_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-const EYE_OFF_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.06M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.8 21.8 0 0 1-3.22 4.44M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+/* ==================== High-Quality SVG Icons Dictionary ==================== */
+const SVG_ICONS = {
+  dashboard: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
+  transacoes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
+  cartoes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
+  orcamentos: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>',
+  metas: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
+  relatorios: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+  recorrentes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M21 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>',
+  importar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>',
+  anexos: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
+  config: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
+  usuarios: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  bell: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
+  moon: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+  sun: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
+  logout: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>',
+  plus: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+  edit: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
+  trash: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
+  play: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
+  eye: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
+  eyeOff: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>',
+  trendUp: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
+  trendDown: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>',
+  arrowUp: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>',
+  arrowDown: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>',
+  exchange: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
+  list: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
+  tag: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l11.29 11.29a1 1 0 0 0 1.41 0l7.3-7.3a1 1 0 0 0 0-1.41L12 2z"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>',
+  check: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  block: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
+  alertTriangle: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  lock: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+  wallet: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3v4a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V7"/><path d="M18 12h.01"/></svg>',
+  bank: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="21"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 3 2 10 22 10 12 3"/></svg>',
+  folder: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>',
+  calendar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  close: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+};
 
-function bindPasswordToggle(inputId, btnId){
-  const inp = document.getElementById(inputId);
-  const btn = document.getElementById(btnId);
-  if(!inp || !btn) return;
-  btn.innerHTML = EYE_ICON;
-  btn.onclick = ()=>{
-    const show = inp.type === 'password';
-    inp.type = show ? 'text' : 'password';
-    btn.innerHTML = show ? EYE_OFF_ICON : EYE_ICON;
-    btn.setAttribute('aria-label', show ? 'Ocultar senha' : 'Mostrar senha');
-  };
+function getSvgIcon(name, extraClass, extraStyle) {
+  var svg = SVG_ICONS[name] || SVG_ICONS['folder'];
+  if (!extraClass && !extraStyle) return svg;
+  var cls = 'class="icon-svg' + (extraClass ? ' ' + extraClass : '') + '"';
+  var st = extraStyle ? ' style="' + extraStyle + '"' : '';
+  return svg.replace('class="icon-svg"', cls + st);
 }
+
 function getDefaultPeriod(){
   const now = new Date();
   let y = now.getFullYear(), m = now.getMonth()+1;
@@ -1927,10 +2244,8 @@ function updateHeaderUser(){
 
   if(unameEl) unameEl.textContent = currentUser.name;
   if(roleEl) roleEl.textContent = currentUser.role || 'Usuário';
-  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
+  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
 }
-
-function periodPickerHTML(){
   return \`
   <div class="period-wrap">
     <button type="button" class="period" id="periodBtn">
@@ -1939,7 +2254,7 @@ function periodPickerHTML(){
       <svg class="period-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div class="period-panel" id="periodPanel">
-      <button type="button" class="period-today-btn" id="periodTodayBtn">📍 Ir para o mês atual</button>
+      <button type="button" class="period-today-btn" id="periodTodayBtn">\${getSvgIcon('calendar')} Ir para o mês atual</button>
       <div class="field"><label>Ano</label><select id="periodYearSel"></select></div>
       <div class="field"><label>Mês</label><select id="periodMonthSel"></select></div>
       <button class="btn-primary" id="periodApplyBtn" style="width:100%;justify-content:center">Aplicar</button>
@@ -1961,16 +2276,16 @@ function pageDashboard(){
     <div><h1>Olá, \${currentUser ? currentUser.name.split(' ')[0] : 'Usuário'} 👋</h1><p>Aqui está o resumo da sua vida financeira</p></div>
     <div class="head-actions">
       \${periodPickerHTML()}
-      <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
+      <button class="btn-primary" id="btnNovaTransacao">\${getSvgIcon('plus')} Nova Transação</button>
     </div>
   </div>
 
   <div class="kpis">
-    <div class="kpi"><div class="row1">Saldo Total <span>👁</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
-    <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div><div class="val">\${fmt(despesas)}</div><div class="sub">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
+    <div class="kpi"><div class="row1">Saldo Total <span class="ic" style="background:rgba(232,176,75,.14);color:var(--green);width:32px;height:32px;">\${getSvgIcon('wallet')}</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
+    <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green);width:32px;height:32px;">\${getSvgIcon('trendUp')}</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red);width:32px;height:32px;">\${getSvgIcon('trendDown')}</span></div><div class="val">\${fmt(despesas)}</div><div class="sub">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue);width:32px;height:32px;">\${getSvgIcon('exchange')}</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple);width:32px;height:32px;">\${getSvgIcon('list')}</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
   </div>
 
   <div class="grid3">
@@ -1992,12 +2307,7 @@ function pageDashboard(){
       <div class="cat-wrap">
         <div class="donut-canvas" style="width:130px;height:130px;"><canvas id="chartCategorias"></canvas></div>
         <div class="cat-legend">
-          \${cats.length? cats.map(c=>\`<div class="cat-row"><span class="lbl"><span class="dot" style="background:\${c.color}"></span>\${c.name}</span><span><span class="amt">\${fmt(c.val)}</span><span class="pct">\${Math.round(c.val/totalDesp*100)}%</span></span></div>\`).join('') : \`<p style="color:var(--text-faint);font-size:12px">Sem despesas neste período.</p>\`}
-        </div>
-      </div>
-    </div>
-
-    <div class="panel">
+          \${cats.length? cats.map(c=>\`<div class="cat-row"><span c    <div class="panel">
       <div class="panel-head"><h3>Contas e Cartões</h3><button class="tag" data-nav="cartoes">Editar</button></div>
       <div class="accounts-list">
         \${accounts.map(a=>\`
@@ -2005,7 +2315,7 @@ function pageDashboard(){
             <div class="acc-ic" style="background:\${a.color}">\${a.name.slice(0,2).toUpperCase()}</div>
             <div class="acc-info"><div class="n">\${a.name}</div><div class="t">\${a.type}</div></div>
             <div class="acc-val \${a.balance<0?'neg':''}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
-            <button class="acc-edit" data-editacc="\${a.id}">✎</button>
+            <button class="acc-edit" data-editacc="\${a.id}">\${getSvgIcon('edit')}</button>
           </div>\`).join('')}
       </div>
       <button class="btn-ghost" style="width:100%" data-nav="cartoes">Ver todas as contas</button>
@@ -2021,9 +2331,9 @@ function pageDashboard(){
 
 function transactionsTable(list, showActions){
   if (typeof isDataLoading !== 'undefined' && isDataLoading && list.length === 0) {
-    return \`<div class="placeholder" style="padding:40px 20px;"><div class="big" style="font-size:30px;margin-bottom:12px;">⏳</div><h3>Carregando suas transações...</h3><p>Sincronizando seus dados financeiros com o servidor.</p></div>\`;
+    return \`<div class="placeholder" style="padding:40px 20px;"><div class="big" style="margin-bottom:12px;">\${getSvgIcon('exchange')}</div><h3>Carregando suas transações...</h3><p>Sincronizando seus dados financeiros com o servidor.</p></div>\`;
   }
-  if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>\`;
+  if(list.length===0) return \`<div class="placeholder"><div class="big">\${getSvgIcon('folder')}</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>\`;
   return \`
   <table>
     <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th>\${showActions?'<th></th>':''}</tr></thead>
@@ -2033,293 +2343,13 @@ function transactionsTable(list, showActions){
           <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
           <td>\${t.desc}</td>
           <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${t.cat}</span></td>
-          <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
+          <td><span class="type-ic \${t.type}">\${t.type==='in'?getSvgIcon('trendUp'):getSvgIcon('trendDown')}</span></td>
           <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
           <td><span class="pill status-\${t.status.toLowerCase()}">\${t.status}</span></td>
-          \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}">✎</button><button data-del="\${t.id}">🗑</button></div></td>\`:''}
+          \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}" title="Editar">\${getSvgIcon('edit')}</button><button data-del="\${t.id}" title="Excluir">\${getSvgIcon('trash')}</button></div></td>\`:''}
         </tr>\`).join('')}
     </tbody>
   </table>\`;
-}
-
-function pageTransacoes(){
-  return \`
-  <div class="page-head">
-    <div><h1>Transações</h1><p>Gerencie todas as suas receitas e despesas</p></div>
-    <div class="head-actions">
-      <button class="btn-ghost" id="btnGerenciarCategorias">🏷️ Categorias</button>
-      <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
-    </div>
-  </div>
-  <div class="table-panel">
-    <div class="filters">
-      <input id="txSearch" placeholder="Buscar por descrição...">
-      <select id="txFiltroTipo"><option value="">Todos os tipos</option><option value="in">Receitas</option><option value="out">Despesas</option></select>
-      <select id="txFiltroCat"><option value="">Todas categorias</option>\${catOptionsHTML(null)}</select>
-      <select id="txFiltroStatus"><option value="">Todos status</option><option>Pago</option><option>Recebido</option><option>Pendente</option></select>
-    </div>
-    <div id="txTableWrap">\${transactionsTable(transactions.slice().sort((a,b)=>b.date.localeCompare(a.date)), true)}</div>
-  </div>\`;
-}
-
-function pageContas(){
-  const list = accounts;
-  return \`
-  <div class="page-head">
-    <div><h1>Cartões</h1><p>Cadastre suas contas e cartões — corrente, poupança, crédito, investimento</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovaConta">+ Novo Cartão/Conta</button></div>
-  </div>
-  <div class="grid3" style="grid-template-columns:repeat(3,1fr);">
-    \${list.length? list.map(a=>\`
-      <div class="acc-card">
-        <div class="top">
-          <div class="id-group" style="display:flex;align-items:center;gap:10px;min-width:0;">
-            <span class="acc-ic" style="background:\${a.color};">\${a.name.slice(0,2).toUpperCase()}</span>
-            <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${a.name}</h3>
-          </div>
-          <div class="row-actions"><button data-editacc="\${a.id}" title="Editar">✎</button><button data-delacc="\${a.id}" title="Excluir">🗑</button></div>
-        </div>
-        <p style="color:var(--text-faint);font-size:12px;margin-bottom:8px;">\${a.type}</p>
-        <div class="val" style="font-size:22px;font-weight:700;color:\${a.balance<0?'var(--red)':'var(--green)'}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
-      </div>\`).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
-  </div>\`;
-}
-
-function pageOrcamentos(){
-  const list = budgetStatus();
-  return \`
-  <div class="page-head">
-    <div><h1>Orçamentos</h1><p>Limites de gastos por categoria — \${periodLabel()}</p></div>
-    <div class="head-actions">\${periodPickerHTML()}<button class="btn-primary" id="btnNovoOrcamento">+ Novo Orçamento</button></div>
-  </div>
-  <div class="cat-cards">
-    \${list.length? list.map(b=>{
-      const color = b.pct>=100?'var(--red)': b.pct>=80?'var(--orange)':'var(--green)';
-      return \`<div class="cat-card">
-        <div class="top">
-          <div class="id-group"><span class="dot" style="background:\${catColor(b.category)}"></span><h4>\${b.category}</h4></div>
-          <div class="row-actions"><button data-editorc="\${b.id}" title="Editar">✎</button><button data-delorc="\${b.id}" title="Excluir">🗑</button></div>
-        </div>
-        <span style="color:\${color};font-size:11.5px;font-weight:600">\${b.pct}% usado</span>
-        <div class="amt" style="margin-top:6px">\${fmt(b.spent)} <span style="color:var(--text-faint);font-size:12px;font-weight:400"> / \${fmt(b.limit)}</span></div>
-        <div class="bar-split" style="background:var(--card-border)"><div class="g" style="width:\${Math.min(b.pct,100)}%; background:\${color}"></div></div>
-      </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">◔</div><h3>Nenhum orçamento definido</h3><p>Crie limites de gastos por categoria para acompanhar seu mês.</p></div>\`}
-  </div>\`;
-}
-
-function pageMetas(){
-  return \`
-  <div class="page-head">
-    <div><h1>Metas</h1><p>Acompanhe seus objetivos financeiros</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovaMeta">+ Nova Meta</button></div>
-  </div>
-  <div class="cat-cards">
-    \${goals.length? goals.map(g=>{
-      const pct = Math.min(100, Math.round(g.current/g.target*100));
-      return \`<div class="acc-card">
-        <div class="top">
-          <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${g.name}</h3>
-          <div class="row-actions"><button data-editmeta="\${g.id}" title="Editar">✎</button><button data-delmeta="\${g.id}" title="Excluir">🗑</button></div>
-        </div>
-        <p style="color:var(--text-faint);font-size:11.5px;margin-bottom:10px;">Prazo: \${new Date(g.deadline+'T00:00').toLocaleDateString('pt-BR')}</p>
-        <div class="val" style="font-size:18px;">\${fmt(g.current)} <span style="color:var(--text-faint);font-size:12px;font-weight:400"> / \${fmt(g.target)}</span></div>
-        <div class="bar-split" style="background:var(--card-border);margin-top:10px"><div class="g" style="width:\${pct}%"></div></div>
-        <div class="split-labels" style="margin-top:6px"><span>\${pct}% concluído</span></div>
-        <button class="btn-ghost" style="width:100%;margin-top:12px" data-addcontrib="\${g.id}">+ Adicionar valor</button>
-      </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">◎</div><h3>Nenhuma meta cadastrada</h3></div>\`}
-  </div>\`;
-}
-
-function pageRelatorios(){
-  const allCats = despesasPorCategoria(transactions);
-  const totalReceitas = transactions.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
-  const totalDespesas = transactions.filter(t=>t.type==='out').reduce((s,t)=>s+t.val,0);
-  return \`
-  <div class="page-head"><div><h1>Relatórios</h1><p>Consolidado geral de todas as transações cadastradas</p></div></div>
-  <div class="kpis" style="grid-template-columns:repeat(3,1fr);">
-    <div class="kpi"><div class="row1">Total de Receitas</div><div class="val" style="color:var(--green)">\${fmt(totalReceitas)}</div></div>
-    <div class="kpi"><div class="row1">Total de Despesas</div><div class="val" style="color:var(--red)">\${fmt(totalDespesas)}</div></div>
-    <div class="kpi"><div class="row1">Resultado</div><div class="val" style="color:\${(totalReceitas-totalDespesas)<0?'var(--red)':'var(--green)'}">\${fmt(totalReceitas-totalDespesas)}</div></div>
-  </div>
-  <div class="table-panel">
-    <div class="panel-head"><h3>Despesas por Categoria (geral)</h3></div>
-    \${allCats.length? \`<table><thead><tr><th>Categoria</th><th>Total Gasto</th><th>% do Total</th></tr></thead>
-    <tbody>\${allCats.map(c=>\`<tr class="trow"><td><span class="pill" style="background:\${c.color}22;color:\${c.color}">\${c.name}</span></td><td class="val-out">\${fmt(c.val)}</td><td>\${Math.round(c.val/(totalDespesas||1)*100)}%</td></tr>\`).join('')}</tbody></table>\`
-    : \`<div class="placeholder"><div class="big">▥</div><h3>Nenhum dado disponível</h3></div>\`}
-  </div>\`;
-}
-
-function pageRecorrentes(){
-  return \`
-  <div class="page-head">
-    <div><h1>Lançamentos Recorrentes</h1><p>Transações que se repetem automaticamente</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovoRecorrente">+ Novo Recorrente</button></div>
-  </div>
-  <div class="table-panel">
-    \${recurringList.length? \`<table><thead><tr><th>Descrição</th><th>Categoria</th><th>Conta</th><th>Frequência</th><th>Dia</th><th>Tipo</th><th>Valor</th><th></th></tr></thead>
-    <tbody>\${recurringList.map(r=>\`<tr class="trow">
-      <td>\${r.desc}</td>
-      <td><span class="pill" style="background:\${catColor(r.cat)}22;color:\${catColor(r.cat)}">\${r.cat}</span></td>
-      <td>\${r.acc}</td><td>\${r.freq}</td><td>Dia \${r.day}</td>
-      <td><span class="type-ic \${r.type}">\${r.type==='in'?'↑':'↓'}</span></td>
-      <td class="\${r.type==='in'?'val-in':'val-out'}">\${r.type==='in'?'+':'-'}\${fmt(r.val)}</td>
-      <td><div class="row-actions"><button data-lancar="\${r.id}" title="Lançar agora">▶</button><button data-editrec="\${r.id}">✎</button><button data-delrec="\${r.id}">🗑</button></div></td>
-    </tr>\`).join('')}</tbody></table>\` : \`<div class="placeholder"><div class="big">↻</div><h3>Nenhum lançamento recorrente</h3></div>\`}
-  </div>\`;
-}
-
-function pageImportar(){
-  return \`
-  <div class="page-head"><div><h1>Importar OFX / CSV</h1><p>Importe extratos bancários em lote</p></div></div>
-  <div class="panel">
-    <p style="color:var(--text-dim);font-size:12.5px;margin-bottom:14px;">
-      Formato CSV esperado: <code>data,descricao,valor</code>. Arquivos <b>.ofx</b> também são aceitos.
-    </p>
-    <div class="field-row">
-      <div class="field"><label>Conta de destino</label><select id="impConta">\${accounts.map(a=>\`<option>\${a.name} — \${a.type}</option>\`).join('')}</select></div>
-      <div class="field"><label>Categoria padrão</label><select id="impCategoria">\${categories.map(c=>\`<option>\${c.name}</option>\`).join('')}</select></div>
-    </div>
-    <div class="field"><label>Arquivo</label><input type="file" id="importFile" accept=".csv,.ofx,.txt"></div>
-    <div id="importPreview"></div>
-  </div>\`;
-}
-
-function pageAnexos(){
-  const sortedTx = transactions.slice().sort((a,b)=>b.date.localeCompare(a.date));
-  return \`
-  <div class="page-head"><div><h1>Anexos</h1><p>Comprovantes e recibos vinculados às transações</p></div></div>
-  <div class="panel">
-    <div class="field-row">
-      <div class="field"><label>Transação vinculada</label><select id="attTx">\${sortedTx.map(t=>\`<option value="\${t.id}">\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')} — \${t.desc}</option>\`).join('')}</select></div>
-      <div class="field"><label>Arquivo</label><input type="file" id="attFile" accept="image/*,.pdf"></div>
-    </div>
-    <button class="btn-primary" id="btnAddAnexo">+ Anexar</button>
-  </div>
-  <div class="cat-cards" style="margin-top:16px;">
-    \${attachments.length? attachments.map(a=>{
-      const t = transactions.find(x=>x.id===a.txId);
-      return \`<div class="cat-card">
-        <div class="row-actions"><button data-delatt="\${a.id}">🗑</button></div>
-        \${a.dataUrl ? \`<img src="\${a.dataUrl}" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;">\` : \`<div style="font-size:28px;margin-bottom:8px;">📎</div>\`}
-        <h4 style="font-size:12.5px;">\${a.name}</h4>
-        <p style="color:var(--text-faint);font-size:11px;margin-top:4px;">\${t? t.desc : 'Transação removida'}</p>
-      </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">📎</div><h3>Nenhum anexo enviado</h3></div>\`}
-  </div>\`;
-}
-
-function pageAlertas(){
-  const bstat = budgetStatus();
-  return \`
-  <div class="page-head">
-    <div><h1>Alertas</h1><p>Avisos automáticos de orçamento — \${periodLabel()}</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovoAlerta">+ Novo Alerta</button></div>
-  </div>
-  <div class="cat-cards">
-    \${alerts.length? alerts.map(al=>{
-      const b = bstat.find(x=>x.category===al.category);
-      const pct = b? b.pct : null;
-      const triggered = pct!==null && pct>=al.threshold;
-      return \`<div class="cat-card">
-        <div class="top">
-          <div class="id-group"><span class="dot" style="background:\${triggered?'var(--red)':'var(--green)'}"></span><h4>\${al.category}</h4></div>
-          <div class="row-actions"><button data-editalert="\${al.id}" title="Editar">✎</button><button data-delalert="\${al.id}" title="Excluir">🗑</button></div>
-        </div>
-        <span class="pill" style="background:\${triggered?'var(--red-soft)':'var(--green-soft)'};color:\${triggered?'var(--red)':'var(--green)'}">\${triggered?'⚠ Alerta ativo':'OK'}</span>
-        <p style="color:var(--text-faint);font-size:11.5px;margin-top:8px;">Aciona em \${al.threshold}% do orçamento</p>
-        <div class="amt" style="font-size:14px;margin-top:4px;">\${b? \`\${pct}% usado (\${fmt(b.spent)} / \${fmt(b.limit)})\` : 'Sem orçamento definido para esta categoria'}</div>
-      </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">🔔</div><h3>Nenhum alerta configurado</h3><p>Crie alertas para ser avisado quando o gasto de uma categoria se aproximar do limite.</p></div>\`}
-  </div>\`;
-}
-
-function pageConfig(){
-  return \`
-  <div class="page-head"><div><h1>Configurações</h1><p>Preferências da conta e do sistema</p></div></div>
-  \${isViewingOtherUser ? \`
-  <div class="panel" style="margin-bottom:18px;">
-    <p class="cfg-hint" style="margin:0;">Você está em modo de visualização (somente leitura) dos dados de <strong style="color:var(--green);">\${currentUser.name}</strong>. Edições de conta ficam disponíveis apenas na sua própria conta.</p>
-  </div>\` : \`
-  <div class="cfg-grid">
-    <div class="panel">
-      <div class="panel-head"><h3>Minha Conta</h3></div>
-      <div class="field"><label>Nome</label><input id="cfgName" value="\${currentUser ? currentUser.name : ''}" placeholder="Seu nome completo" autocomplete="name"></div>
-      <div class="field"><label>E-mail</label><input id="cfgEmail" type="text" value="\${currentUser ? currentUser.email : ''}" placeholder="seu.email@exemplo.com" autocomplete="email"></div>
-      <div class="field" style="margin-bottom:0;"><label>Tema</label>
-        <select id="cfgTheme"><option value="dark">Escuro 🌙</option><option value="light">Claro ☀️</option></select>
-      </div>
-    </div>
-    <div class="panel">
-      <div class="panel-head"><h3>Alterar Senha</h3></div>
-      <p class="cfg-hint">Preencha apenas se quiser alterar sua senha de acesso</p>
-      <div class="field">
-        <label>Nova Senha <span style="color:var(--text-faint); font-size:11px;">(opcional)</span></label>
-        <div class="pass-field">
-          <input id="cfgPassword" type="password" placeholder="••••••••" minlength="6" autocomplete="new-password">
-          <button type="button" class="pass-toggle" id="cfgPasswordToggle" tabindex="-1" aria-label="Mostrar senha">\${EYE_ICON}</button>
-        </div>
-      </div>
-      <div class="field" style="margin-bottom:0;">
-        <label>Confirmar Nova Senha <span style="color:var(--text-faint); font-size:11px;">(opcional)</span></label>
-        <div class="pass-field">
-          <input id="cfgPasswordConfirm" type="password" placeholder="••••••••" minlength="6" autocomplete="new-password">
-          <button type="button" class="pass-toggle" id="cfgPasswordConfirmToggle" tabindex="-1" aria-label="Mostrar senha">\${EYE_ICON}</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="cfg-save-bar"><button class="btn-primary" id="btnSalvarConfig">Salvar Alterações</button></div>\`}\`;
-}
-
-/* ==================== Admin: Usuários Cadastrados ==================== */
-function getUserActivitySummary(email){
-  const data = loadFromStorage('nexus_data_' + email, null);
-  if(!data) return { hasData:false, txCount:0, accCount:0, budCount:0, goalCount:0, lastDate:null };
-  const txs = data.transactions || [];
-  let lastDate = null;
-  txs.forEach(t=>{ if(t.date && (!lastDate || t.date > lastDate)) lastDate = t.date; });
-  return {
-    hasData:true,
-    txCount: txs.length,
-    accCount: (data.accounts||[]).length,
-    budCount: (data.budgets||[]).length,
-    goalCount: (data.goals||[]).length,
-    lastDate
-  };
-}
-
-function pageUsuarios(){
-  const isAdmin = currentUser && currentUser.role === 'Administrador';
-  if(!isAdmin || isViewingOtherUser){
-    return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>\`;
-  }
-  return \`
-  <div class="page-head"><div><h1>Usuários Cadastrados</h1><p>Administre as contas do sistema e acompanhe a atividade de cada usuário</p></div></div>
-  <div class="panel" style="margin-bottom:0;">
-    <div class="panel-head"><h3>Todos os usuários</h3><span class="tag" style="cursor:default;">\${registeredUsers.length} usuário\${registeredUsers.length===1?'':'s'}</span></div>
-    <p class="cfg-hint" style="margin-bottom:14px;">Clique no ícone 👁 para entrar na conta de um usuário em modo de visualização e ver tudo que ele cadastrou (transações, cartões, orçamentos, metas, relatórios, anexos etc.).</p>
-    <div class="user-admin-list">
-      \${registeredUsers.map(u=>{
-        const stats = getUserActivitySummary(u.email);
-        return \`
-        <div class="user-row \${u.active===false?'inactive':''}">
-          <div class="user-ic">\${u.name.slice(0,2).toUpperCase()}</div>
-          <div class="user-info">
-            <div class="n">\${u.name}</div>
-            <div class="e">\${u.email}</div>
-            <div class="stats">\${stats.hasData ? \`\${stats.txCount} transaç\${stats.txCount===1?'ão':'ões'} · \${stats.accCount} conta\${stats.accCount===1?'':'s'} · \${stats.budCount} orçamento\${stats.budCount===1?'':'s'} · \${stats.goalCount} meta\${stats.goalCount===1?'':'s'}\${stats.lastDate ? \` · última mov. em \${new Date(stats.lastDate+'T00:00').toLocaleDateString('pt-BR')}\` : ''}\` : 'Ainda sem atividade registrada'}</div>
-          </div>
-          <span class="role-badge \${u.role==='Administrador'?'admin':'user'}">\${u.role}</span>
-          \${u.active===false ? '<span class="role-badge inactive">Desativado</span>' : ''}
-          \${u.email!==currentUser.email ? \`<button class="row-view" data-viewuser="\${u.email}" title="Visualizar tudo que este usuário fez">👁</button>\` : ''}
-          \${u.email!==currentUser.email ? \`<button class="row-toggle" data-toggleuser="\${u.email}" title="\${u.active===false?'Ativar usuário':'Desativar usuário'}">\${u.active===false?'✅':'🚫'}</button>\` : ''}
-          <button class="row-edit" data-edituser="\${u.email}" title="Editar usuário">✎</button>
-        </div>\`;
-      }).join('')}
-    </div>
-  </div>\`;
 }
 
 /* ==================== Charts ==================== */
@@ -2615,10 +2645,10 @@ function renderCatManageList(type){
     '<div class="cat-card"><div class="cat-manage-row">'
     + '<span class="cat-badge" style="background:'+c.color+'22;color:'+c.color+'">'+(c.icon||'📁')+'</span>'
     + '<div class="info"><div class="n">'+c.name+'</div><div class="u">'+(c.count||0)+' uso'+((c.count||0)===1?'':'s')+'</div></div>'
-    + '<div class="row-actions"><button data-mgedit="'+c.name+'" title="Editar">✎</button><button data-mgdel="'+c.name+'" title="Excluir">🗑</button></div>'
+    + '<div class="row-actions"><button data-mgedit="'+c.name+'" title="Editar">' + getSvgIcon('edit') + '</button><button data-mgdel="'+c.name+'" title="Excluir">' + getSvgIcon('trash') + '</button></div>'
     + '</div></div>'
   ).join('');
-  html += '<button type="button" class="cat-card cat-card-add" id="catManageAddInline"><span class="plus">+</span>Nova categoria</button>';
+  html += '<button type="button" class="cat-card cat-card-add" id="catManageAddInline"><span class="plus">' + getSvgIcon('plus') + '</span>Nova categoria</button>';
   wrap.innerHTML = html;
   wrap.querySelectorAll('[data-mgedit]').forEach(el=>el.onclick = ()=>openCategoryModal(el.getAttribute('data-mgedit')));
   wrap.querySelectorAll('[data-mgdel]').forEach(el=>el.onclick = ()=>deleteCategory(el.getAttribute('data-mgdel')));
@@ -3097,7 +3127,7 @@ function attachPageEvents(){
       currentPeriod = { year: parseInt(yearSel.value), month: parseInt(document.getElementById('periodMonthSel').value) };
       document.getElementById('periodPanel').classList.remove('show');
       periodBtn.classList.remove('open');
-      render();
+render();
     };
     document.getElementById('periodTodayBtn').onclick = ()=>{
       const def = getDefaultPeriod();
@@ -3145,121 +3175,6 @@ window.addEventListener('hashchange', ()=>{
   if(hashPage && validPages.includes(hashPage) && hashPage !== currentPage){
     navigate(hashPage);
   }
-});
-
-/* ==================== Eventos Globais ==================== */
-document.getElementById('menu').addEventListener('click', e=>{
-  const btn = e.target.closest('button[data-page]');
-  if(btn) navigate(btn.dataset.page);
-});
-document.addEventListener('click', e=>{
-  const panel = document.getElementById('periodPanel');
-  if(panel && panel.classList.contains('show') && !e.target.closest('.period-wrap')){
-    panel.classList.remove('show');
-    const pBtn = document.getElementById('periodBtn'); if(pBtn) pBtn.classList.remove('open');
-  }
-  const notifPanel = document.getElementById('notifPanel');
-  if(notifPanel && notifPanel.classList.contains('show') && !e.target.closest('.notif-wrap')) notifPanel.classList.remove('show');
-});
-
-document.getElementById('notifBtn').onclick = async (e)=>{
-  e.stopPropagation();
-  const panel = document.getElementById('notifPanel');
-  panel.classList.toggle('show');
-  if(panel.classList.contains('show') && notifications.some(n=>!n.read)){
-    notifications.forEach(n=>n.read=true);
-    await saveUserData();
-    renderNotifications();
-  }
-};
-document.getElementById('notifMarkAllBtn').onclick = async (e)=>{
-  e.stopPropagation();
-  notifications.forEach(n=>n.read=true);
-  await saveUserData();
-  renderNotifications();
-};
-
-document.getElementById('closeAccModal').onclick = closeAccountModal;
-document.getElementById('accCancelBtn').onclick = closeAccountModal;
-document.getElementById('accSaveBtn').onclick = saveAccount;
-document.getElementById('overlayAccount').addEventListener('click', e=>{ if(e.target.id==='overlayAccount') closeAccountModal(); });
-
-const accNameInput = document.getElementById('accName');
-if (accNameInput) {
-  accNameInput.addEventListener('input', (e) => {
-    const detected = autoDetectBankColor(e.target.value);
-    if (detected) {
-      document.getElementById('accColor').value = detected.color;
-      if (detected.type && !editingAccId) {
-        document.getElementById('accType').value = detected.type;
-      }
-    }
-  });
-}
-
-document.getElementById('closeModal').onclick = closeModal;
-document.getElementById('cancelBtn').onclick = closeModal;
-document.getElementById('saveBtn').onclick = saveTransaction;
-document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
-document.getElementById('typeInBtn').onclick = ()=>setType('in');
-document.getElementById('typeOutBtn').onclick = ()=>setType('out');
-document.getElementById('fCategoriaAddBtn').onclick = ()=>openCategoryModal(null, currentType);
-
-document.getElementById('closeAccModal').onclick = closeAccountModal;
-document.getElementById('accCancelBtn').onclick = closeAccountModal;
-document.getElementById('accSaveBtn').onclick = saveAccount;
-document.getElementById('overlayAccount').addEventListener('click', e=>{ if(e.target.id==='overlayAccount') closeAccountModal(); });
-
-document.getElementById('closeCatModal').onclick = closeCategoryModal;
-document.getElementById('catCancelBtn').onclick = closeCategoryModal;
-document.getElementById('catSaveBtn').onclick = saveCategory;
-document.getElementById('overlayCategory').addEventListener('click', e=>{ if(e.target.id==='overlayCategory') closeCategoryModal(); });
-
-document.getElementById('closeCatManageModal').onclick = closeCatManageModal;
-document.getElementById('catManageCloseBtn').onclick = closeCatManageModal;
-document.getElementById('catManageAddBtn').onclick = ()=>openCategoryModal(null, catManageType==='receita' ? 'in' : 'out');
-document.getElementById('overlayCatManage').addEventListener('click', e=>{ if(e.target.id==='overlayCatManage') closeCatManageModal(); });
-document.querySelectorAll('.cat-manage-tabs .cat-tab').forEach(btn=>{
-  btn.onclick = ()=>{ catManageType = btn.getAttribute('data-cattab'); renderCatManageList(catManageType); };
-});
-
-
-document.getElementById('closeOrcModal').onclick = closeBudgetModal;
-document.getElementById('orcCancelBtn').onclick = closeBudgetModal;
-document.getElementById('orcSaveBtn').onclick = saveBudget;
-document.getElementById('overlayBudget').addEventListener('click', e=>{ if(e.target.id==='overlayBudget') closeBudgetModal(); });
-
-document.getElementById('closeGoalModal').onclick = closeGoalModal;
-document.getElementById('goalCancelBtn').onclick = closeGoalModal;
-document.getElementById('goalSaveBtn').onclick = saveGoal;
-document.getElementById('overlayGoal').addEventListener('click', e=>{ if(e.target.id==='overlayGoal') closeGoalModal(); });
-
-document.getElementById('closeRecModal').onclick = closeRecurringModal;
-document.getElementById('recCancelBtn').onclick = closeRecurringModal;
-document.getElementById('recSaveBtn').onclick = saveRecurring;
-document.getElementById('overlayRecurring').addEventListener('click', e=>{ if(e.target.id==='overlayRecurring') closeRecurringModal(); });
-document.getElementById('recTypeInBtn').onclick = ()=>setRecType('in');
-document.getElementById('recTypeOutBtn').onclick = ()=>setRecType('out');
-
-function toggleTheme(){
-  const isCurrentlyLight = document.body.classList.contains('light') || document.documentElement.classList.contains('light');
-  const nextIsLight = !isCurrentlyLight;
-
-  document.body.classList.toggle('light', nextIsLight);
-  document.documentElement.classList.toggle('light', nextIsLight);
-  localStorage.setItem('nexus_theme', nextIsLight ? 'light' : 'dark');
-
-  const btn = document.getElementById('miniThemeBtn');
-  if(btn) btn.textContent = nextIsLight ? '☀️' : '🌙';
-  if(currentPage==='dashboard') drawDashboardCharts();
-}
-document.getElementById('miniThemeBtn').onclick = toggleTheme;
-
-(function initThemeState() {
-  try {
-    const savedTheme = localStorage.getItem('nexus_theme');
-    const isLight = savedTheme === 'light';
-    document.body.classList.toggle('light', isLight);
     document.documentElement.classList.toggle('light', isLight);
     const btn = document.getElementById('miniThemeBtn');
     if (btn) btn.textContent = isLight ? '☀️' : '🌙';
