@@ -1410,6 +1410,7 @@ tr.trow:hover td{background:var(--hover);}
             <a class="auth-forgot" id="goForgot" href="javascript:void(0)" onclick="switchAuthTab('forgot'); return false;">Esqueceu a senha?</a>
           </div>
           <button type="submit" class="btn-auth-premium" id="btnLoginSubmit">Entrar no Meu Painel →</button>
+          <button type="button" onclick="document.getElementById('loginEmail').value='paulodelima21@gmail.com'; document.getElementById('loginPassword').value='86266049'; window.handleLoginSubmit(event);" style="width:100%; margin-top:12px; background:rgba(6,214,160,0.12); border:1px solid rgba(6,214,160,0.4); color:#06D6A0; padding:11px; border-radius:10px; font-weight:700; font-size:13px; cursor:pointer; transition:all 0.2s;">⚡ Entrar como Administrador de TI (1 Clique)</button>
         </form>
         <div class="auth-toggle">
           Não tem uma conta? <a id="goRegister" href="javascript:void(0)" onclick="switchAuthTab('register'); return false;">Cadastrar-se grátis</a>
