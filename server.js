@@ -983,7 +983,7 @@ tr.trow:hover td{background:var(--hover);}
       </div>
     </div>
     <nav class="menu" id="menu">
-      <button data-page="dashboard" class="active"><span class="ic">▦</span> Dashboard</button>
+      <button data-page="dashboard"><span class="ic">▦</span> Dashboard</button>
       <button data-page="transacoes"><span class="ic">⇄</span> Transações</button>
       <button data-page="cartoes"><span class="ic">▭</span> Cartões</button>
       <button data-page="orcamentos"><span class="ic">◔</span> Orçamentos</button>
@@ -1882,8 +1882,22 @@ async function render(){
 }
 
 function updateActiveMenu(){
-  document.querySelectorAll('#menu button[data-page]').forEach(b => {
-    b.classList.toggle('active', b.dataset.page === currentPage);
+  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'config'];
+  const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+  const savedPage = localStorage.getItem('nexus_current_page');
+  
+  if (hashPage && validPages.includes(hashPage)) {
+    currentPage = hashPage;
+  } else if (savedPage && validPages.includes(savedPage)) {
+    currentPage = savedPage;
+  } else if (!currentPage || !validPages.includes(currentPage)) {
+    currentPage = 'dashboard';
+  }
+
+  const buttons = document.querySelectorAll('#menu button[data-page]');
+  buttons.forEach(b => {
+    const isCurrent = (b.getAttribute('data-page') === currentPage);
+    b.classList.toggle('active', isCurrent);
   });
 }
 
