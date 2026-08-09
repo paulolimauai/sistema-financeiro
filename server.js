@@ -763,6 +763,32 @@ tr.trow:hover td{background:var(--hover);}
 }
 .login-success-box .account-disabled-btn:hover{filter:brightness(1.08);}
 
+/* ==================== Popup de Logout (Sessão Encerrada) ==================== */
+.logout-success-icon {
+  width: 68px; height: 68px; margin: 0 auto 18px; border-radius: 50%;
+  background: rgba(6, 214, 160, 0.15); border: 1px solid rgba(6, 214, 160, 0.35);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 0 25px rgba(6, 214, 160, 0.25);
+}
+.logout-success-icon svg {
+  width: 32px; height: 32px; stroke: #06D6A0;
+}
+.logout-box h3 {
+  font-size: 19px; font-weight: 800; color: #ffffff; margin-bottom: 8px; tracking-tight;
+}
+.logout-box p {
+  color: #9ca3af; font-size: 13.5px; line-height: 1.5; margin-bottom: 20px;
+}
+.logout-btn-action {
+  width: 100%; padding: 12px 16px; border-radius: 12px; font-weight: 700; font-size: 13.5px;
+  background: linear-gradient(135deg, #06D6A0, #00E5FF); color: #060B18; border: none;
+  cursor: pointer; box-shadow: 0 4px 14px rgba(6, 214, 160, 0.3);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.logout-btn-action:hover {
+  transform: translateY(-1px); filter: brightness(1.08);
+}
+
 @media(min-width:1700px){
   .brand .name{font-size:17px;}
 }
@@ -1184,6 +1210,21 @@ tr.trow:hover td{background:var(--hover);}
   </div>
 </div>
 
+<div class="login-success-overlay" id="logoutSuccessOverlay">
+  <div class="login-success-box logout-box">
+    <div class="logout-success-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+        <polyline points="16 17 21 12 16 7"></polyline>
+        <line x1="21" y1="12" x2="9" y2="12"></line>
+      </svg>
+    </div>
+    <h3>Sessão Encerrada</h3>
+    <p id="logoutSuccessMsg">Você saiu da sua conta com segurança. Suas informações estão salvas e protegidas.</p>
+    <button type="button" class="logout-btn-action" id="logoutSuccessCloseBtn" onclick="hideLogoutPopup()">Fazer Login Novamente →</button>
+  </div>
+</div>
+
 <script>
 /* ==================== Gerenciamento de LocalStorage e Servidor ==================== */
 function loadFromStorage(key, defaultVal) {
@@ -1336,6 +1377,24 @@ function hideAccountDisabledPopup(){
   setTimeout(()=> overlay.classList.remove('show'), 250);
 }
 
+function showLogoutPopup(msg){
+  const overlay = document.getElementById('logoutSuccessOverlay');
+  if(!overlay) return;
+  if(msg) document.getElementById('logoutSuccessMsg').textContent = msg;
+  overlay.classList.add('show');
+  requestAnimationFrame(()=> overlay.classList.add('in'));
+}
+function hideLogoutPopup(){
+  const overlay = document.getElementById('logoutSuccessOverlay');
+  if(!overlay) return;
+  overlay.classList.remove('in');
+  setTimeout(()=> {
+    overlay.classList.remove('show');
+    const loginEmailInput = document.getElementById('loginEmail');
+    if(loginEmailInput) loginEmailInput.focus();
+  }, 250);
+}
+
 // Cadastro absoluto com requisição direta para o Render
 document.getElementById('registerForm').onsubmit = async (e) => {
   e.preventDefault();
@@ -1390,7 +1449,7 @@ document.getElementById('logoutBtn').onclick = async () => {
   document.documentElement.classList.remove('user-logged-in');
   document.getElementById('appMain').classList.remove('show');
   document.getElementById('authPage').classList.add('show');
-  showToast('Sessão encerrada.');
+  showLogoutPopup('Você saiu da sua conta com segurança. Suas informações estão salvas e protegidas.');
 };
 
 /* ==================== Isolamento de Dados por Usuário ==================== */
