@@ -1766,14 +1766,19 @@ const inPeriod = t => { const d=new Date(t.date+'T00:00'); return (d.getMonth()+
 
 /* ==================== Cálculos de Cartões e Limites ==================== */
 function getCardStats(account) {
-  const isCreditCard = account.type === 'Cartão de Crédito';
-  const cardTx = transactions.filter(t => t.acc === account.name && t.type === 'out');
+  if (!account) return { spentPeriod: 0, spentTotal: 0, totalLimit: 0, availableLimit: 0, usagePct: 0, isCreditCard: false };
+  const accTypeLower = (account.type || '').toLowerCase().trim();
+  const isCreditCard = accTypeLower.includes('cart') || accTypeLower.includes('crédito') || accTypeLower.includes('credito');
+  const accNameLower = (account.name || '').toLowerCase().trim();
+
+  // Considera no cartão apenas despesas lançadas especificamente no cartão do usuário
+  const cardTx = transactions.filter(t => t.acc && t.acc.toLowerCase().trim() === accNameLower && t.type === 'out');
   const periodCardTx = cardTx.filter(inPeriod);
   
   const spentPeriod = periodCardTx.reduce((s, t) => s + t.val, 0);
   const spentTotal = cardTx.reduce((s, t) => s + t.val, 0);
   
-  const totalLimit = account.balance || 0;
+  const totalLimit = parseFloat(account.balance) || 0;
   const availableLimit = isCreditCard ? Math.max(0, totalLimit - spentTotal) : totalLimit;
   const usagePct = (isCreditCard && totalLimit > 0) ? Math.min(100, Math.round((spentTotal / totalLimit) * 100)) : 0;
   
@@ -2541,17 +2546,31 @@ function populateAccountOptions(selectedAcc) {
     ? accounts.filter(a => a.type !== 'Cartão de Crédito')
     : accounts;
 
-  if(filteredAccounts.length === 0) {
-    fConta.innerHTML = '<option value="">Sem contas bancárias cadastradas</option>';
-    updateCardLimitHint();
-    return;
-  }
-
-  fConta.innerHTML = filteredAccounts.map(a => {
+  let htmlOptions = filteredAccounts.map(a => {
     const stats = getCardStats(a);
     const label = stats.isCreditCard ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + ')') : (a.name + ' (' + a.type + ')');
     return '<option value="' + a.name + '"' + (selectedAcc === a.name ? ' selected' : '') + '>' + label + '</option>';
   }).join('');
+
+  // Opções de pagamento fora de cartão de crédito pessoal / conta bancária
+  const extraOptions = [
+    { value: 'Dinheiro', label: '💵 Dinheiro em Espécie' },
+    { value: 'Boleto / Outros', label: '📄 Boleto / Pix / Outros' }
+  ];
+
+  extraOptions.forEach(opt => {
+    if (!accounts.some(a => a.name.toLowerCase().trim() === opt.value.toLowerCase().trim())) {
+      htmlOptions += '<option value="' + opt.value + '"' + (selectedAcc === opt.value ? ' selected' : '') + '>' + opt.label + '</option>';
+    }
+  });
+
+  if(!htmlOptions) {
+    fConta.innerHTML = '<option value="">Sem contas cadastradas</option>';
+    updateCardLimitHint();
+    return;
+  }
+
+  fConta.innerHTML = htmlOptions;
   updateCardLimitHint();
 }
 
