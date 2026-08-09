@@ -1817,12 +1817,18 @@ function refreshTxTable(){
   const fStatus = document.getElementById('txFiltroStatus');
   const tableWrap = document.getElementById('txTableWrap');
   if(!search || !tableWrap) return false;
+
+  // Proteção contra autofill do navegador preenchendo email/nome no campo de busca
+  if (currentUser && search.value && (search.value.trim() === currentUser.email || search.value.trim() === currentUser.name)) {
+    search.value = '';
+  }
+
   let list = transactions.slice();
-  const q = search.value.toLowerCase();
-  if(q) list = list.filter(t=>t.desc.toLowerCase().includes(q));
-  if(fTipo.value) list = list.filter(t=>t.type===fTipo.value);
-  if(fCat.value) list = list.filter(t=>t.cat===fCat.value);
-  if(fStatus.value) list = list.filter(t=>t.status===fStatus.value);
+  const q = search.value.trim().toLowerCase();
+  if(q) list = list.filter(t=>t.desc && t.desc.toLowerCase().includes(q));
+  if(fTipo && fTipo.value) list = list.filter(t=>t.type===fTipo.value);
+  if(fCat && fCat.value) list = list.filter(t=>t.cat===fCat.value);
+  if(fStatus && fStatus.value) list = list.filter(t=>t.status===fStatus.value);
   list.sort((a,b)=>b.date.localeCompare(a.date));
   tableWrap.innerHTML = transactionsTable(list, true);
   const statsRow = document.getElementById('txStatsRow'); if(statsRow) statsRow.innerHTML = txStatsCardsHTML(list);
