@@ -139,6 +139,18 @@ async function initDatabase() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS system_logs (
+      id SERIAL PRIMARY KEY,
+      timestamp TIMESTAMP NOT NULL DEFAULT now(),
+      user_name VARCHAR(150),
+      user_email VARCHAR(150),
+      action VARCHAR(50) NOT NULL,
+      entity VARCHAR(50) NOT NULL,
+      details TEXT NOT NULL
+    );
+  `);
+
   await pool.query(
     `INSERT INTO usuarios (name, email, password, role, active)
      VALUES ($1, $2, $3, $4, $5)
@@ -1057,6 +1069,7 @@ tr.trow:hover td{background:var(--hover);}
       <button data-page="anexos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span> Anexos</button>
       <button data-page="config"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
       <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Usuários Cadastrados</button>
+      <button data-page="logs" id="menuLogsBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> Logs do Sistema</button>
     </nav>
   </div>
 
@@ -1082,6 +1095,7 @@ tr.trow:hover td{background:var(--hover);}
       <button data-page="anexos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span> Anexos</button>
       <button data-page="config"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
       <button data-page="usuarios" id="mobileDrawerUsuariosBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Usuários Cadastrados</button>
+      <button data-page="logs" id="mobileDrawerLogsBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> Logs do Sistema</button>
     </nav>
   </div>
 
@@ -1818,6 +1832,7 @@ async function toggleUserActive(email){
   u.active = willDeactivate ? false : true;
   await saveUsersToServer();
   showToast(willDeactivate ? 'Usuário desativado.' : 'Usuário ativado novamente.');
+  logActivity('Edição', 'Usuário', 'Administrador ' + (willDeactivate ? 'desativou' : 'ativou') + ' o acesso do usuário ' + u.email + ' (' + u.name + ')');
   render();
 }
 
@@ -2154,6 +2169,10 @@ async function render(){
     await syncUsersWithServer();
     newHTML = pageUsuarios();
   }
+  else if(currentPage==='logs') {
+    await loadSystemLogs();
+    newHTML = pageLogs();
+  }
   else if(currentPage==='dashboard') newHTML = pageDashboard();
   else if(currentPage==='transacoes') newHTML = pageTransacoes();
   else if(currentPage==='cartoes') newHTML = pageContas();
@@ -2179,7 +2198,9 @@ async function render(){
 }
 
 function updateActiveMenu(){
-  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'config'];
+  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'logs', 'config'];
+  const isAdmin = currentUser && currentUser.role === 'Administrador';
+  const isAdminView = isAdmin && !isViewingOtherUser;
   
   if (!currentPage || !validPages.includes(currentPage)) {
     const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
@@ -2189,8 +2210,13 @@ function updateActiveMenu(){
     } else if (savedPage && validPages.includes(savedPage)) {
       currentPage = savedPage;
     } else {
-      currentPage = 'dashboard';
+      currentPage = isAdminView ? 'usuarios' : 'dashboard';
     }
+  }
+
+  const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'config'];
+  if (isAdminView && financialPages.includes(currentPage)) {
+    currentPage = 'usuarios';
   }
 
   const buttons = document.querySelectorAll('button[data-page]');
@@ -2201,12 +2227,22 @@ function updateActiveMenu(){
 }
 
 function updateAdminMenuVisibility(){
-  const btn = document.getElementById('menuUsuariosBtn');
-  const mobileBtn = document.getElementById('mobileDrawerUsuariosBtn');
   const isAdmin = currentUser && currentUser.role === 'Administrador';
-  const show = (isAdmin && !isViewingOtherUser) ? '' : 'none';
-  if(btn) btn.style.display = show;
-  if(mobileBtn) mobileBtn.style.display = show;
+  const isAdminView = isAdmin && !isViewingOtherUser;
+
+  const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'config'];
+  financialPages.forEach(function(pg) {
+    document.querySelectorAll('button[data-page="' + pg + '"]').forEach(function(btn) {
+      btn.style.display = isAdminView ? 'none' : '';
+    });
+  });
+
+  const adminPages = ['usuarios', 'logs'];
+  adminPages.forEach(function(pg) {
+    document.querySelectorAll('button[data-page="' + pg + '"]').forEach(function(btn) {
+      btn.style.display = isAdminView ? '' : 'none';
+    });
+  });
 }
 
 function updateViewModeBanner(){
@@ -2817,6 +2853,198 @@ function pageUsuarios(){
   </div>\`;
 }
 
+/* ==================== Logs de Auditoria do Sistema ==================== */
+let systemLogs = [];
+
+async function logActivity(action, entity, details) {
+  if (!currentUser) return;
+  const logEntry = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    user_name: currentUser.name || 'Usuário',
+    user_email: currentUser.email || '',
+    action: action,
+    entity: entity,
+    details: details
+  };
+
+  systemLogs.unshift(logEntry);
+
+  try {
+    fetch(window.location.origin + '/api/logs', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userName: currentUser.name,
+        userEmail: currentUser.email,
+        action,
+        entity,
+        details
+      })
+    }).catch(() => {});
+  } catch(e) {}
+}
+
+async function loadSystemLogs() {
+  try {
+    const res = await fetch(window.location.origin + '/api/logs');
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        systemLogs = data;
+      }
+    }
+  } catch(e) {}
+}
+
+function renderLogsTable(list) {
+  if (!list || list.length === 0) {
+    return \`<div class="placeholder"><div class="big">📜</div><h3>Nenhum registro de log encontrado</h3><p>As ações e alterações dos usuários serão registradas aqui em tempo real.</p></div>\`;
+  }
+
+  return \`
+  <table id="logsTable">
+    <thead>
+      <tr>
+        <th style="width:160px;">Data e Hora</th>
+        <th style="width:200px;">Usuário (Login)</th>
+        <th style="width:130px;">Ação</th>
+        <th style="width:150px;">Módulo / Entidade</th>
+        <th>Informações Alteradas / Detalhes</th>
+      </tr>
+    </thead>
+    <tbody>
+      \${list.map(l => {
+        const dateStr = l.timestamp ? new Date(l.timestamp).toLocaleString('pt-BR') : '—';
+        let actionBadgeClass = 'var(--purple)';
+        let actionBg = 'rgba(155,107,216,0.15)';
+        const actLower = (l.action || '').toLowerCase();
+        if (actLower.includes('cria') || actLower.includes('novo') || actLower.includes('adiç')) {
+          actionBadgeClass = 'var(--green)';
+          actionBg = 'var(--green-soft)';
+        } else if (actLower.includes('ediç') || actLower.includes('alter')) {
+          actionBadgeClass = 'var(--orange)';
+          actionBg = 'rgba(232,176,75,0.15)';
+        } else if (actLower.includes('excl') || actLower.includes('remov') || actLower.includes('desativ')) {
+          actionBadgeClass = 'var(--red)';
+          actionBg = 'var(--red-soft)';
+        } else if (actLower.includes('login') || actLower.includes('acesso')) {
+          actionBadgeClass = 'var(--blue)';
+          actionBg = 'rgba(74,144,226,0.15)';
+        }
+
+        return \`
+        <tr class="trow">
+          <td style="font-size:12px; color:var(--text-dim); white-space:nowrap;">\${dateStr}</td>
+          <td>
+            <div style="display:flex; flex-direction:column;">
+              <strong style="font-size:12.5px;">\${l.user_name || 'Usuário'}</strong>
+              <span style="font-size:11px; color:var(--text-faint);">\${l.user_email || '—'}</span>
+            </div>
+          </td>
+          <td><span class="pill" style="background:\${actionBg}; color:\${actionBadgeClass}; font-weight:700;">\${l.action}</span></td>
+          <td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-weight:600;">\${l.entity}</span></td>
+          <td style="font-size:12.5px; line-height:1.4;">\${l.details}</td>
+        </tr>\`;
+      }).join('')}
+    </tbody>
+  </table>\`;
+}
+
+function filterLogsTable() {
+  const query = (document.getElementById('logSearch') ? document.getElementById('logSearch').value : '').toLowerCase().trim();
+  const actSel = (document.getElementById('logFilterAction') ? document.getElementById('logFilterAction').value : '').toLowerCase().trim();
+  const entSel = (document.getElementById('logFilterEntity') ? document.getElementById('logFilterEntity').value : '').toLowerCase().trim();
+
+  const filtered = systemLogs.filter(l => {
+    const textStr = ((l.user_name||'') + ' ' + (l.user_email||'') + ' ' + (l.action||'') + ' ' + (l.entity||'') + ' ' + (l.details||'')).toLowerCase();
+    const matchSearch = !query || textStr.includes(query);
+    const matchAct = !actSel || (l.action || '').toLowerCase().includes(actSel);
+    const matchEnt = !entSel || (l.entity || '').toLowerCase().includes(entSel);
+    return matchSearch && matchAct && matchEnt;
+  });
+
+  const wrap = document.getElementById('logTableWrap');
+  if (wrap) wrap.innerHTML = renderLogsTable(filtered);
+}
+
+function pageLogs(){
+  const isAdmin = currentUser && currentUser.role === 'Administrador';
+  if(!isAdmin || isViewingOtherUser){
+    return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área de logs é exclusiva para administradores.</p></div>\`;
+  }
+
+  const logs = systemLogs;
+  const countTotal = logs.length;
+  const countCriacao = logs.filter(l => (l.action||'').toLowerCase().includes('cria') || (l.action||'').toLowerCase().includes('novo')).length;
+  const countEdicao = logs.filter(l => (l.action||'').toLowerCase().includes('ediç') || (l.action||'').toLowerCase().includes('altera')).length;
+  const countExclusao = logs.filter(l => (l.action||'').toLowerCase().includes('excl') || (l.action||'').toLowerCase().includes('remov')).length;
+
+  return \`
+  <div class="page-head">
+    <div>
+      <h1>Logs do Sistema</h1>
+      <p>Histórico completo de auditoria com dados de login e alterações de dados em tempo real</p>
+    </div>
+    <div class="head-actions">
+      <button class="btn-ghost" onclick="loadSystemLogs().then(render)">🔄 Atualizar Logs</button>
+    </div>
+  </div>
+
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); margin-bottom:20px;">
+    <div class="kpi">
+      <div class="row1">Total de Registros <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">📋</span></div>
+      <div class="val">\${countTotal}</div>
+      <div class="sub">eventos de auditoria</div>
+    </div>
+    <div class="kpi">
+      <div class="row1">Criações <span class="ic" style="background:var(--green-soft);color:var(--green)">➕</span></div>
+      <div class="val" style="color:var(--green)">\${countCriacao}</div>
+      <div class="sub">novos dados cadastrados</div>
+    </div>
+    <div class="kpi">
+      <div class="row1">Edições <span class="ic" style="background:rgba(232,176,75,0.15);color:var(--orange)">✎</span></div>
+      <div class="val" style="color:var(--orange)">\${countEdicao}</div>
+      <div class="sub">registros alterados</div>
+    </div>
+    <div class="kpi">
+      <div class="row1">Exclusões <span class="ic" style="background:var(--red-soft);color:var(--red)">🗑</span></div>
+      <div class="val" style="color:var(--red)">\${countExclusao}</div>
+      <div class="sub">registros removidos</div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-head" style="margin-bottom:14px;">
+      <h3>Filtros de Log</h3>
+    </div>
+    <div class="filters" style="margin-bottom:16px;">
+      <input id="logSearch" placeholder="Buscar por usuário, e-mail, ação ou detalhe..." onkeyup="filterLogsTable()">
+      <select id="logFilterAction" onchange="filterLogsTable()">
+        <option value="">Todas as ações</option>
+        <option value="cria">Criação</option>
+        <option value="ediç">Edição</option>
+        <option value="excl">Exclusão</option>
+        <option value="login">Login / Acesso</option>
+      </select>
+      <select id="logFilterEntity" onchange="filterLogsTable()">
+        <option value="">Todas as entidades</option>
+        <option value="transa">Transação</option>
+        <option value="conta">Conta / Cartão</option>
+        <option value="categor">Categoria</option>
+        <option value="orçament">Orçamento</option>
+        <option value="meta">Meta</option>
+        <option value="usuár">Usuário</option>
+      </select>
+    </div>
+
+    <div id="logTableWrap">
+      \${renderLogsTable(logs)}
+    </div>
+  </div>
+  \`;
+}
+
 /* ==================== Charts ==================== */
 function drawDashboardCharts(){
   const periodTx = transactions.filter(inPeriod);
@@ -2999,6 +3227,7 @@ async function saveTransaction(){
     }
     Object.assign(t, {desc, val, date, cat, status, type:currentType, acc:accSel, accId});
     showToast('Transação atualizada!');
+    logActivity('Edição', 'Transação', 'Editou transação "' + desc + '" (' + (currentType==='in'?'+':'-') + fmt(val) + ') na conta "' + (accSel || 'Sem conta') + '" [Categoria: ' + cat + ']');
   } else {
     transactions.push({id: nextTxId++, desc, val, date, cat, status, type: currentType, acc:accSel, accId});
     const catObj = categories.find(c=>c.name===cat);
@@ -3095,10 +3324,12 @@ async function saveAccount(){
     Object.assign(a, {name, type, balance, color});
     if(oldName!==name) transactions.forEach(t=>{ if(t.acc===oldName) t.acc = name; });
     showToast('Conta atualizada!');
+    logActivity('Edição', 'Conta / Cartão', 'Editou conta/cartão "' + name + '" (' + type + ') com limite/saldo inicial ' + fmt(balance));
   } else {
     accounts.push({id: nextAccId++, name, type, balance, color});
     showToast('Conta adicionada!');
-    await pushNotification(\`Nova conta/cartão cadastrado: \${name} (\${type})\`, '🏦');
+    await pushNotification('Nova conta/cartão cadastrado: ' + name + ' (' + type + ')', '🏦');
+    logActivity('Criação', 'Conta / Cartão', 'Cadastrou nova conta/cartão "' + name + '" (' + type + ') com limite/saldo inicial ' + fmt(balance));
   }
   await saveUserData();
   closeAccountModal();
@@ -3523,6 +3754,7 @@ async function saveUserAdmin(){
     currentUser.role = u.role;
   }
   showToast('Usuário atualizado!');
+  logActivity('Edição', 'Usuário', 'Administrador alterou dados do usuário ' + u.email + ' (Nome: ' + name + ', Função: ' + role + (newPass ? ', Senha alterada' : '') + ')');
   closeUserAdminModal();
   render();
 }
@@ -4232,6 +4464,48 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ success: false }));
       } finally {
         client.release();
+      }
+    });
+    return;
+  }
+
+  // Rota GET de Logs de Auditoria
+  if (req.method === 'GET' && parsedUrl.pathname === '/api/logs') {
+    pool.query('SELECT id, timestamp, user_name, user_email, action, entity, details FROM system_logs ORDER BY id DESC LIMIT 500')
+      .then(result => {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result.rows));
+      })
+      .catch(err => {
+        console.error('Erro ao buscar logs:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Erro no banco de dados' }));
+      });
+    return;
+  }
+
+  // Rota POST de Logs de Auditoria
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/logs') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { userName, userEmail, action, entity, details } = JSON.parse(body);
+        if (!action || !entity || !details) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false }));
+        }
+        await pool.query(
+          `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
+           VALUES (now(), $1, $2, $3, $4, $5)`,
+          [userName || 'Sistema', userEmail || 'sistema@nexus.com', action, entity, details]
+        );
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
+      } catch (e) {
+        console.error('Erro ao salvar log:', e);
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false }));
       }
     });
     return;
