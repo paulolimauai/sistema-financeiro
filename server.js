@@ -1724,12 +1724,22 @@ function pd(day){ return pdCustom(currentPeriod.year, currentPeriod.month, day);
 let editingId=null, editingAccId=null, editingCatName=null, editingBudgetId=null, editingGoalId=null, editingRecId=null, editingAlertId=null, editingUserEmail=null;
 let catManageType = 'despesa';
 let currentType='out', currentRecType='out';
-let currentPage='dashboard';
+let currentPage = (function getInitialPage() {
+  try {
+    const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'config'];
+    const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+    const savedPage = localStorage.getItem('nexus_current_page');
+    if (hashPage && validPages.includes(hashPage)) return hashPage;
+    if (savedPage && validPages.includes(savedPage)) return savedPage;
+  } catch(e){}
+  return 'dashboard';
+})();
 let charts = {};
 
 const fmt = v => 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
 const catColor = name => (categories.find(c=>c.name===name)||{}).color || '#888';
 const catIcon = name => { const c = categories.find(c=>c.name===name); return (c && c.icon) || '📁'; };
+
 function catOptionsHTML(type, selected){
   let list = type ? categories.filter(c=>(c.type||'despesa')===type) : categories.slice();
   list = list.slice().sort((a,b)=> (b.count||0)-(a.count||0) || a.name.localeCompare(b.name,'pt-BR'));
@@ -3093,10 +3103,28 @@ function attachPageEvents(){
 }
 
 function navigate(page){
+  if(!page) page = 'dashboard';
   currentPage = page;
+  try {
+    localStorage.setItem('nexus_current_page', page);
+    if(window.history && window.history.replaceState){
+      window.history.replaceState(null, null, '#' + page);
+    } else {
+      window.location.hash = page;
+    }
+  } catch(e){}
+
   document.querySelectorAll('.menu button').forEach(b=>b.classList.toggle('active', b.dataset.page===page));
   render();
 }
+
+window.addEventListener('hashchange', ()=>{
+  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'config'];
+  const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+  if(hashPage && validPages.includes(hashPage) && hashPage !== currentPage){
+    navigate(hashPage);
+  }
+});
 
 /* ==================== Eventos Globais ==================== */
 document.getElementById('menu').addEventListener('click', e=>{
