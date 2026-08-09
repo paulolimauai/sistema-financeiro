@@ -1300,6 +1300,9 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     }
     currentUser = user;
     saveToStorage('nexus_session', { email: user.email });
+    saveToStorage('nexus_cached_user', user);
+    saveToStorage('nexus_token', 'token_' + Date.now());
+    document.documentElement.classList.add('user-logged-in');
     await loadUserData();
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
@@ -3053,6 +3056,7 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
     const session = loadFromStorage('nexus_session', null);
     const cachedUser = loadFromStorage('nexus_cached_user', null);
     if ((session && session.email) || (cachedUser && cachedUser.email)) {
+      document.documentElement.classList.add('user-logged-in');
       document.getElementById('authPage').classList.remove('show');
       document.getElementById('appMain').classList.add('show');
       if (cachedUser) {
@@ -3067,41 +3071,44 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
   const cachedUser = loadFromStorage('nexus_cached_user', null);
   const sessionEmail = session ? session.email : (cachedUser ? cachedUser.email : null);
 
-  await syncUsersWithServer();
+  if (!sessionEmail && !cachedUser) {
+    document.documentElement.classList.remove('user-logged-in');
+    document.getElementById('appMain').classList.remove('show');
+    document.getElementById('authPage').classList.add('show');
+    return;
+  }
 
-  if (!sessionEmail) {
-    localStorage.removeItem('nexus_session');
-    localStorage.removeItem('nexus_cached_user');
-    localStorage.removeItem('nexus_token');
-    document.getElementById('appMain').classList.remove('show');
-    document.getElementById('authPage').classList.add('show');
-    return;
-  }
-  const user = registeredUsers.find(u => u.email.toLowerCase() === sessionEmail.toLowerCase());
-  if (!user) {
-    localStorage.removeItem('nexus_session');
-    localStorage.removeItem('nexus_cached_user');
-    localStorage.removeItem('nexus_token');
-    document.getElementById('appMain').classList.remove('show');
-    document.getElementById('authPage').classList.add('show');
-    return;
-  }
-  if (user.active === false) {
-    localStorage.removeItem('nexus_session');
-    localStorage.removeItem('nexus_cached_user');
-    localStorage.removeItem('nexus_token');
-    document.getElementById('appMain').classList.remove('show');
-    document.getElementById('authPage').classList.add('show');
-    showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
-    return;
-  }
-  currentUser = user;
-  saveToStorage('nexus_session', { email: user.email });
-  saveToStorage('nexus_cached_user', user);
-  await loadUserData();
+  // Garante a sessão imediatamente a partir do cache local
+  currentUser = cachedUser || { email: sessionEmail, name: sessionEmail.split('@')[0], role: 'Usuário' };
+  document.documentElement.classList.add('user-logged-in');
   document.getElementById('authPage').classList.remove('show');
   document.getElementById('appMain').classList.add('show');
-  render();
+
+  // Carrega os dados do usuário instantaneamente do cache/banco
+  await loadUserData();
+  if (typeof render === 'function') render();
+
+  // Validação em segundo plano sem interromper a tela
+  try {
+    await syncUsersWithServer();
+    const user = registeredUsers.find(u => u.email.toLowerCase() === sessionEmail.toLowerCase());
+    
+    if (user) {
+      if (user.active === false) {
+        localStorage.removeItem('nexus_session');
+        localStorage.removeItem('nexus_cached_user');
+        localStorage.removeItem('nexus_token');
+        document.documentElement.classList.remove('user-logged-in');
+        document.getElementById('appMain').classList.remove('show');
+        document.getElementById('authPage').classList.add('show');
+        showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
+        return;
+      }
+      currentUser = user;
+      saveToStorage('nexus_session', { email: user.email });
+      saveToStorage('nexus_cached_user', user);
+    }
+  } catch(e) {}
 })();
 </script>
 </body>
