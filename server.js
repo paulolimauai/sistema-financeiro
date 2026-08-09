@@ -156,6 +156,10 @@ const htmlContent = `<!DOCTYPE html>
 <script>
 (function() {
   try {
+    var t = localStorage.getItem('nexus_theme');
+    if (t === 'light') {
+      document.documentElement.classList.add('light');
+    }
     var s = localStorage.getItem('nexus_session') || localStorage.getItem('nexus_cached_user');
     if (s) {
       document.documentElement.classList.add('user-logged-in');
@@ -177,7 +181,7 @@ html.user-logged-in #appMain { display: block !important; }
   --radius:14px;
   --shadow:0 8px 24px rgba(0,0,0,.35);
 }
-body.light{
+body.light, html.light body{
   --bg:#f4f6f9; --sidebar:#ffffff; --card:#ffffff; --card-border:#e6e9ef;
   --text:#1b2028; --text-dim:#6b7280; --text-faint:#9aa2b1;
   --hover:#eef1f6;
@@ -3110,6 +3114,31 @@ document.getElementById('recSaveBtn').onclick = saveRecurring;
 document.getElementById('overlayRecurring').addEventListener('click', e=>{ if(e.target.id==='overlayRecurring') closeRecurringModal(); });
 document.getElementById('recTypeInBtn').onclick = ()=>setRecType('in');
 document.getElementById('recTypeOutBtn').onclick = ()=>setRecType('out');
+
+function toggleTheme(){
+  const isCurrentlyLight = document.body.classList.contains('light') || document.documentElement.classList.contains('light');
+  const nextIsLight = !isCurrentlyLight;
+
+  document.body.classList.toggle('light', nextIsLight);
+  document.documentElement.classList.toggle('light', nextIsLight);
+  localStorage.setItem('nexus_theme', nextIsLight ? 'light' : 'dark');
+
+  const btn = document.getElementById('miniThemeBtn');
+  if(btn) btn.textContent = nextIsLight ? '☀️' : '🌙';
+  if(currentPage==='dashboard') drawDashboardCharts();
+}
+document.getElementById('miniThemeBtn').onclick = toggleTheme;
+
+(function initThemeState() {
+  try {
+    const savedTheme = localStorage.getItem('nexus_theme');
+    const isLight = savedTheme === 'light';
+    document.body.classList.toggle('light', isLight);
+    document.documentElement.classList.toggle('light', isLight);
+    const btn = document.getElementById('miniThemeBtn');
+    if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+  } catch(e){}
+})();
 
 document.getElementById('closeAlertModal').onclick = closeAlertModal;
 document.getElementById('alertCancelBtn').onclick = closeAlertModal;
