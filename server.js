@@ -1626,6 +1626,49 @@ function migrateCategories(){
   if(changed) saveUserData();
 }
 
+function autoMigrateTransactionsAndAccounts() {
+  if (!accounts || accounts.length === 0) return;
+  let changed = false;
+
+  transactions.forEach(t => {
+    // 1. Se a transação não tem accId ou precisa de vinculação, associa por nome exato ou parcial
+    if (t.accId == null && t.acc) {
+      const match = accounts.find(a => a.name.toLowerCase().trim() === t.acc.toLowerCase().trim());
+      if (match) {
+        t.accId = match.id;
+        t.acc = match.name;
+        changed = true;
+      } else {
+        const partialMatch = accounts.find(a => {
+          const accName = a.name.toLowerCase().trim();
+          const tAccName = t.acc.toLowerCase().trim();
+          return accName.length >= 3 && (tAccName.includes(accName) || accName.includes(tAccName));
+        });
+        if (partialMatch) {
+          t.accId = partialMatch.id;
+          t.acc = partialMatch.name;
+          changed = true;
+        }
+      }
+    } else if (!t.acc && t.desc) {
+      const descLower = t.desc.toLowerCase().trim();
+      const matchByDesc = accounts.find(a => {
+        const accName = a.name.toLowerCase().trim();
+        return accName.length >= 3 && descLower.includes(accName);
+      });
+      if (matchByDesc) {
+        t.accId = matchByDesc.id;
+        t.acc = matchByDesc.name;
+        changed = true;
+      }
+    }
+  });
+
+  if (changed && typeof saveUserData === 'function') {
+    saveUserData();
+  }
+}
+
 function applyDataPayload(data) {
   if (!data) return;
   categories = data.categories || [];
@@ -1646,6 +1689,7 @@ function applyDataPayload(data) {
   nextAttId = data.nextAttId || 10;
   nextNotifId = data.nextNotifId || 10;
   migrateCategories();
+  autoMigrateTransactionsAndAccounts();
 }
 
 let isDataLoading = false;
@@ -1852,48 +1896,124 @@ const periodLabel = ()=> MONTHS[currentPeriod.month-1] + ' / ' + currentPeriod.y
 const inPeriod = t => { const d=new Date(t.date+'T00:00'); return (d.getMonth()+1)===currentPeriod.month && d.getFullYear()===currentPeriod.year; };
 
 /* ==================== Cálculos de Cartões e Limites ==================== */
-function getCardStats(account) {
-  if (!account) return { spentPeriod: 0, spentTotal: 0, totalLimit: 0, availableLimit: 0, usagePct: 0, isCreditCard: false };
+function isAccountCreditCard(account) {
+  if (!account) return false;
   const accTypeLower = (account.type || '').toLowerCase().trim();
-  const isCreditCard = accTypeLower.includes('cart') || accTypeLower.includes('crédito') || accTypeLower.includes('credito');
   const accNameLower = (account.name || '').toLowerCase().trim();
 
-  // Transações associadas especificamente a esta conta/cartão pelo nome ou id
-  const cardTx = transactions.filter(t => t.acc && t.acc.toLowerCase().trim() === accNameLower);
+  // Se for explicitamente cartão de débito, não tratar como crédito
+  if (accTypeLower.includes('débito') || accTypeLower.includes('debito')) return false;
+
+  return (
+    accTypeLower.includes('cartão de crédito') ||
+    accTypeLower.includes('cartao de credito') ||
+    accTypeLower.includes('crédito') ||
+    accTypeLower.includes('credito') ||
+    accTypeLower === 'cartão' ||
+    accTypeLower === 'cartao' ||
+    accNameLower.includes('nubank') ||
+    accNameLower.includes('roxinho')
+  );
+}
+
+function isTxForAccount(t, account) {
+  if (!t || !account) return false;
+
+  // 1. Verificação por ID da conta (prioridade máxima)
+  if (t.accId != null && String(t.accId) === String(account.id)) return true;
+
+  const accNameLower = (account.name || '').toLowerCase().trim();
+  if (!accNameLower) return false;
+
+  // 2. Verificação por correspondência exata do nome da conta
+  if (t.acc) {
+    const tAccLower = t.acc.toLowerCase().trim();
+    if (tAccLower === accNameLower) return true;
+  }
+
+  // 3. Verificação por inclusão quando os nomes possuem ao menos 3 caracteres
+  if (t.acc) {
+    const tAccLower = t.acc.toLowerCase().trim();
+    if (tAccLower.length >= 3 && accNameLower.length >= 3) {
+      if (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower)) return true;
+    }
+  }
+
+  // 4. Verificação de palavras-chave na descrição caso t.acc seja genérico/não especificado
+  if (!t.acc || t.acc === 'Sem conta' || t.acc === 'Boleto / Outros' || t.acc === 'Dinheiro') {
+    const descLower = (t.desc || '').toLowerCase().trim();
+    if (accNameLower.length >= 3 && descLower.includes(accNameLower)) return true;
+    if (accNameLower.includes('nubank') && (descLower.includes('nubank') || descLower.includes('nu '))) return true;
+  }
+
+  return false;
+}
+
+function getCardStats(account) {
+  if (!account) return { spentPeriod: 0, spentTotal: 0, totalLimit: 0, availableLimit: 0, usagePct: 0, currentBalance: 0, initialBalance: 0, isCreditCard: false, txCount: 0, periodIn: 0, periodOut: 0 };
   
-  // Total acumulado em faturas: Despesas (out) minus Pagamentos/Estornos (in)
+  const isCreditCard = isAccountCreditCard(account);
+  const cardTx = transactions.filter(t => isTxForAccount(t, account));
+
   const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
   const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
-  const spentTotal = Math.max(0, totalDespesas - totalPagamentos);
-
-  // Despesas da fatura do período selecionado (mês atual no filtro)
+  
   const periodCardTx = cardTx.filter(inPeriod);
   const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
   const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
-  const spentPeriod = Math.max(0, periodDespesas - periodPagamentos);
 
-  // Limite Aprovado (no cadastro de cartão de crédito, o campo balance guarda o Limite Total Aprovado)
-  const totalLimit = parseFloat(account.balance) || 0;
-  
-  // Limite Disponível = Limite Total Aprovado - Fatura Total Acumulada em Aberto
-  const availableLimit = isCreditCard ? Math.max(0, totalLimit - spentTotal) : totalLimit;
-  const usagePct = (isCreditCard && totalLimit > 0) ? Math.min(100, Math.round((spentTotal / totalLimit) * 100)) : 0;
-  
-  return {
-    spentPeriod,
-    spentTotal,
-    totalLimit,
-    availableLimit,
-    usagePct,
-    isCreditCard
-  };
+  const initialBalance = parseFloat(account.balance) || 0;
+
+  if (isCreditCard) {
+    // Para Cartões de Crédito: balance representa o Limite Total Aprovado
+    const totalLimit = initialBalance;
+    const spentTotal = Math.max(0, totalDespesas - totalPagamentos);
+    const spentPeriod = Math.max(0, periodDespesas - periodPagamentos);
+    const availableLimit = Math.max(0, totalLimit - spentTotal);
+    const usagePct = totalLimit > 0 ? Math.min(100, Math.round((spentTotal / totalLimit) * 100)) : 0;
+    const currentBalance = availableLimit;
+
+    return {
+      spentPeriod,
+      spentTotal,
+      totalLimit,
+      availableLimit,
+      usagePct,
+      currentBalance,
+      initialBalance,
+      isCreditCard: true,
+      txCount: cardTx.length,
+      periodIn: periodPagamentos,
+      periodOut: periodDespesas
+    };
+  } else {
+    // Para Contas Bancárias (Conta Corrente, Poupança, Investimentos, etc.)
+    // balance representa o Saldo Inicial cadastrado
+    const spentTotal = totalDespesas;
+    const spentPeriod = periodDespesas;
+    const currentBalance = initialBalance + totalPagamentos - totalDespesas;
+    const availableLimit = currentBalance;
+    const totalLimit = initialBalance;
+    const usagePct = 0;
+
+    return {
+      spentPeriod,
+      spentTotal,
+      totalLimit,
+      availableLimit,
+      usagePct,
+      currentBalance,
+      initialBalance,
+      isCreditCard: false,
+      txCount: cardTx.length,
+      periodIn: periodPagamentos,
+      periodOut: periodDespesas
+    };
+  }
 }
 
 function computeCardSummary() {
-  const creditCards = accounts.filter(a => {
-    const typeLower = (a.type || '').toLowerCase().trim();
-    return typeLower.includes('cart') || typeLower.includes('crédito') || typeLower.includes('credito');
-  });
+  const creditCards = accounts.filter(a => isAccountCreditCard(a));
 
   let totalLimitGeral = 0;
   let spentTotalGeral = 0;
@@ -1914,10 +2034,23 @@ function computeCardSummary() {
 
 /* ==================== Cálculos ==================== */
 function computeTotals(list=transactions){
-  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
-  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.val,0);
-  const saldo = accounts.reduce((s,a)=>s+a.balance,0);
-  return {receitas, despesas, saldo};
+  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
+  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
+  
+  let saldoContasBancarias = 0;
+  let faturasCartoesCredito = 0;
+
+  accounts.forEach(a => {
+    const stats = getCardStats(a);
+    if (stats.isCreditCard) {
+      faturasCartoesCredito += stats.spentTotal;
+    } else {
+      saldoContasBancarias += stats.currentBalance;
+    }
+  });
+
+  const saldo = saldoContasBancarias - faturasCartoesCredito;
+  return { receitas, despesas, saldo, saldoContasBancarias, faturasCartoesCredito };
 }
 function txStatsCardsHTML(list){
   const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
@@ -2228,7 +2361,8 @@ function pageDashboard(){
                 <div class="acc-val" style="color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}; font-weight:700; font-size:12.5px;">Disp: \${fmt(stats.availableLimit)}</div>
                 <div style="font-size:10px; color:var(--text-faint);">Fat: \${fmt(stats.spentTotal)}</div>
               \` : \`
-                <div class="acc-val \${a.balance<0?'neg':''}" style="font-weight:700; font-size:12.5px;">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
+                <div class="acc-val \${stats.currentBalance<0?'neg':''}" style="font-weight:700; font-size:12.5px; color:\${stats.currentBalance<0?'var(--red)':'var(--green)'};">\${fmt(stats.currentBalance)}</div>
+                <div style="font-size:10px; color:var(--text-faint);">Saldo Atual</div>
               \`}
             </div>
             <button class="acc-edit" data-editacc="\${a.id}">✎</button>
@@ -2432,8 +2566,12 @@ function pageContas(){
         \` : \`
           <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-top:6px;">
             <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:2px;">Saldo Atual</div>
-            <div class="val" style="font-size:22px; font-weight:800; color:\${a.balance < 0 ? 'var(--red)' : 'var(--green)'}">
-              \${a.balance < 0 ? '-' : ''}\${fmt(Math.abs(a.balance))}
+            <div class="val" style="font-size:22px; font-weight:800; color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}">
+              \${fmt(stats.currentBalance)}
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-top:8px; padding-top:8px; border-top:1px dashed var(--card-border);">
+              <span>Entradas: <strong style="color:var(--green);">\${fmt(stats.periodIn)}</strong></span>
+              <span>Saídas: <strong style="color:var(--red);">\${fmt(stats.spentTotal)}</strong></span>
             </div>
           </div>
         \`}
@@ -2703,14 +2841,14 @@ function populateAccountOptions(selectedAcc) {
   const fConta = document.getElementById('fConta');
   if(!fConta) return;
 
-  // Se a transação for do tipo RECEITA ('in'), remove contas de Cartão de Crédito da lista
-  const filteredAccounts = currentType === 'in' 
-    ? accounts.filter(a => a.type !== 'Cartão de Crédito')
-    : accounts;
+  // Todas as contas cadastradas ficam disponíveis (para despesas, receitas ou pagamentos de fatura)
+  const filteredAccounts = accounts;
 
   let htmlOptions = filteredAccounts.map(a => {
     const stats = getCardStats(a);
-    const label = stats.isCreditCard ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + ')') : (a.name + ' (' + a.type + ')');
+    const label = stats.isCreditCard 
+      ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + (currentType === 'in' ? ' — Pgto Fatura/Estorno' : '') + ')') 
+      : (a.name + ' (Saldo: ' + fmt(stats.currentBalance) + ')');
     return '<option value="' + a.name + '"' + (selectedAcc === a.name ? ' selected' : '') + '>' + label + '</option>';
   }).join('');
 
@@ -2741,22 +2879,33 @@ function updateCardLimitHint() {
   const hintEl = document.getElementById('cardLimitHint');
   if(!fConta || !hintEl) return;
 
-  // Se for Receita, oculta a dica de limite de cartão de crédito
-  if(currentType === 'in') {
+  const accName = fConta.value;
+  const acc = accounts.find(a => a.name === accName);
+
+  if(!acc) {
     hintEl.style.display = 'none';
     return;
   }
 
-  const accName = fConta.value;
-  const acc = accounts.find(a => a.name === accName);
-  if(acc && acc.type === 'Cartão de Crédito') {
-    const stats = getCardStats(acc);
-    hintEl.style.display = 'flex';
-    hintEl.style.background = stats.availableLimit < 200 ? 'var(--red-soft)' : 'var(--green-soft)';
-    hintEl.style.color = stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)';
-    hintEl.innerHTML = '💳 <span><strong>Limite disponível:</strong> ' + fmt(stats.availableLimit) + ' de ' + fmt(stats.totalLimit) + ' (Fatura: ' + fmt(stats.spentTotal) + ')</span>';
+  const stats = getCardStats(acc);
+
+  if(stats.isCreditCard) {
+    if(currentType === 'in') {
+      hintEl.style.display = 'flex';
+      hintEl.style.background = 'var(--green-soft)';
+      hintEl.style.color = 'var(--green)';
+      hintEl.innerHTML = '💳 <span><strong>Pagamento de Fatura / Estorno:</strong> Limite disp. atual ' + fmt(stats.availableLimit) + ' (Fatura em aberto: ' + fmt(stats.spentTotal) + ')</span>';
+    } else {
+      hintEl.style.display = 'flex';
+      hintEl.style.background = stats.availableLimit < 200 ? 'var(--red-soft)' : 'var(--green-soft)';
+      hintEl.style.color = stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)';
+      hintEl.innerHTML = '💳 <span><strong>Limite disponível:</strong> ' + fmt(stats.availableLimit) + ' de ' + fmt(stats.totalLimit) + ' (Fatura em aberto: ' + fmt(stats.spentTotal) + ')</span>';
+    }
   } else {
-    hintEl.style.display = 'none';
+    hintEl.style.display = 'flex';
+    hintEl.style.background = stats.currentBalance < 0 ? 'var(--red-soft)' : 'rgba(74,144,226,0.15)';
+    hintEl.style.color = stats.currentBalance < 0 ? 'var(--red)' : 'var(--blue)';
+    hintEl.innerHTML = '🏦 <span><strong>Saldo Atual da Conta:</strong> ' + fmt(stats.currentBalance) + '</span>';
   }
 }
 
@@ -2839,16 +2988,19 @@ async function saveTransaction(){
   const accSel = document.getElementById('fConta') ? document.getElementById('fConta').value : '';
   if(!desc || isNaN(val) || val<=0 || !date){ showToast('Preencha todos os campos corretamente'); return; }
 
+  const targetAcc = accounts.find(a => a.name === accSel);
+  const accId = targetAcc ? targetAcc.id : null;
+
   if(editingId){
     const t = transactions.find(x=>x.id===editingId);
     if(t.cat !== cat){
       const newCatObj = categories.find(c=>c.name===cat);
       if(newCatObj) newCatObj.count = (newCatObj.count||0)+1;
     }
-    Object.assign(t, {desc, val, date, cat, status, type:currentType, acc:accSel});
+    Object.assign(t, {desc, val, date, cat, status, type:currentType, acc:accSel, accId});
     showToast('Transação atualizada!');
   } else {
-    transactions.push({id: nextTxId++, desc, val, date, cat, status, type: currentType, acc:accSel});
+    transactions.push({id: nextTxId++, desc, val, date, cat, status, type: currentType, acc:accSel, accId});
     const catObj = categories.find(c=>c.name===cat);
     if(catObj) catObj.count = (catObj.count||0)+1;
     showToast('Transação adicionada!');
