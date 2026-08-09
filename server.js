@@ -153,9 +153,20 @@ const htmlContent = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Nexus Financeiro Hub</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+(function() {
+  try {
+    var s = localStorage.getItem('nexus_session') || localStorage.getItem('nexus_cached_user');
+    if (s) {
+      document.documentElement.classList.add('user-logged-in');
+    }
+  } catch(e){}
+})();
+</script>
 <style>
+html.user-logged-in #authPage { display: none !important; }
+html.user-logged-in #appMain { display: block !important; }
+
 :root{
   --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
   --text:#e9edf3; --text-dim:#8a93a3; --text-faint:#5b6472;
@@ -1442,49 +1453,75 @@ function migrateCategories(){
   if(changed) saveUserData();
 }
 
+function applyDataPayload(data) {
+  if (!data) return;
+  categories = data.categories || [];
+  accounts = data.accounts || [];
+  transactions = data.transactions || [];
+  budgets = data.budgets || [];
+  goals = data.goals || [];
+  recurringList = data.recurringList || [];
+  alerts = data.alerts || [];
+  attachments = data.attachments || [];
+  notifications = data.notifications || [];
+  nextAccId = data.nextAccId || 10;
+  nextTxId = data.nextTxId || 10;
+  nextBudgetId = data.nextBudgetId || 10;
+  nextGoalId = data.nextGoalId || 10;
+  nextRecId = data.nextRecId || 10;
+  nextAlertId = data.nextAlertId || 10;
+  nextAttId = data.nextAttId || 10;
+  nextNotifId = data.nextNotifId || 10;
+  migrateCategories();
+}
+
 async function loadUserData() {
   if (!currentUser) return;
   const userKey = 'nexus_data_' + currentUser.email;
-  let data = null;
-
-  try {
-    const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(currentUser.email));
-    if (res.ok) data = await res.json();
-  } catch(e) {
-    data = loadFromStorage(userKey, null);
+  
+  // 1. Carrega dados do cache local instantaneamente
+  let localData = loadFromStorage(userKey, null);
+  if (localData) {
+    applyDataPayload(localData);
+    if (typeof render === 'function') render();
   }
 
-  if (data) {
-    categories = data.categories || [];
-    accounts = data.accounts || [];
-    transactions = data.transactions || [];
-    budgets = data.budgets || [];
-    goals = data.goals || [];
-    recurringList = data.recurringList || [];
-    alerts = data.alerts || [];
-    attachments = data.attachments || [];
-    notifications = data.notifications || [];
-    nextAccId = data.nextAccId || 10;
-    nextTxId = data.nextTxId || 10;
-    nextBudgetId = data.nextBudgetId || 10;
-    nextGoalId = data.nextGoalId || 10;
-    nextRecId = data.nextRecId || 10;
-    nextAlertId = data.nextAlertId || 10;
-    nextAttId = data.nextAttId || 10;
-    nextNotifId = data.nextNotifId || 10;
-    migrateCategories();
-  } else {
-    categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
-    accounts = [];
-    transactions = [];
-    budgets = [];
-    goals = [];
-    recurringList = [];
-    alerts = [];
-    attachments = [];
-    notifications = [];
-    nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
-    await saveUserData();
+  // 2. Sincroniza em segundo plano com o servidor
+  try {
+    const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(currentUser.email));
+    if (res.ok) {
+      const serverData = await res.json();
+      if (serverData) {
+        applyDataPayload(serverData);
+        saveToStorage(userKey, serverData);
+      }
+    } else if (!localData) {
+      categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
+      accounts = [];
+      transactions = [];
+      budgets = [];
+      goals = [];
+      recurringList = [];
+      alerts = [];
+      attachments = [];
+      notifications = [];
+      nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
+      await saveUserData();
+    }
+  } catch(e) {
+    if (!localData) {
+      categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
+      accounts = [];
+      transactions = [];
+      budgets = [];
+      goals = [];
+      recurringList = [];
+      alerts = [];
+      attachments = [];
+      notifications = [];
+      nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
+      await saveUserData();
+    }
   }
   if (typeof render === 'function' && document.getElementById('appMain') && document.getElementById('appMain').classList.contains('show')) {
     render();
