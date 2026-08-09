@@ -1858,14 +1858,24 @@ function getCardStats(account) {
   const isCreditCard = accTypeLower.includes('cart') || accTypeLower.includes('crédito') || accTypeLower.includes('credito');
   const accNameLower = (account.name || '').toLowerCase().trim();
 
-  // Considera no cartão apenas despesas lançadas especificamente no cartão do usuário
-  const cardTx = transactions.filter(t => t.acc && t.acc.toLowerCase().trim() === accNameLower && t.type === 'out');
+  // Transações associadas especificamente a esta conta/cartão pelo nome ou id
+  const cardTx = transactions.filter(t => t.acc && t.acc.toLowerCase().trim() === accNameLower);
+  
+  // Total acumulado em faturas: Despesas (out) minus Pagamentos/Estornos (in)
+  const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
+  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
+  const spentTotal = Math.max(0, totalDespesas - totalPagamentos);
+
+  // Despesas da fatura do período selecionado (mês atual no filtro)
   const periodCardTx = cardTx.filter(inPeriod);
-  
-  const spentPeriod = periodCardTx.reduce((s, t) => s + t.val, 0);
-  const spentTotal = cardTx.reduce((s, t) => s + t.val, 0);
-  
+  const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
+  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
+  const spentPeriod = Math.max(0, periodDespesas - periodPagamentos);
+
+  // Limite Aprovado (no cadastro de cartão de crédito, o campo balance guarda o Limite Total Aprovado)
   const totalLimit = parseFloat(account.balance) || 0;
+  
+  // Limite Disponível = Limite Total Aprovado - Fatura Total Acumulada em Aberto
   const availableLimit = isCreditCard ? Math.max(0, totalLimit - spentTotal) : totalLimit;
   const usagePct = (isCreditCard && totalLimit > 0) ? Math.min(100, Math.round((spentTotal / totalLimit) * 100)) : 0;
   
@@ -1880,20 +1890,26 @@ function getCardStats(account) {
 }
 
 function computeCardSummary() {
-  const creditCards = accounts.filter(a => a.type === 'Cartão de Crédito');
+  const creditCards = accounts.filter(a => {
+    const typeLower = (a.type || '').toLowerCase().trim();
+    return typeLower.includes('cart') || typeLower.includes('crédito') || typeLower.includes('credito');
+  });
+
   let totalLimitGeral = 0;
   let spentTotalGeral = 0;
+  let spentPeriodGeral = 0;
   let availableLimitGeral = 0;
   
   creditCards.forEach(card => {
     const stats = getCardStats(card);
     totalLimitGeral += stats.totalLimit;
     spentTotalGeral += stats.spentTotal;
+    spentPeriodGeral += stats.spentPeriod;
     availableLimitGeral += stats.availableLimit;
   });
   
   const usagePctGeral = totalLimitGeral > 0 ? Math.min(100, Math.round((spentTotalGeral / totalLimitGeral) * 100)) : 0;
-  return { creditCards, totalLimitGeral, spentTotalGeral, availableLimitGeral, usagePctGeral };
+  return { creditCards, totalLimitGeral, spentTotalGeral, spentPeriodGeral, availableLimitGeral, usagePctGeral };
 }
 
 /* ==================== Cálculos ==================== */
@@ -2137,18 +2153,26 @@ function pageDashboard(){
       </h3>
       <span class="tag" data-nav="cartoes" style="cursor:pointer; background:var(--green-soft); color:var(--green);">Ver todos os cartões</span>
     </div>
-    <div class="kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+    <div class="kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(170px, 1fr)); gap:12px;">
       <div class="kpi" style="background:rgba(255,255,255,0.03); padding:12px 14px; border-radius:10px; border:1px solid var(--card-border);">
         <div class="row1" style="color:var(--text-dim); font-size:12px;">Limite Disponível Total</div>
         <div class="val" style="font-size:20px; font-weight:800; color:var(--green); margin-top:2px;">\${fmt(cardSummary.availableLimitGeral)}</div>
+        <div class="sub" style="font-size:10.5px; color:var(--text-faint); margin-top:2px;">Para novas compras</div>
       </div>
       <div class="kpi" style="background:rgba(255,255,255,0.03); padding:12px 14px; border-radius:10px; border:1px solid var(--card-border);">
-        <div class="row1" style="color:var(--text-dim); font-size:12px;">Total em Faturas / Uso</div>
-        <div class="val" style="font-size:20px; font-weight:800; color:var(--orange); margin-top:2px;">\${fmt(cardSummary.spentTotalGeral)}</div>
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Fatura do Mês</div>
+        <div class="val" style="font-size:20px; font-weight:800; color:var(--orange); margin-top:2px;">\${fmt(cardSummary.spentPeriodGeral)}</div>
+        <div class="sub" style="font-size:10.5px; color:var(--text-faint); margin-top:2px;">\${periodLabel()}</div>
+      </div>
+      <div class="kpi" style="background:rgba(255,255,255,0.03); padding:12px 14px; border-radius:10px; border:1px solid var(--card-border);">
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Fatura Acumulada em Aberto</div>
+        <div class="val" style="font-size:20px; font-weight:800; color:var(--red); margin-top:2px;">\${fmt(cardSummary.spentTotalGeral)}</div>
+        <div class="sub" style="font-size:10.5px; color:var(--text-faint); margin-top:2px;">Compras minus pagamentos</div>
       </div>
       <div class="kpi" style="background:rgba(255,255,255,0.03); padding:12px 14px; border-radius:10px; border:1px solid var(--card-border);">
         <div class="row1" style="color:var(--text-dim); font-size:12px;">Limite Aprovado Total</div>
         <div class="val" style="font-size:20px; font-weight:800; color:var(--blue); margin-top:2px;">\${fmt(cardSummary.totalLimitGeral)}</div>
+        <div class="sub" style="font-size:10.5px; color:var(--text-faint); margin-top:2px;">Soma dos cartões</div>
       </div>
     </div>
     <div style="margin-top:10px;">
@@ -2338,16 +2362,21 @@ function pageContas(){
       </h3>
       <span class="tag" style="cursor:default; background:var(--green-soft); color:var(--green);">\${summary.creditCards.length} cartão(ões)</span>
     </div>
-    <div class="kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
+    <div class="kpi-grid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:14px;">
       <div class="kpi" style="background:rgba(255,255,255,0.03); padding:14px; border-radius:12px; border:1px solid var(--card-border);">
         <div class="row1" style="color:var(--text-dim); font-size:12px;">Limite Disponível Total</div>
         <div class="val" style="font-size:22px; font-weight:800; color:var(--green); margin-top:4px;">\${fmt(summary.availableLimitGeral)}</div>
         <div class="sub" style="font-size:11px; color:var(--text-faint); margin-top:2px;">Disponível para compras</div>
       </div>
       <div class="kpi" style="background:rgba(255,255,255,0.03); padding:14px; border-radius:12px; border:1px solid var(--card-border);">
-        <div class="row1" style="color:var(--text-dim); font-size:12px;">Fatura / Limite Utilizado</div>
-        <div class="val" style="font-size:22px; font-weight:800; color:var(--orange); margin-top:4px;">\${fmt(summary.spentTotalGeral)}</div>
-        <div class="sub" style="font-size:11px; color:var(--text-faint); margin-top:2px;">Total de despesas em cartões</div>
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Fatura do Mês (\${periodLabel()})</div>
+        <div class="val" style="font-size:22px; font-weight:800; color:var(--orange); margin-top:4px;">\${fmt(summary.spentPeriodGeral)}</div>
+        <div class="sub" style="font-size:11px; color:var(--text-faint); margin-top:2px;">Gastos no mês selecionado</div>
+      </div>
+      <div class="kpi" style="background:rgba(255,255,255,0.03); padding:14px; border-radius:12px; border:1px solid var(--card-border);">
+        <div class="row1" style="color:var(--text-dim); font-size:12px;">Fatura Acumulada em Aberto</div>
+        <div class="val" style="font-size:22px; font-weight:800; color:var(--red); margin-top:4px;">\${fmt(summary.spentTotalGeral)}</div>
+        <div class="sub" style="font-size:11px; color:var(--text-faint); margin-top:2px;">Compras minus pagamentos</div>
       </div>
       <div class="kpi" style="background:rgba(255,255,255,0.03); padding:14px; border-radius:12px; border:1px solid var(--card-border);">
         <div class="row1" style="color:var(--text-dim); font-size:12px;">Limite Total Aprovado</div>
