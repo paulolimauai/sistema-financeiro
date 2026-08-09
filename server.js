@@ -1380,13 +1380,14 @@ document.getElementById('registerForm').onsubmit = async (e) => {
 
 // Logout
 document.getElementById('logoutBtn').onclick = async () => {
-  await saveUserData();
+  try { await saveUserData(); } catch(e){}
   currentUser = null;
   isViewingOtherUser = false;
   adminOriginalUser = null;
   localStorage.removeItem('nexus_session');
   localStorage.removeItem('nexus_cached_user');
   localStorage.removeItem('nexus_token');
+  document.documentElement.classList.remove('user-logged-in');
   document.getElementById('appMain').classList.remove('show');
   document.getElementById('authPage').classList.add('show');
   showToast('Sessão encerrada.');
