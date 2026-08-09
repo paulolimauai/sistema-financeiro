@@ -1711,6 +1711,17 @@ function bindPasswordToggle(inputId, btnId){
   };
 }
 function getDefaultPeriod(){
+  try {
+    const saved = localStorage.getItem('fin_current_period');
+    if (saved) {
+      const p = JSON.parse(saved);
+      if (p && typeof p.year === 'number' && typeof p.month === 'number') {
+        if (p.year >= PERIOD_MIN.year && p.year <= PERIOD_MAX.year && p.month >= 1 && p.month <= 12) {
+          return { year: p.year, month: p.month };
+        }
+      }
+    }
+  } catch(e) {}
   const now = new Date();
   let y = now.getFullYear(), m = now.getMonth()+1;
   if(y < PERIOD_MIN.year || (y===PERIOD_MIN.year && m < PERIOD_MIN.month)) return {year:PERIOD_MIN.year, month:PERIOD_MIN.month};
@@ -3352,13 +3363,15 @@ function attachPageEvents(){
     yearSel.onchange = buildMonths;
     document.getElementById('periodApplyBtn').onclick = ()=>{
       currentPeriod = { year: parseInt(yearSel.value), month: parseInt(document.getElementById('periodMonthSel').value) };
+      try { localStorage.setItem('fin_current_period', JSON.stringify(currentPeriod)); } catch(e){}
       document.getElementById('periodPanel').classList.remove('show');
       periodBtn.classList.remove('open');
       render();
     };
     document.getElementById('periodTodayBtn').onclick = ()=>{
-      const def = getDefaultPeriod();
-      currentPeriod = { year: def.year, month: def.month };
+      const now = new Date();
+      currentPeriod = { year: now.getFullYear(), month: now.getMonth() + 1 };
+      try { localStorage.setItem('fin_current_period', JSON.stringify(currentPeriod)); } catch(e){}
       document.getElementById('periodPanel').classList.remove('show');
       periodBtn.classList.remove('open');
       render();
