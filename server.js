@@ -147,55 +147,6 @@ async function initDatabase() {
   );
 }
 
-/* ==================== High-Quality SVG Icons Dictionary ==================== */
-const SVG_ICONS = {
-  dashboard: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>',
-  transacoes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
-  cartoes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>',
-  orcamentos: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>',
-  metas: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>',
-  relatorios: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
-  recorrentes: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M21 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>',
-  importar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg>',
-  anexos: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>',
-  config: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>',
-  usuarios: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
-  bell: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>',
-  moon: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
-  sun: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/></svg>',
-  logout: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></svg>',
-  plus: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
-  edit: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>',
-  trash: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>',
-  play: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>',
-  eye: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>',
-  eyeOff: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.52 13.52 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/></svg>',
-  trendUp: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>',
-  trendDown: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>',
-  arrowUp: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>',
-  arrowDown: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>',
-  exchange: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg>',
-  list: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
-  tag: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l11.29 11.29a1 1 0 0 0 1.41 0l7.3-7.3a1 1 0 0 0 0-1.41L12 2z"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg>',
-  check: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
-  block: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>',
-  alertTriangle: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
-  lock: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
-  wallet: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3v4a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V7"/><path d="M18 12h.01"/></svg>',
-  bank: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="21" x2="21" y2="21"/><line x1="6" y1="18" x2="6" y2="11"/><line x1="10" y1="18" x2="10" y2="11"/><line x1="14" y1="18" x2="14" y2="11"/><line x1="18" y1="18" x2="18" y2="11"/><polygon points="12 3 2 10 22 10 12 3"/></svg>',
-  folder: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2z"/></svg>',
-  calendar: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
-  close: '<svg class="icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
-};
-
-function getSvgIcon(name, extraClass, extraStyle) {
-  var svg = SVG_ICONS[name] || SVG_ICONS['folder'];
-  if (!extraClass && !extraStyle) return svg;
-  var cls = 'class="icon-svg' + (extraClass ? ' ' + extraClass : '') + '"';
-  var st = extraStyle ? ' style="' + extraStyle + '"' : '';
-  return svg.replace('class="icon-svg"', cls + st);
-}
-
 // Conteúdo HTML/JS/CSS da aplicação centralizada com isolamento por usuário
 const htmlContent = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -389,38 +340,6 @@ body.light .app-bg-chart{opacity:.08;}
 body.light .app-blob{opacity:.08;}
 body.light .app-blob.a3{opacity:.05;}
 
-/* ==================== SVG Icons Styles ==================== */
-.icon-svg {
-  width: 1.15em;
-  height: 1.15em;
-  display: inline-block;
-  vertical-align: middle;
-  flex-shrink: 0;
-  stroke: currentColor;
-  fill: none;
-}
-.menu button .ic {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-}
-.icon-btn, .btn-primary, .btn-ghost, .row-actions button, .row-view, .row-toggle, .placeholder .big, .close-x, .pill, .type-ic, .kpi .ic {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.placeholder .big .icon-svg {
-  width: 48px;
-  height: 48px;
-  stroke-width: 1.5;
-}
-.close-x .icon-svg {
-  width: 18px;
-  height: 18px;
-}
-
 /* ==================== Cabeçalho superior (nav horizontal) ==================== */
 .topheader{
   position:sticky; top:0; z-index:50; background:var(--sidebar); border-bottom:1px solid var(--card-border);
@@ -451,7 +370,8 @@ nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:1
 }
 .menu button:hover{background:var(--hover); color:var(--text);}
 .menu button.active{background:var(--green-soft); color:var(--green); font-weight:700;}
-.menu button .ic{width:18px; text-align:center; font-size:15.5px; flex-shrink:0;}
+.menu button .ic{width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;}
+.menu button .ic svg, .icon-btn svg{width:18px; height:18px; display:block;}
 
 /* ==================== Logo / Crédito de Desenvolvimento ==================== */
 .auth-dev-credit{
@@ -1046,7 +966,7 @@ tr.trow:hover td{background:var(--hover);}
       </div>
       <div class="right" style="margin-left:auto;">
         <div class="notif-wrap">
-          <div class="icon-btn" id="notifBtn">${getSvgIcon('bell')}<span class="dot" id="notifDot" style="display:none;"></span></div>
+          <div class="icon-btn" id="notifBtn" title="Notificações"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="dot" id="notifDot" style="display:none;"></span></div>
           <div class="notif-panel" id="notifPanel">
             <div class="notif-panel-head">
               <h4>Notificações</h4>
@@ -1055,26 +975,26 @@ tr.trow:hover td{background:var(--hover);}
             <div class="notif-list" id="notifList"></div>
           </div>
         </div>
-        <div class="icon-btn" id="miniThemeBtn">${getSvgIcon('moon')}</div>
+        <div class="icon-btn" id="miniThemeBtn" title="Alternar Tema"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 0 1 1-9-9Z"/></svg></div>
         <div class="user" id="userMenu" data-nav="config">
           <div class="avatar" id="headerAvatar">PL</div>
           <div><div class="uname" id="headerName">Paulo Lima</div><div class="urole" id="headerRole">Usuário</div></div>
         </div>
-        <button class="btn-ghost" id="logoutBtn" style="gap:6px;">${getSvgIcon('logout')} Sair</button>
+        <button class="btn-ghost" id="logoutBtn">Sair</button>
       </div>
     </div>
     <nav class="menu" id="menu">
-      <button data-page="dashboard"><span class="ic">${getSvgIcon('dashboard')}</span> Dashboard</button>
-      <button data-page="transacoes"><span class="ic">${getSvgIcon('transacoes')}</span> Transações</button>
-      <button data-page="cartoes"><span class="ic">${getSvgIcon('cartoes')}</span> Cartões</button>
-      <button data-page="orcamentos"><span class="ic">${getSvgIcon('orcamentos')}</span> Orçamentos</button>
-      <button data-page="metas"><span class="ic">${getSvgIcon('metas')}</span> Metas</button>
-      <button data-page="relatorios"><span class="ic">${getSvgIcon('relatorios')}</span> Relatórios</button>
-      <button data-page="recorrentes"><span class="ic">${getSvgIcon('recorrentes')}</span> Recorrentes</button>
-      <button data-page="importar"><span class="ic">${getSvgIcon('importar')}</span> Importar</button>
-      <button data-page="anexos"><span class="ic">${getSvgIcon('anexos')}</span> Anexos</button>
-      <button data-page="config"><span class="ic">${getSvgIcon('config')}</span> Configurações</button>
-      <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic">${getSvgIcon('usuarios')}</span> Usuários Cadastrados</button>
+      <button data-page="dashboard"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span> Dashboard</button>
+      <button data-page="transacoes"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg></span> Transações</button>
+      <button data-page="cartoes"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span> Cartões</button>
+      <button data-page="orcamentos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span> Orçamentos</button>
+      <button data-page="metas"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span> Metas</button>
+      <button data-page="relatorios"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8" rx="1"/><rect x="12" y="5" width="3" height="13" rx="1"/><rect x="17" y="13" width="3" height="5" rx="1"/></svg></span> Relatórios</button>
+      <button data-page="recorrentes"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span> Recorrentes</button>
+      <button data-page="importar"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg></span> Importar</button>
+      <button data-page="anexos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span> Anexos</button>
+      <button data-page="config"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
+      <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Usuários Cadastrados</button>
     </nav>
   </div>
 
@@ -1092,11 +1012,11 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Transação -->
 <div class="overlay" id="overlay">
   <div class="modal">
-    <button class="close-x" id="closeModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeModal">✕</button>
     <h2 id="modalTitle">Nova Transação</h2>
     <div class="toggle-type">
-      <button type="button" id="typeInBtn">${getSvgIcon('arrowDown')} Receita</button>
-      <button type="button" id="typeOutBtn">${getSvgIcon('arrowUp')} Despesa</button>
+      <button type="button" id="typeInBtn">↓ Receita</button>
+      <button type="button" id="typeOutBtn">↑ Despesa</button>
     </div>
     <div class="field"><label>Descrição</label><input id="fDesc" placeholder="Ex: Supermercado"></div>
     <div class="field-row">
@@ -1106,7 +1026,7 @@ tr.trow:hover td{background:var(--hover);}
     <div class="field"><label>Categoria</label>
       <div style="display:flex; gap:6px;">
         <select id="fCategoria" style="flex:1;"></select>
-        <button type="button" id="fCategoriaAddBtn" title="Nova categoria" style="flex-shrink:0; width:40px; border:1px solid var(--card-border); background:var(--card); border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; color:var(--text); display:inline-flex; align-items:center; justify-content:center;">${getSvgIcon('plus')}</button>
+        <button type="button" id="fCategoriaAddBtn" title="Nova categoria" style="flex-shrink:0; width:40px; border:1px solid var(--card-border); background:var(--card); border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; color:var(--text);">+</button>
       </div>
     </div>
     <div class="field"><label>Status</label>
@@ -1122,7 +1042,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Conta -->
 <div class="overlay" id="overlayAccount">
   <div class="modal">
-    <button class="close-x" id="closeAccModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeAccModal">✕</button>
     <h2 id="accModalTitle">Nova Conta</h2>
     <div class="field"><label>Nome</label><input id="accName" placeholder="Ex: Nubank"></div>
     <div class="field"><label>Tipo</label>
@@ -1142,7 +1062,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Categoria -->
 <div class="overlay" id="overlayCategory">
   <div class="modal">
-    <button class="close-x" id="closeCatModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeCatModal">✕</button>
     <h2 id="catModalTitle">Nova Categoria</h2>
     <div class="field"><label>Nome</label><input id="catName" placeholder="Ex: Educação"></div>
     <div class="field"><label>Tipo</label>
@@ -1163,16 +1083,16 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Gerenciar Categorias -->
 <div class="overlay" id="overlayCatManage">
   <div class="modal" style="max-width:600px;">
-    <button class="close-x" id="closeCatManageModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeCatManageModal">✕</button>
     <h2>Gerenciar Categorias</h2>
     <div class="cat-manage-tabs">
-      <button type="button" class="cat-tab" data-cattab="despesa">${getSvgIcon('arrowDown')} Despesas</button>
-      <button type="button" class="cat-tab" data-cattab="receita">${getSvgIcon('arrowUp')} Receitas</button>
+      <button type="button" class="cat-tab" data-cattab="despesa">↓ Despesas</button>
+      <button type="button" class="cat-tab" data-cattab="receita">↑ Receitas</button>
     </div>
     <div id="catManageList" class="cat-cards" style="margin-top:14px;"></div>
     <div class="modal-actions">
       <button id="catManageCloseBtn">Fechar</button>
-      <button class="save" id="catManageAddBtn" style="gap:6px;">${getSvgIcon('plus')} Nova Categoria</button>
+      <button class="save" id="catManageAddBtn">+ Nova Categoria</button>
     </div>
   </div>
 </div>
@@ -1180,7 +1100,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Orçamento -->
 <div class="overlay" id="overlayBudget">
   <div class="modal">
-    <button class="close-x" id="closeOrcModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeOrcModal">✕</button>
     <h2 id="orcModalTitle">Novo Orçamento</h2>
     <div class="field"><label>Categoria</label><select id="orcCategoria"></select></div>
     <div class="field"><label>Limite mensal (R$)</label><input id="orcLimite" type="number" step="0.01" placeholder="0,00"></div>
@@ -1194,7 +1114,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Meta -->
 <div class="overlay" id="overlayGoal">
   <div class="modal">
-    <button class="close-x" id="closeGoalModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeGoalModal">✕</button>
     <h2 id="goalModalTitle">Nova Meta</h2>
     <div class="field"><label>Nome da meta</label><input id="goalName" placeholder="Ex: Reserva de Emergência"></div>
     <div class="field-row">
@@ -1212,11 +1132,11 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Recorrente -->
 <div class="overlay" id="overlayRecurring">
   <div class="modal">
-    <button class="close-x" id="closeRecModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeRecModal">✕</button>
     <h2 id="recModalTitle">Novo Lançamento Recorrente</h2>
     <div class="toggle-type">
-      <button type="button" id="recTypeInBtn">${getSvgIcon('arrowDown')} Receita</button>
-      <button type="button" id="recTypeOutBtn">${getSvgIcon('arrowUp')} Despesa</button>
+      <button type="button" id="recTypeInBtn">↓ Receita</button>
+      <button type="button" id="recTypeOutBtn">↑ Despesa</button>
     </div>
     <div class="field"><label>Descrição</label><input id="recDesc" placeholder="Ex: Internet"></div>
     <div class="field-row">
@@ -1238,7 +1158,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Alerta -->
 <div class="overlay" id="overlayAlert">
   <div class="modal">
-    <button class="close-x" id="closeAlertModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeAlertModal">✕</button>
     <h2 id="alertModalTitle">Novo Alerta</h2>
     <div class="field"><label>Categoria</label><select id="alertCategoria"></select></div>
     <div class="field"><label>Acionar ao atingir (%) do orçamento</label><input id="alertThreshold" type="number" min="1" max="200" value="90"></div>
@@ -1252,7 +1172,7 @@ tr.trow:hover td{background:var(--hover);}
 <!-- Modal Usuário (Admin) -->
 <div class="overlay" id="overlayUserAdmin">
   <div class="modal">
-    <button class="close-x" id="closeUserAdminModal">${getSvgIcon('close')}</button>
+    <button class="close-x" id="closeUserAdminModal">✕</button>
     <h2>Editar Usuário</h2>
     <div class="field"><label>Nome</label><input id="userAdminName"></div>
     <div class="field"><label>E-mail</label><input id="userAdminEmail" disabled style="opacity:0.6;"></div>
@@ -2020,7 +1940,7 @@ function periodPickerHTML(){
       <svg class="period-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div class="period-panel" id="periodPanel">
-      <button type="button" class="period-today-btn" id="periodTodayBtn">\${getSvgIcon('calendar')} Ir para o mês atual</button>
+      <button type="button" class="period-today-btn" id="periodTodayBtn">📍 Ir para o mês atual</button>
       <div class="field"><label>Ano</label><select id="periodYearSel"></select></div>
       <div class="field"><label>Mês</label><select id="periodMonthSel"></select></div>
       <button class="btn-primary" id="periodApplyBtn" style="width:100%;justify-content:center">Aplicar</button>
@@ -2042,16 +1962,16 @@ function pageDashboard(){
     <div><h1>Olá, \${currentUser ? currentUser.name.split(' ')[0] : 'Usuário'} 👋</h1><p>Aqui está o resumo da sua vida financeira</p></div>
     <div class="head-actions">
       \${periodPickerHTML()}
-      <button class="btn-primary" id="btnNovaTransacao">\${getSvgIcon('plus')} Nova Transação</button>
+      <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
     </div>
   </div>
 
   <div class="kpis">
-    <div class="kpi"><div class="row1">Saldo Total <span class="ic" style="background:rgba(232,176,75,.14);color:var(--green);width:32px;height:32px;">\${getSvgIcon('wallet')}</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
-    <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green);width:32px;height:32px;">\${getSvgIcon('trendUp')}</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red);width:32px;height:32px;">\${getSvgIcon('trendDown')}</span></div><div class="val">\${fmt(despesas)}</div><div class="sub">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue);width:32px;height:32px;">\${getSvgIcon('exchange')}</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple);width:32px;height:32px;">\${getSvgIcon('list')}</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
+    <div class="kpi"><div class="row1">Saldo Total <span>👁</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
+    <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div><div class="val">\${fmt(despesas)}</div><div class="sub">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
+    <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
   </div>
 
   <div class="grid3">
@@ -2086,7 +2006,7 @@ function pageDashboard(){
             <div class="acc-ic" style="background:\${a.color}">\${a.name.slice(0,2).toUpperCase()}</div>
             <div class="acc-info"><div class="n">\${a.name}</div><div class="t">\${a.type}</div></div>
             <div class="acc-val \${a.balance<0?'neg':''}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
-            <button class="acc-edit" data-editacc="\${a.id}">\${getSvgIcon('edit')}</button>
+            <button class="acc-edit" data-editacc="\${a.id}">✎</button>
           </div>\`).join('')}
       </div>
       <button class="btn-ghost" style="width:100%" data-nav="cartoes">Ver todas as contas</button>
@@ -2102,9 +2022,9 @@ function pageDashboard(){
 
 function transactionsTable(list, showActions){
   if (typeof isDataLoading !== 'undefined' && isDataLoading && list.length === 0) {
-    return \`<div class="placeholder" style="padding:40px 20px;"><div class="big" style="margin-bottom:12px;">\${getSvgIcon('exchange')}</div><h3>Carregando suas transações...</h3><p>Sincronizando seus dados financeiros com o servidor.</p></div>\`;
+    return \`<div class="placeholder" style="padding:40px 20px;"><div class="big" style="font-size:30px;margin-bottom:12px;">⏳</div><h3>Carregando suas transações...</h3><p>Sincronizando seus dados financeiros com o servidor.</p></div>\`;
   }
-  if(list.length===0) return \`<div class="placeholder"><div class="big">\${getSvgIcon('folder')}</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>\`;
+  if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>\`;
   return \`
   <table>
     <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th>\${showActions?'<th></th>':''}</tr></thead>
@@ -2114,10 +2034,10 @@ function transactionsTable(list, showActions){
           <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
           <td>\${t.desc}</td>
           <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${t.cat}</span></td>
-          <td><span class="type-ic \${t.type}">\${t.type==='in'?getSvgIcon('trendUp'):getSvgIcon('trendDown')}</span></td>
+          <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
           <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
           <td><span class="pill status-\${t.status.toLowerCase()}">\${t.status}</span></td>
-          \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}" title="Editar">\${getSvgIcon('edit')}</button><button data-del="\${t.id}" title="Excluir">\${getSvgIcon('trash')}</button></div></td>\`:''}
+          \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}">✎</button><button data-del="\${t.id}">🗑</button></div></td>\`:''}
         </tr>\`).join('')}
     </tbody>
   </table>\`;
@@ -2128,8 +2048,8 @@ function pageTransacoes(){
   <div class="page-head">
     <div><h1>Transações</h1><p>Gerencie todas as suas receitas e despesas</p></div>
     <div class="head-actions">
-      <button class="btn-ghost" id="btnGerenciarCategorias" style="gap:6px;">\${getSvgIcon('tag')} Categorias</button>
-      <button class="btn-primary" id="btnNovaTransacao">\${getSvgIcon('plus')} Nova Transação</button>
+      <button class="btn-ghost" id="btnGerenciarCategorias">🏷️ Categorias</button>
+      <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
     </div>
   </div>
   <div class="table-panel">
@@ -2148,7 +2068,7 @@ function pageContas(){
   return \`
   <div class="page-head">
     <div><h1>Cartões</h1><p>Cadastre suas contas e cartões — corrente, poupança, crédito, investimento</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovaConta">\${getSvgIcon('plus')} Novo Cartão/Conta</button></div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovaConta">+ Novo Cartão/Conta</button></div>
   </div>
   <div class="grid3" style="grid-template-columns:repeat(3,1fr);">
     \${list.length? list.map(a=>\`
@@ -2158,11 +2078,11 @@ function pageContas(){
             <span class="acc-ic" style="background:\${a.color};">\${a.name.slice(0,2).toUpperCase()}</span>
             <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${a.name}</h3>
           </div>
-          <div class="row-actions"><button data-editacc="\${a.id}" title="Editar">\${getSvgIcon('edit')}</button><button data-delacc="\${a.id}" title="Excluir">\${getSvgIcon('trash')}</button></div>
+          <div class="row-actions"><button data-editacc="\${a.id}" title="Editar">✎</button><button data-delacc="\${a.id}" title="Excluir">🗑</button></div>
         </div>
         <p style="color:var(--text-faint);font-size:12px;margin-bottom:8px;">\${a.type}</p>
         <div class="val" style="font-size:22px;font-weight:700;color:\${a.balance<0?'var(--red)':'var(--green)'}">\${a.balance<0?'-':''}\${fmt(Math.abs(a.balance))}</div>
-      </div>\`).join('') : \`<div class="placeholder"><div class="big">\${getSvgIcon('bank')}</div><h3>Nenhuma conta cadastrada</h3></div>\`}
+      </div>\`).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
   </div>\`;
 }
 
@@ -2171,7 +2091,7 @@ function pageOrcamentos(){
   return \`
   <div class="page-head">
     <div><h1>Orçamentos</h1><p>Limites de gastos por categoria — \${periodLabel()}</p></div>
-    <div class="head-actions">\${periodPickerHTML()}<button class="btn-primary" id="btnNovoOrcamento">\${getSvgIcon('plus')} Novo Orçamento</button></div>
+    <div class="head-actions">\${periodPickerHTML()}<button class="btn-primary" id="btnNovoOrcamento">+ Novo Orçamento</button></div>
   </div>
   <div class="cat-cards">
     \${list.length? list.map(b=>{
@@ -2179,13 +2099,13 @@ function pageOrcamentos(){
       return \`<div class="cat-card">
         <div class="top">
           <div class="id-group"><span class="dot" style="background:\${catColor(b.category)}"></span><h4>\${b.category}</h4></div>
-          <div class="row-actions"><button data-editorc="\${b.id}" title="Editar">\${getSvgIcon('edit')}</button><button data-delorc="\${b.id}" title="Excluir">\${getSvgIcon('trash')}</button></div>
+          <div class="row-actions"><button data-editorc="\${b.id}" title="Editar">✎</button><button data-delorc="\${b.id}" title="Excluir">🗑</button></div>
         </div>
         <span style="color:\${color};font-size:11.5px;font-weight:600">\${b.pct}% usado</span>
         <div class="amt" style="margin-top:6px">\${fmt(b.spent)} <span style="color:var(--text-faint);font-size:12px;font-weight:400"> / \${fmt(b.limit)}</span></div>
         <div class="bar-split" style="background:var(--card-border)"><div class="g" style="width:\${Math.min(b.pct,100)}%; background:\${color}"></div></div>
       </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">\${getSvgIcon('orcamentos')}</div><h3>Nenhum orçamento definido</h3><p>Crie limites de gastos por categoria para acompanhar seu mês.</p></div>\`}
+    }).join('') : \`<div class="placeholder"><div class="big">◔</div><h3>Nenhum orçamento definido</h3><p>Crie limites de gastos por categoria para acompanhar seu mês.</p></div>\`}
   </div>\`;
 }
 
@@ -2193,7 +2113,7 @@ function pageMetas(){
   return \`
   <div class="page-head">
     <div><h1>Metas</h1><p>Acompanhe seus objetivos financeiros</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovaMeta">\${getSvgIcon('plus')} Nova Meta</button></div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovaMeta">+ Nova Meta</button></div>
   </div>
   <div class="cat-cards">
     \${goals.length? goals.map(g=>{
@@ -2201,15 +2121,15 @@ function pageMetas(){
       return \`<div class="acc-card">
         <div class="top">
           <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${g.name}</h3>
-          <div class="row-actions"><button data-editmeta="\${g.id}" title="Editar">\${getSvgIcon('edit')}</button><button data-delmeta="\${g.id}" title="Excluir">\${getSvgIcon('trash')}</button></div>
+          <div class="row-actions"><button data-editmeta="\${g.id}" title="Editar">✎</button><button data-delmeta="\${g.id}" title="Excluir">🗑</button></div>
         </div>
         <p style="color:var(--text-faint);font-size:11.5px;margin-bottom:10px;">Prazo: \${new Date(g.deadline+'T00:00').toLocaleDateString('pt-BR')}</p>
         <div class="val" style="font-size:18px;">\${fmt(g.current)} <span style="color:var(--text-faint);font-size:12px;font-weight:400"> / \${fmt(g.target)}</span></div>
         <div class="bar-split" style="background:var(--card-border);margin-top:10px"><div class="g" style="width:\${pct}%"></div></div>
         <div class="split-labels" style="margin-top:6px"><span>\${pct}% concluído</span></div>
-        <button class="btn-ghost" style="width:100%;margin-top:12px;gap:6px;" data-addcontrib="\${g.id}">\${getSvgIcon('plus')} Adicionar valor</button>
+        <button class="btn-ghost" style="width:100%;margin-top:12px" data-addcontrib="\${g.id}">+ Adicionar valor</button>
       </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">\${getSvgIcon('metas')}</div><h3>Nenhuma meta cadastrada</h3></div>\`}
+    }).join('') : \`<div class="placeholder"><div class="big">◎</div><h3>Nenhuma meta cadastrada</h3></div>\`}
   </div>\`;
 }
 
@@ -2228,7 +2148,7 @@ function pageRelatorios(){
     <div class="panel-head"><h3>Despesas por Categoria (geral)</h3></div>
     \${allCats.length? \`<table><thead><tr><th>Categoria</th><th>Total Gasto</th><th>% do Total</th></tr></thead>
     <tbody>\${allCats.map(c=>\`<tr class="trow"><td><span class="pill" style="background:\${c.color}22;color:\${c.color}">\${c.name}</span></td><td class="val-out">\${fmt(c.val)}</td><td>\${Math.round(c.val/(totalDespesas||1)*100)}%</td></tr>\`).join('')}</tbody></table>\`
-    : \`<div class="placeholder"><div class="big">\${getSvgIcon('relatorios')}</div><h3>Nenhum dado disponível</h3></div>\`}
+    : \`<div class="placeholder"><div class="big">▥</div><h3>Nenhum dado disponível</h3></div>\`}
   </div>\`;
 }
 
@@ -2236,7 +2156,7 @@ function pageRecorrentes(){
   return \`
   <div class="page-head">
     <div><h1>Lançamentos Recorrentes</h1><p>Transações que se repetem automaticamente</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovoRecorrente">\${getSvgIcon('plus')} Novo Recorrente</button></div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovoRecorrente">+ Novo Recorrente</button></div>
   </div>
   <div class="table-panel">
     \${recurringList.length? \`<table><thead><tr><th>Descrição</th><th>Categoria</th><th>Conta</th><th>Frequência</th><th>Dia</th><th>Tipo</th><th>Valor</th><th></th></tr></thead>
@@ -2244,10 +2164,10 @@ function pageRecorrentes(){
       <td>\${r.desc}</td>
       <td><span class="pill" style="background:\${catColor(r.cat)}22;color:\${catColor(r.cat)}">\${r.cat}</span></td>
       <td>\${r.acc}</td><td>\${r.freq}</td><td>Dia \${r.day}</td>
-      <td><span class="type-ic \${r.type}">\${r.type==='in'?getSvgIcon('trendUp'):getSvgIcon('trendDown')}</span></td>
+      <td><span class="type-ic \${r.type}">\${r.type==='in'?'↑':'↓'}</span></td>
       <td class="\${r.type==='in'?'val-in':'val-out'}">\${r.type==='in'?'+':'-'}\${fmt(r.val)}</td>
-      <td><div class="row-actions"><button data-lancar="\${r.id}" title="Lançar agora">\${getSvgIcon('play')}</button><button data-editrec="\${r.id}" title="Editar">\${getSvgIcon('edit')}</button><button data-delrec="\${r.id}" title="Excluir">\${getSvgIcon('trash')}</button></div></td>
-    </tr>\`).join('')}</tbody></table>\` : \`<div class="placeholder"><div class="big">\${getSvgIcon('recorrentes')}</div><h3>Nenhum lançamento recorrente</h3></div>\`}
+      <td><div class="row-actions"><button data-lancar="\${r.id}" title="Lançar agora">▶</button><button data-editrec="\${r.id}">✎</button><button data-delrec="\${r.id}">🗑</button></div></td>
+    </tr>\`).join('')}</tbody></table>\` : \`<div class="placeholder"><div class="big">↻</div><h3>Nenhum lançamento recorrente</h3></div>\`}
   </div>\`;
 }
 
@@ -2276,18 +2196,18 @@ function pageAnexos(){
       <div class="field"><label>Transação vinculada</label><select id="attTx">\${sortedTx.map(t=>\`<option value="\${t.id}">\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')} — \${t.desc}</option>\`).join('')}</select></div>
       <div class="field"><label>Arquivo</label><input type="file" id="attFile" accept="image/*,.pdf"></div>
     </div>
-    <button class="btn-primary" id="btnAddAnexo">\${getSvgIcon('plus')} Anexar</button>
+    <button class="btn-primary" id="btnAddAnexo">+ Anexar</button>
   </div>
   <div class="cat-cards" style="margin-top:16px;">
     \${attachments.length? attachments.map(a=>{
       const t = transactions.find(x=>x.id===a.txId);
       return \`<div class="cat-card">
-        <div class="row-actions"><button data-delatt="\${a.id}" title="Excluir">\${getSvgIcon('trash')}</button></div>
-        \${a.dataUrl ? \`<img src="\${a.dataUrl}" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;">\` : \`<div style="font-size:28px;margin-bottom:8px;">\${getSvgIcon('anexos')}</div>\`}
+        <div class="row-actions"><button data-delatt="\${a.id}">🗑</button></div>
+        \${a.dataUrl ? \`<img src="\${a.dataUrl}" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;">\` : \`<div style="font-size:28px;margin-bottom:8px;">📎</div>\`}
         <h4 style="font-size:12.5px;">\${a.name}</h4>
         <p style="color:var(--text-faint);font-size:11px;margin-top:4px;">\${t? t.desc : 'Transação removida'}</p>
       </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">\${getSvgIcon('anexos')}</div><h3>Nenhum anexo enviado</h3></div>\`}
+    }).join('') : \`<div class="placeholder"><div class="big">📎</div><h3>Nenhum anexo enviado</h3></div>\`}
   </div>\`;
 }
 
@@ -2296,7 +2216,7 @@ function pageAlertas(){
   return \`
   <div class="page-head">
     <div><h1>Alertas</h1><p>Avisos automáticos de orçamento — \${periodLabel()}</p></div>
-    <div class="head-actions"><button class="btn-primary" id="btnNovoAlerta">\${getSvgIcon('plus')} Novo Alerta</button></div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovoAlerta">+ Novo Alerta</button></div>
   </div>
   <div class="cat-cards">
     \${alerts.length? alerts.map(al=>{
@@ -2306,13 +2226,13 @@ function pageAlertas(){
       return \`<div class="cat-card">
         <div class="top">
           <div class="id-group"><span class="dot" style="background:\${triggered?'var(--red)':'var(--green)'}"></span><h4>\${al.category}</h4></div>
-          <div class="row-actions"><button data-editalert="\${al.id}" title="Editar">\${getSvgIcon('edit')}</button><button data-delalert="\${al.id}" title="Excluir">\${getSvgIcon('trash')}</button></div>
+          <div class="row-actions"><button data-editalert="\${al.id}" title="Editar">✎</button><button data-delalert="\${al.id}" title="Excluir">🗑</button></div>
         </div>
         <span class="pill" style="background:\${triggered?'var(--red-soft)':'var(--green-soft)'};color:\${triggered?'var(--red)':'var(--green)'}">\${triggered?'⚠ Alerta ativo':'OK'}</span>
         <p style="color:var(--text-faint);font-size:11.5px;margin-top:8px;">Aciona em \${al.threshold}% do orçamento</p>
         <div class="amt" style="font-size:14px;margin-top:4px;">\${b? \`\${pct}% usado (\${fmt(b.spent)} / \${fmt(b.limit)})\` : 'Sem orçamento definido para esta categoria'}</div>
       </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">\${getSvgIcon('bell')}</div><h3>Nenhum alerta configurado</h3><p>Crie alertas para ser avisado quando o gasto de uma categoria se aproximar do limite.</p></div>\`}
+    }).join('') : \`<div class="placeholder"><div class="big">🔔</div><h3>Nenhum alerta configurado</h3><p>Crie alertas para ser avisado quando o gasto de uma categoria se aproximar do limite.</p></div>\`}
   </div>\`;
 }
 
@@ -2374,13 +2294,13 @@ function getUserActivitySummary(email){
 function pageUsuarios(){
   const isAdmin = currentUser && currentUser.role === 'Administrador';
   if(!isAdmin || isViewingOtherUser){
-    return \`<div class="placeholder"><div class="big">\${getSvgIcon('lock')}</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>\`;
+    return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>\`;
   }
   return \`
   <div class="page-head"><div><h1>Usuários Cadastrados</h1><p>Administre as contas do sistema e acompanhe a atividade de cada usuário</p></div></div>
   <div class="panel" style="margin-bottom:0;">
     <div class="panel-head"><h3>Todos os usuários</h3><span class="tag" style="cursor:default;">\${registeredUsers.length} usuário\${registeredUsers.length===1?'':'s'}</span></div>
-    <p class="cfg-hint" style="margin-bottom:14px;">Clique no ícone de olho para entrar na conta de um usuário em modo de visualização e ver tudo que ele cadastrou.</p>
+    <p class="cfg-hint" style="margin-bottom:14px;">Clique no ícone 👁 para entrar na conta de um usuário em modo de visualização e ver tudo que ele cadastrou (transações, cartões, orçamentos, metas, relatórios, anexos etc.).</p>
     <div class="user-admin-list">
       \${registeredUsers.map(u=>{
         const stats = getUserActivitySummary(u.email);
@@ -2394,9 +2314,9 @@ function pageUsuarios(){
           </div>
           <span class="role-badge \${u.role==='Administrador'?'admin':'user'}">\${u.role}</span>
           \${u.active===false ? '<span class="role-badge inactive">Desativado</span>' : ''}
-          \${u.email!==currentUser.email ? \`<button class="row-view" data-viewuser="\${u.email}" title="Visualizar tudo que este usuário fez">\${getSvgIcon('eye')}</button>\` : ''}
-          \${u.email!==currentUser.email ? \`<button class="row-toggle" data-toggleuser="\${u.email}" title="\${u.active===false?'Ativar usuário':'Desativar usuário'}">\${u.active===false?getSvgIcon('check'):getSvgIcon('block')}</button>\` : ''}
-          <button class="row-edit" data-edituser="\${u.email}" title="Editar usuário">\${getSvgIcon('edit')}</button>
+          \${u.email!==currentUser.email ? \`<button class="row-view" data-viewuser="\${u.email}" title="Visualizar tudo que este usuário fez">👁</button>\` : ''}
+          \${u.email!==currentUser.email ? \`<button class="row-toggle" data-toggleuser="\${u.email}" title="\${u.active===false?'Ativar usuário':'Desativar usuário'}">\${u.active===false?'✅':'🚫'}</button>\` : ''}
+          <button class="row-edit" data-edituser="\${u.email}" title="Editar usuário">✎</button>
         </div>\`;
       }).join('')}
     </div>
@@ -3331,7 +3251,9 @@ function toggleTheme(){
   localStorage.setItem('nexus_theme', nextIsLight ? 'light' : 'dark');
 
   const btn = document.getElementById('miniThemeBtn');
-  if(btn) btn.innerHTML = nextIsLight ? getSvgIcon('sun') : getSvgIcon('moon');
+  const moonSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 0 1 1-9-9Z"/></svg>';
+  const sunSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M22 12h-2"/><path d="m4.93 19.07 1.41-1.41"/><path d="m17.66 6.34 1.41-1.41"/></svg>';
+  if(btn) btn.innerHTML = nextIsLight ? sunSvg : moonSvg;
   if(currentPage==='dashboard') drawDashboardCharts();
 }
 document.getElementById('miniThemeBtn').onclick = toggleTheme;
@@ -3343,7 +3265,9 @@ document.getElementById('miniThemeBtn').onclick = toggleTheme;
     document.body.classList.toggle('light', isLight);
     document.documentElement.classList.toggle('light', isLight);
     const btn = document.getElementById('miniThemeBtn');
-    if (btn) btn.innerHTML = isLight ? getSvgIcon('sun') : getSvgIcon('moon');
+    const moonSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+    const sunSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M22 12h-2"/><path d="m4.93 19.07 1.41-1.41"/><path d="m17.66 6.34 1.41-1.41"/></svg>';
+    if (btn) btn.innerHTML = isLight ? sunSvg : moonSvg;
   } catch(e){}
 })();
 
