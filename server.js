@@ -152,7 +152,11 @@ const htmlContent = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0b0e12" id="metaThemeColor">
 <script>
 (function() {
   try {
@@ -187,7 +191,8 @@ body.light, html.light body{
   --hover:#eef1f6;
   --shadow:0 6px 18px rgba(20,30,60,.08);
 }
-*{box-sizing:border-box; margin:0; padding:0;}
+*{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+html, body{overflow-x:hidden; width:100%;}
 body{
   font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
   background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
@@ -340,14 +345,53 @@ body.light .app-bg-chart{opacity:.08;}
 body.light .app-blob{opacity:.08;}
 body.light .app-blob.a3{opacity:.05;}
 
-/* ==================== Cabeçalho superior (nav horizontal) ==================== */
+/* ==================== Cabeçalho superior (nav horizontal & drawer mobile) ==================== */
 .topheader{
   position:sticky; top:0; z-index:50; background:var(--sidebar); border-bottom:1px solid var(--card-border);
-  backdrop-filter:blur(10px);
+  backdrop-filter:blur(10px); padding-top:env(safe-area-inset-top);
 }
 .topheader-row{
   display:flex; align-items:center; gap:20px; padding:15px 28px; max-width:1440px; margin:0 auto;
 }
+.mobile-menu-btn {
+  display:none; width:40px; height:40px; border-radius:11px;
+  background:var(--card); border:1px solid var(--card-border);
+  align-items:center; justify-content:center; cursor:pointer;
+  color:var(--text); flex-shrink:0; transition:background .15s;
+}
+.mobile-menu-btn:hover { background:var(--hover); }
+
+/* Drawer Mobile Slide-out */
+.mobile-drawer-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.65);
+  backdrop-filter:blur(4px); z-index:990; display:none; opacity:0;
+  transition:opacity 0.25s ease;
+}
+.mobile-drawer-overlay.show { display:block; opacity:1; }
+
+.mobile-drawer {
+  position:fixed; top:0; left:0; bottom:0; width:290px; max-width:84vw;
+  background:var(--sidebar); border-right:1px solid var(--card-border);
+  z-index:995; display:flex; flex-direction:column; padding:20px 16px;
+  transform:translateX(-100%); transition:transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow:10px 0 30px rgba(0,0,0,0.5); overflow-y:auto;
+}
+.mobile-drawer.open { transform:translateX(0); }
+.mobile-drawer-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding-bottom:16px; margin-bottom:16px; border-bottom:1px solid var(--card-border);
+}
+.mobile-drawer-nav { display:flex; flex-direction:column; gap:6px; flex:1; }
+.mobile-drawer-nav button {
+  display:flex; align-items:center; gap:12px; padding:12px 14px;
+  border-radius:12px; background:none; border:none; color:var(--text-dim);
+  font-size:14.5px; font-weight:600; cursor:pointer; text-align:left;
+  transition:background 0.15s, color 0.15s; white-space:nowrap;
+}
+.mobile-drawer-nav button:hover { background:var(--hover); color:var(--text); }
+.mobile-drawer-nav button.active { background:var(--green-soft); color:var(--green); font-weight:700; }
+.mobile-drawer-nav button .ic { width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
+.mobile-drawer-nav button .ic svg { width:19px; height:19px; display:block; }
 .brand{display:flex; align-items:center; gap:11px; flex-shrink:0;}
 .brand .logo{
   width:42px; height:42px; border-radius:11px; background:linear-gradient(135deg,var(--green),#c9862a);
@@ -380,7 +424,7 @@ nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:1
 }
 .app-dev-credit{
   position:fixed; left:0; right:0; bottom:0; z-index:100;
-  display:flex; justify-content:center; padding:8px 16px;
+  display:flex; justify-content:center; padding:8px 16px calc(8px + env(safe-area-inset-bottom));
   background:rgba(11,14,18,0.95); border-top:1px solid var(--card-border); backdrop-filter:blur(10px);
 }
 .dev-chip{
@@ -696,10 +740,10 @@ tr.trow:hover td{background:var(--hover);}
 .acc-card .top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px; gap:10px;}
 .acc-card .row-actions{flex-shrink:0;}
 
-.overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
+.overlay{position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; z-index:1000; padding:20px;}
 .overlay.show{display:flex;}
-#overlayCatManage{z-index:200 !important;}
-#overlayCategory{z-index:300 !important;}
+#overlayCatManage{z-index:1100 !important;}
+#overlayCategory{z-index:1200 !important;}
 .modal{background:var(--card); border:1px solid var(--card-border); border-radius:16px; padding:24px; width:100%; max-width:440px; box-shadow:var(--shadow); position:relative; max-height:88vh; overflow-y:auto;}
 .modal h2{font-size:17px; margin-bottom:18px;}
 .field{margin-bottom:14px;}
@@ -799,43 +843,58 @@ tr.trow:hover td{background:var(--hover);}
 @media(min-width:1700px){
   .brand .name{font-size:17px;}
 }
-@media(max-width:1150px){
-  .grid3{grid-template-columns:1fr 1fr;}
-  .grid3 > :nth-child(3){grid-column:1/-1;}
+@media(max-width:1200px){
   .kpis{grid-template-columns:repeat(3,1fr);}
 }
-@media(max-width:820px){
-  .kpis{grid-template-columns:repeat(2,1fr);}
+@media(max-width:992px){
   .grid3{grid-template-columns:1fr;}
-  .topheader-row{padding:10px 16px; gap:12px;}
+}
+@media(max-width:768px){
+  .mobile-menu-btn{display:flex;}
+  .kpis{grid-template-columns:repeat(2,1fr); gap:12px;}
+  .topheader-row{padding:12px 16px; gap:10px;}
   nav.menu{padding:0 16px 10px;}
-  .menu button{font-size:14px; padding:10px 12px;}
+  .menu button{font-size:13.5px; padding:9px 11px;}
   .brand .name{font-size:14px;}
+  .user .uname, .user .urole{max-width:100px;}
+  .donut-wrap{flex-direction:column; text-align:center; gap:14px;}
+  .donut-side.r{text-align:center;}
+  .cat-cards{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));}
+  .main{padding:18px 16px 90px;}
 }
 @media(max-width:480px){
-  .main{padding:16px 14px 60px;}
-  .kpis{grid-template-columns:1fr 1fr;}
-  .topbar{gap:8px;}
-  .page-head h1{font-size:19px;}
+  .main{padding:14px 12px 90px;}
+  .kpis{grid-template-columns:repeat(2,1fr); gap:8px;}
+  .kpi{padding:14px 12px;}
+  .kpi .val{font-size:17px;}
+  .page-head h1{font-size:18px;}
   .brand .name span{display:none;}
+  .user .uname, .user .urole{display:none;}
+  .topheader-row .btn-ghost{padding:8px 12px; font-size:12px;}
 
   /* Cadastro/edição em modal mais fácil de usar no celular */
   .overlay{align-items:flex-end; padding:0;}
-  .modal{max-width:100%; width:100%; border-radius:20px 20px 0 0; max-height:94vh; padding:20px 16px 22px;}
+  .modal{max-width:100%; width:100%; border-radius:24px 24px 0 0; max-height:88vh; padding:20px 16px calc(24px + env(safe-area-inset-bottom));}
   .field-row{flex-direction:column; gap:0;}
   .field-row .field{margin-bottom:14px;}
   .field{margin-bottom:16px;}
   .field label{font-size:12.5px; margin-bottom:7px;}
   .field input, .field select{font-size:16px; padding:12px 13px;}
   .toggle-type button{padding:12px; font-size:13.5px;}
-  .modal-actions{position:sticky; bottom:-1px; background:var(--card); padding-top:6px; margin-top:14px;}
+  .modal-actions{position:sticky; bottom:0; background:var(--card); padding-top:10px; margin-top:14px; border-top:1px solid var(--card-border);}
   .modal-actions button{padding:13px; font-size:14px;}
-  .close-x{top:14px; right:14px; font-size:20px; padding:4px 6px;}
+  .close-x{top:14px; right:14px; font-size:20px; padding:6px;}
 
-  /* Tabelas: rolagem horizontal em vez de espremer as colunas */
-  .table-panel{padding:14px 12px;}
-  table{min-width:640px;}
-  .filters input, .filters select{font-size:16px; padding:10px 12px;}
+  /* Tabelas: rolagem horizontal limpa */
+  .table-panel{padding:12px 10px;}
+  table{min-width:580px;}
+  .filters{flex-direction:column;}
+  .filters input, .filters select{width:100%; font-size:16px; padding:10px 12px;}
+  .cat-cards{grid-template-columns:1fr 1fr; gap:10px;}
+}
+@media(max-width:360px){
+  .kpis{grid-template-columns:1fr;}
+  .cat-cards{grid-template-columns:1fr;}
 }
 </style>
 </head>
@@ -960,6 +1019,9 @@ tr.trow:hover td{background:var(--hover);}
   </div>
   <div class="topheader">
     <div class="topheader-row">
+      <button class="mobile-menu-btn" id="mobileMenuToggle" title="Abrir Menu">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
       <div class="brand">
         <div class="logo">N</div>
         <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
@@ -995,6 +1057,31 @@ tr.trow:hover td{background:var(--hover);}
       <button data-page="anexos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span> Anexos</button>
       <button data-page="config"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
       <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Usuários Cadastrados</button>
+    </nav>
+  </div>
+
+  <!-- Drawer Mobile Slide-out -->
+  <div class="mobile-drawer-overlay" id="mobileDrawerOverlay"></div>
+  <div class="mobile-drawer" id="mobileDrawer">
+    <div class="mobile-drawer-head">
+      <div class="brand">
+        <div class="logo">N</div>
+        <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+      </div>
+      <button class="close-x" id="closeMobileDrawer" style="position:static; padding:4px;">✕</button>
+    </div>
+    <nav class="mobile-drawer-nav" id="mobileDrawerMenu">
+      <button data-page="dashboard"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg></span> Dashboard</button>
+      <button data-page="transacoes"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/></svg></span> Transações</button>
+      <button data-page="cartoes"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg></span> Cartões</button>
+      <button data-page="orcamentos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg></span> Orçamentos</button>
+      <button data-page="metas"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span> Metas</button>
+      <button data-page="relatorios"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8" rx="1"/><rect x="12" y="5" width="3" height="13" rx="1"/><rect x="17" y="13" width="3" height="5" rx="1"/></svg></span> Relatórios</button>
+      <button data-page="recorrentes"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/></svg></span> Recorrentes</button>
+      <button data-page="importar"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg></span> Importar</button>
+      <button data-page="anexos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span> Anexos</button>
+      <button data-page="config"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
+      <button data-page="usuarios" id="mobileDrawerUsuariosBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Usuários Cadastrados</button>
     </nav>
   </div>
 
@@ -1957,7 +2044,7 @@ function updateActiveMenu(){
     }
   }
 
-  const buttons = document.querySelectorAll('#menu button[data-page]');
+  const buttons = document.querySelectorAll('button[data-page]');
   buttons.forEach(b => {
     const isCurrent = (b.getAttribute('data-page') === currentPage);
     b.classList.toggle('active', isCurrent);
@@ -1966,9 +2053,11 @@ function updateActiveMenu(){
 
 function updateAdminMenuVisibility(){
   const btn = document.getElementById('menuUsuariosBtn');
-  if(!btn) return;
+  const mobileBtn = document.getElementById('mobileDrawerUsuariosBtn');
   const isAdmin = currentUser && currentUser.role === 'Administrador';
-  btn.style.display = (isAdmin && !isViewingOtherUser) ? '' : 'none';
+  const show = (isAdmin && !isViewingOtherUser) ? '' : 'none';
+  if(btn) btn.style.display = show;
+  if(mobileBtn) mobileBtn.style.display = show;
 }
 
 function updateViewModeBanner(){
@@ -2138,6 +2227,13 @@ function transactionsTable(list, showActions){
     return \`<div class="placeholder" style="padding:40px 20px;"><div class="big" style="font-size:30px;margin-bottom:12px;">⏳</div><h3>Carregando suas transações...</h3><p>Sincronizando seus dados financeiros com o servidor.</p></div>\`;
   }
   if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Nenhuma transação registrada no período selecionado.</p></div>\`;
+
+  const totalDespesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.val, 0);
+  const totalReceitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val, 0);
+  const saldoPeriodo = totalReceitas - totalDespesas;
+  const countDespesas = list.filter(t=>t.type==='out').length;
+  const countReceitas = list.filter(t=>t.type==='in').length;
+
   return \`
   <table>
     <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Conta / Cartão</th><th>Tipo</th><th>Valor</th><th>Status</th>\${showActions?'<th></th>':''}</tr></thead>
@@ -2154,7 +2250,44 @@ function transactionsTable(list, showActions){
           \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}">✎</button><button data-del="\${t.id}">🗑</button></div></td>\`:''}
         </tr>\`).join('')}
     </tbody>
-  </table>\`;
+    <tfoot>
+      <tr style="background:var(--hover); font-weight:700; border-top:2px solid var(--card-border);">
+        <td colspan="5" style="text-align:right; font-size:12.5px; color:var(--text-dim); letter-spacing:0.02em;">TOTAL DE GASTOS (\${countDespesas} despesa\${countDespesas===1?'':'s'}):</td>
+        <td style="color:var(--red); font-size:14.5px; font-weight:800;">-\${fmt(totalDespesas)}</td>
+        <td colspan="\${showActions?2:1}"></td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Aba / Card com Cálculo Consolidado dos Gastos ao final -->
+  <div class="tx-footer-summary" style="margin-top:20px; padding:18px 20px; background:linear-gradient(135deg, rgba(20,24,33,0.95), rgba(14,17,23,0.98)); border:1px solid rgba(232,176,75,0.25); border-radius:14px; box-shadow:0 6px 20px rgba(0,0,0,0.3); display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;">
+    <div style="display:flex; align-items:center; gap:12px; min-width:200px;">
+      <div style="width:44px; height:44px; border-radius:12px; background:var(--red-soft); color:var(--red); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0; box-shadow:0 2px 8px rgba(239,90,90,0.2);">↓</div>
+      <div>
+        <div style="font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Cálculo Total de Gastos</div>
+        <div style="font-size:20px; font-weight:800; color:var(--red); margin-top:2px;">-\${fmt(totalDespesas)}</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:1px;">\${countDespesas} lançamento(s) de despesa</div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:12px; min-width:200px;">
+      <div style="width:44px; height:44px; border-radius:12px; background:var(--green-soft); color:var(--green); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0; box-shadow:0 2px 8px rgba(232,176,75,0.2);">↑</div>
+      <div>
+        <div style="font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Total de Entradas (Receitas)</div>
+        <div style="font-size:20px; font-weight:800; color:var(--green); margin-top:2px;">+\${fmt(totalReceitas)}</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:1px;">\${countReceitas} lançamento(s) de receita</div>
+      </div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:12px; min-width:200px;">
+      <div style="width:44px; height:44px; border-radius:12px; background:\${saldoPeriodo<0?'var(--red-soft)':'rgba(74,144,226,.14)'}; color:\${saldoPeriodo<0?'var(--red)':'var(--blue)'}; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0;">⇄</div>
+      <div>
+        <div style="font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Balanço do Período</div>
+        <div style="font-size:20px; font-weight:800; color:\${saldoPeriodo<0?'var(--red)':'var(--green)'}; margin-top:2px;">\${fmt(saldoPeriodo)}</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:1px;">\${list.length} registro(s) no filtro</div>
+      </div>
+    </div>
+  </div>\`;
 }
 
 function pageTransacoes(){
@@ -3486,6 +3619,38 @@ window.addEventListener('hashchange', ()=>{
 });
 
 /* ==================== Eventos Globais ==================== */
+function toggleMobileDrawer(open){
+  const drawer = document.getElementById('mobileDrawer');
+  const overlay = document.getElementById('mobileDrawerOverlay');
+  if(!drawer || !overlay) return;
+  if(open === undefined) open = !drawer.classList.contains('open');
+  if(open){
+    overlay.classList.add('show');
+    drawer.classList.add('open');
+  } else {
+    overlay.classList.remove('show');
+    drawer.classList.remove('open');
+  }
+}
+const mobileToggle = document.getElementById('mobileMenuToggle');
+if(mobileToggle) mobileToggle.onclick = ()=> toggleMobileDrawer(true);
+const closeDrawer = document.getElementById('closeMobileDrawer');
+if(closeDrawer) closeDrawer.onclick = ()=> toggleMobileDrawer(false);
+const overlayDrawer = document.getElementById('mobileDrawerOverlay');
+if(overlayDrawer) overlayDrawer.onclick = ()=> toggleMobileDrawer(false);
+
+const mobileDrawerMenu = document.getElementById('mobileDrawerMenu');
+if(mobileDrawerMenu){
+  mobileDrawerMenu.addEventListener('click', e=>{
+    const targetEl = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+    const btn = targetEl ? targetEl.closest('button[data-page]') : null;
+    if(btn && btn.dataset.page){
+      navigate(btn.dataset.page);
+      toggleMobileDrawer(false);
+    }
+  });
+}
+
 document.getElementById('menu').addEventListener('click', e=>{
   const targetEl = e.target.nodeType === 3 ? e.target.parentElement : e.target;
   const btn = targetEl ? targetEl.closest('button[data-page]') : null;
