@@ -2389,6 +2389,49 @@ async function deleteTransaction(id){
   if(currentPage!=='transacoes' || !refreshTxTable()) render();
 }
 
+/* ==================== Mapeamento Inteligente de Cores de Bancos e Cartões ==================== */
+const BANK_COLOR_MAP = [
+  { keywords: ['nubank', 'nu ', 'nu', 'roxinho'], color: '#820ad1', type: 'Cartão de Crédito' },
+  { keywords: ['inter', 'banco inter'], color: '#ff7a00', type: 'Conta Corrente' },
+  { keywords: ['itau', 'itaú', 'iti'], color: '#ec7000', type: 'Conta Corrente' },
+  { keywords: ['bradesco', 'next'], color: '#cc092f', type: 'Conta Corrente' },
+  { keywords: ['c6', 'c6bank', 'c6 bank'], color: '#242424', type: 'Conta Corrente' },
+  { keywords: ['santander'], color: '#ea1d2c', type: 'Conta Corrente' },
+  { keywords: ['caixa', 'caixa economica', 'cef'], color: '#005ca9', type: 'Conta Poupança' },
+  { keywords: ['bb', 'banco do brasil'], color: '#fcf800', type: 'Conta Corrente' },
+  { keywords: ['xp', 'xp investimentos'], color: '#111111', type: 'Investimento' },
+  { keywords: ['btg', 'btg pactual'], color: '#001e62', type: 'Investimento' },
+  { keywords: ['picpay', 'pic pay'], color: '#11c76f', type: 'Conta Corrente' },
+  { keywords: ['neon'], color: '#00e5ff', type: 'Conta Corrente' },
+  { keywords: ['pagbank', 'pagseguro', 'pag bank'], color: '#00b140', type: 'Conta Corrente' },
+  { keywords: ['mercadopago', 'mercado pago'], color: '#009ee3', type: 'Conta Corrente' },
+  { keywords: ['original', 'banco original'], color: '#00a859', type: 'Conta Corrente' },
+  { keywords: ['nomad'], color: '#ffda00', type: 'Conta Corrente' },
+  { keywords: ['wise'], color: '#2570eb', type: 'Conta Corrente' },
+  { keywords: ['rico'], color: '#ff4500', type: 'Investimento' },
+  { keywords: ['nuinvest', 'easynvest'], color: '#7b1fa2', type: 'Investimento' },
+  { keywords: ['sicoob'], color: '#003641', type: 'Conta Corrente' },
+  { keywords: ['sicredi'], color: '#315f26', type: 'Conta Corrente' },
+  { keywords: ['banrisul'], color: '#005695', type: 'Conta Corrente' },
+  { keywords: ['stone'], color: '#00a86b', type: 'Conta Corrente' },
+  { keywords: ['pan', 'banco pan'], color: '#00a5f0', type: 'Cartão de Crédito' },
+  { keywords: ['porto', 'porto seguro'], color: '#0070c0', type: 'Cartão de Crédito' },
+  { keywords: ['credicard'], color: '#0a1f44', type: 'Cartão de Crédito' },
+  { keywords: ['digio'], color: '#1b2d4f', type: 'Cartão de Crédito' },
+  { keywords: ['will', 'will bank'], color: '#ffff00', type: 'Cartão de Crédito' }
+];
+
+function autoDetectBankColor(name) {
+  if (!name) return null;
+  const lower = name.toLowerCase().trim();
+  for (const b of BANK_COLOR_MAP) {
+    if (b.keywords.some(k => lower.includes(k))) {
+      return b;
+    }
+  }
+  return null;
+}
+
 function openAccountModal(id){
   editingAccId = id || null;
   document.getElementById('overlayAccount').classList.add('show');
@@ -3086,6 +3129,24 @@ document.getElementById('notifMarkAllBtn').onclick = async (e)=>{
   await saveUserData();
   renderNotifications();
 };
+
+document.getElementById('closeAccModal').onclick = closeAccountModal;
+document.getElementById('accCancelBtn').onclick = closeAccountModal;
+document.getElementById('accSaveBtn').onclick = saveAccount;
+document.getElementById('overlayAccount').addEventListener('click', e=>{ if(e.target.id==='overlayAccount') closeAccountModal(); });
+
+const accNameInput = document.getElementById('accName');
+if (accNameInput) {
+  accNameInput.addEventListener('input', (e) => {
+    const detected = autoDetectBankColor(e.target.value);
+    if (detected) {
+      document.getElementById('accColor').value = detected.color;
+      if (detected.type && !editingAccId) {
+        document.getElementById('accType').value = detected.type;
+      }
+    }
+  });
+}
 
 document.getElementById('closeModal').onclick = closeModal;
 document.getElementById('cancelBtn').onclick = closeModal;
