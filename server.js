@@ -697,6 +697,8 @@ tr.trow:hover td{background:var(--hover);}
 
 .overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:100; padding:20px;}
 .overlay.show{display:flex;}
+#overlayCatManage{z-index:200 !important;}
+#overlayCategory{z-index:300 !important;}
 .modal{background:var(--card); border:1px solid var(--card-border); border-radius:16px; padding:24px; width:100%; max-width:440px; box-shadow:var(--shadow); position:relative; max-height:88vh; overflow-y:auto;}
 .modal h2{font-size:17px; margin-bottom:18px;}
 .field{margin-bottom:14px;}
@@ -2462,6 +2464,10 @@ function openCategoryModal(name, defaultType){
     document.getElementById('catIconInput').value = defaultIcon;
     renderCatIconPicker(defaultIcon);
   }
+  setTimeout(() => {
+    const input = document.getElementById('catName');
+    if(input) input.focus();
+  }, 50);
 }
 function closeCategoryModal(){ document.getElementById('overlayCategory').classList.remove('show'); }
 async function saveCategory(){
