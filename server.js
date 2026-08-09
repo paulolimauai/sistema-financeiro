@@ -1878,7 +1878,7 @@ function refreshTxTable(){
     search.value = '';
   }
 
-  let list = transactions.slice();
+  let list = transactions.filter(inPeriod);
   const q = search.value.trim().toLowerCase();
   if(q) list = list.filter(t=>t.desc && t.desc.toLowerCase().includes(q));
   if(fTipo && fTipo.value) list = list.filter(t=>t.type===fTipo.value);
@@ -2121,16 +2121,17 @@ function transactionsTable(list, showActions){
   if (typeof isDataLoading !== 'undefined' && isDataLoading && list.length === 0) {
     return \`<div class="placeholder" style="padding:40px 20px;"><div class="big" style="font-size:30px;margin-bottom:12px;">⏳</div><h3>Carregando suas transações...</h3><p>Sincronizando seus dados financeiros com o servidor.</p></div>\`;
   }
-  if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Tente ajustar os filtros, o período ou adicione uma nova transação.</p></div>\`;
+  if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Nenhuma transação registrada no período selecionado.</p></div>\`;
   return \`
   <table>
-    <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Tipo</th><th>Valor</th><th>Status</th>\${showActions?'<th></th>':''}</tr></thead>
+    <thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Conta / Cartão</th><th>Tipo</th><th>Valor</th><th>Status</th>\${showActions?'<th></th>':''}</tr></thead>
     <tbody>
       \${list.map(t=>\`
         <tr class="trow">
           <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
           <td>\${t.desc}</td>
           <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${t.cat}</span></td>
+          <td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-weight:600;">\${t.acc || '—'}</span></td>
           <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
           <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
           <td><span class="pill status-\${t.status.toLowerCase()}">\${t.status}</span></td>
@@ -2141,10 +2142,12 @@ function transactionsTable(list, showActions){
 }
 
 function pageTransacoes(){
+  const periodTx = transactions.filter(inPeriod);
   return \`
   <div class="page-head">
-    <div><h1>Transações</h1><p>Gerencie todas as suas receitas e despesas</p></div>
+    <div><h1>Transações — \${periodLabel()}</h1><p>Gerencie suas receitas e despesas do mês selecionado</p></div>
     <div class="head-actions">
+      \${periodPickerHTML()}
       <button class="btn-ghost" id="btnGerenciarCategorias">🏷️ Categorias</button>
       <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
     </div>
@@ -2156,7 +2159,7 @@ function pageTransacoes(){
       <select id="txFiltroCat"><option value="">Todas categorias</option>\${catOptionsHTML(null)}</select>
       <select id="txFiltroStatus"><option value="">Todos status</option><option>Pago</option><option>Recebido</option><option>Pendente</option></select>
     </div>
-    <div id="txTableWrap">\${transactionsTable(transactions.slice().sort((a,b)=>b.date.localeCompare(a.date)), true)}</div>
+    <div id="txTableWrap">\${transactionsTable(periodTx.slice().sort((a,b)=>b.date.localeCompare(a.date)), true)}</div>
   </div>\`;
 }
 
