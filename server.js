@@ -1,6 +1,8 @@
 require('dotenv').config();
 const http = require('http');
 const https = require('https');
+const fs = require('fs');
+const path = require('path');
 const url = require('url');
 const net = require('net');
 const tls = require('tls');
@@ -5183,7 +5185,26 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  // Rota estática para login.html
+  if (parsedUrl.pathname === '/login' || parsedUrl.pathname === '/login.html') {
+    try {
+      const loginHtml = fs.readFileSync(path.join(__dirname, 'login.html'), 'utf8');
+      res.writeHead(200, { 
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      return res.end(loginHtml);
+    } catch(e) {}
+  }
+
+  res.writeHead(200, { 
+    'Content-Type': 'text/html; charset=utf-8',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0'
+  });
   res.end(htmlContent);
 });
 
