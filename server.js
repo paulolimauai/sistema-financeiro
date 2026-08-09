@@ -1876,7 +1876,14 @@ async function render(){
     renderNotifications();
     updateViewModeBanner();
     updateAdminMenuVisibility();
+    updateActiveMenu();
     if(currentPage==='dashboard') drawDashboardCharts();
+  });
+}
+
+function updateActiveMenu(){
+  document.querySelectorAll('#menu button[data-page]').forEach(b => {
+    b.classList.toggle('active', b.dataset.page === currentPage);
   });
 }
 
