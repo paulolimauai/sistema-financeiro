@@ -2524,11 +2524,19 @@ function drawDashboardCharts(){
 function populateAccountOptions(selectedAcc) {
   const fConta = document.getElementById('fConta');
   if(!fConta) return;
-  if(accounts.length === 0) {
-    fConta.innerHTML = '<option value="">Sem contas cadastradas</option>';
+
+  // Se a transação for do tipo RECEITA ('in'), remove contas de Cartão de Crédito da lista
+  const filteredAccounts = currentType === 'in' 
+    ? accounts.filter(a => a.type !== 'Cartão de Crédito')
+    : accounts;
+
+  if(filteredAccounts.length === 0) {
+    fConta.innerHTML = '<option value="">Sem contas bancárias cadastradas</option>';
+    updateCardLimitHint();
     return;
   }
-  fConta.innerHTML = accounts.map(a => {
+
+  fConta.innerHTML = filteredAccounts.map(a => {
     const stats = getCardStats(a);
     const label = stats.isCreditCard ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + ')') : (a.name + ' (' + a.type + ')');
     return '<option value="' + a.name + '"' + (selectedAcc === a.name ? ' selected' : '') + '>' + label + '</option>';
@@ -2540,6 +2548,13 @@ function updateCardLimitHint() {
   const fConta = document.getElementById('fConta');
   const hintEl = document.getElementById('cardLimitHint');
   if(!fConta || !hintEl) return;
+
+  // Se for Receita, oculta a dica de limite de cartão de crédito
+  if(currentType === 'in') {
+    hintEl.style.display = 'none';
+    return;
+  }
+
   const accName = fConta.value;
   const acc = accounts.find(a => a.name === accName);
   if(acc && acc.type === 'Cartão de Crédito') {
@@ -2618,6 +2633,10 @@ function setType(t){
   document.getElementById('typeInBtn').className = t==='in' ? 'sel-in' : '';
   document.getElementById('typeOutBtn').className = t==='out' ? 'sel-out' : '';
   populateCategoriaOptions(t);
+  const fContaEl = document.getElementById('fConta');
+  if(fContaEl) {
+    populateAccountOptions(fContaEl.value);
+  }
 }
 async function saveTransaction(){
   const desc = document.getElementById('fDesc').value.trim();
