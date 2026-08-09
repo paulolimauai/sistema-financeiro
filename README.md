@@ -1,4 +1,4 @@
-# Nexus Financeiro Hub — Sistema de Gestão Financeira Pessoal & Patrimonial
+# Nexus Financeiro Hub — Sistema de Gestão Financeira Pessoal #
 
 ## Visão Geral
 O **Nexus Financeiro Hub** é um sistema completo de gestão financeira pessoal, orçamentos, cartões, metas e relatórios, construído com Node.js nativo e **PostgreSQL**.
