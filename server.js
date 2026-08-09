@@ -1377,21 +1377,33 @@ function hideAccountDisabledPopup(){
   setTimeout(()=> overlay.classList.remove('show'), 250);
 }
 
+let logoutTimer = null;
 function showLogoutPopup(msg){
   const overlay = document.getElementById('logoutSuccessOverlay');
   if(!overlay) return;
   if(msg) document.getElementById('logoutSuccessMsg').textContent = msg;
   overlay.classList.add('show');
   requestAnimationFrame(()=> overlay.classList.add('in'));
+
+  // Foco imediato no campo de email para permitir digitar sem travar
+  setTimeout(() => {
+    const loginEmailInput = document.getElementById('loginEmail');
+    if (loginEmailInput) loginEmailInput.focus();
+  }, 50);
+
+  // Auto-dismiss em 1.8 segundos para NUNCA prender a tela do próximo login
+  if (logoutTimer) clearTimeout(logoutTimer);
+  logoutTimer = setTimeout(() => {
+    hideLogoutPopup();
+  }, 1800);
 }
+
 function hideLogoutPopup(){
   const overlay = document.getElementById('logoutSuccessOverlay');
   if(!overlay) return;
   overlay.classList.remove('in');
   setTimeout(()=> {
     overlay.classList.remove('show');
-    const loginEmailInput = document.getElementById('loginEmail');
-    if(loginEmailInput) loginEmailInput.focus();
   }, 250);
 }
 
