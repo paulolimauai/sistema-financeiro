@@ -1484,6 +1484,9 @@ async function loadUserData() {
     nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
     await saveUserData();
   }
+  if (typeof render === 'function' && document.getElementById('appMain') && document.getElementById('appMain').classList.contains('show')) {
+    render();
+  }
 }
 
 async function saveUserData() {
@@ -2892,7 +2895,13 @@ function attachPageEvents(){
   const fCat = document.getElementById('txFiltroCat');
   const fStatus = document.getElementById('txFiltroStatus');
   if(search){
-    [search,fTipo,fCat,fStatus].forEach(el=>el.addEventListener('input', refreshTxTable));
+    [search,fTipo,fCat,fStatus].forEach(el=>{
+      if(el) {
+        el.addEventListener('input', refreshTxTable);
+        el.addEventListener('change', refreshTxTable);
+      }
+    });
+    refreshTxTable();
   }
 }
 
