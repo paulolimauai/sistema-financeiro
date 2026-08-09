@@ -4853,7 +4853,7 @@ const server = http.createServer(async (req, res) => {
         const hashedTemp = hashPassword(tempPassword);
 
         try {
-          await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [hashedTemp, user.id]);
+          await pool.query('UPDATE usuarios SET password = $1 WHERE LOWER(email) = LOWER($2)', [hashedTemp, user.email.toLowerCase()]);
         } catch(dbErr) {
           console.warn('[Forgot Password DB Update Warning]', dbErr.message);
         }
