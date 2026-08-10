@@ -206,26 +206,55 @@ html.is-admin #mobileDrawerLogsBtn {
 }
 
 :root{
-  --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
-  --text:#e9edf3; --text-dim:#8a93a3; --text-faint:#5b6472;
-  --green:#e8b04b; --green-soft:rgba(232,176,75,.14);
-  --red:#ef5a5a; --red-soft:rgba(239,90,90,.12);
-  --blue:#4a90e2; --purple:#9b6bd8; --orange:#f0a63a; --teal:#3ec7c7; --pink:#d85bb0;
-  --hover:#1a1f29;
-  --radius:14px;
-  --shadow:0 8px 24px rgba(0,0,0,.35);
+  --bg: #050811;
+  --bg-gradient: 
+    radial-gradient(circle at 25% 40%, rgba(232, 176, 75, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 75% 50%, rgba(74, 144, 226, 0.18) 0%, transparent 45%),
+    radial-gradient(circle at 50% 80%, rgba(155, 107, 216, 0.08) 0%, transparent 50%),
+    linear-gradient(145deg, #050811 0%, #0d1222 50%, #060914 100%);
+  --sidebar: rgba(13, 17, 26, 0.85);
+  --card: rgba(18, 22, 30, 0.82);
+  --card-border: rgba(255, 255, 255, 0.08);
+  --text: #e9edf3;
+  --text-dim: #8a93a3;
+  --text-faint: #5b6472;
+  --green: #e8b04b;
+  --green-soft: rgba(232, 176, 75, 0.14);
+  --red: #ef5a5a;
+  --red-soft: rgba(239, 90, 90, 0.12);
+  --blue: #4a90e2;
+  --purple: #9b6bd8;
+  --orange: #f0a63a;
+  --teal: #3ec7c7;
+  --pink: #d85bb0;
+  --hover: rgba(255, 255, 255, 0.05);
+  --radius: 14px;
+  --shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
 }
 body.light, html.light body{
-  --bg:#f4f6f9; --sidebar:#ffffff; --card:#ffffff; --card-border:#e6e9ef;
-  --text:#1b2028; --text-dim:#6b7280; --text-faint:#9aa2b1;
-  --hover:#eef1f6;
-  --shadow:0 6px 18px rgba(20,30,60,.08);
+  --bg: #f4f6f9;
+  --bg-gradient: 
+    radial-gradient(circle at 25% 40%, rgba(232, 176, 75, 0.10) 0%, transparent 45%),
+    radial-gradient(circle at 75% 50%, rgba(74, 144, 226, 0.10) 0%, transparent 45%),
+    linear-gradient(145deg, #f8fafc 0%, #edf2f7 100%);
+  --sidebar: #ffffff;
+  --card: #ffffff;
+  --card-border: #e6e9ef;
+  --text: #1b2028;
+  --text-dim: #6b7280;
+  --text-faint: #9aa2b1;
+  --hover: #eef1f6;
+  --shadow: 0 6px 18px rgba(20,30,60,.08);
 }
 *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
 html, body{overflow-x:hidden; width:100%;}
 body{
   font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
-  background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
+  color:var(--text);
+  min-height:100vh;
+  transition:background .3s ease,color .3s ease;
 }
 button, input, select{font-family:inherit; color:inherit;}
 code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5px;}
