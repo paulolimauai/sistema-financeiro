@@ -2547,42 +2547,54 @@ function pageDashboard(){
   </div>
 
   \${pendingSummary.items.length > 0 ? \`
-  <!-- Mini Card / Quadrado Compacto de Alerta de Contas a Vencer (Até 3 dias) -->
-  <div class="panel due-bills-panel" style="margin-bottom:20px; padding:14px 18px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.45)' : 'rgba(240,166,58,0.4)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.05)' : 'rgba(240,166,58,0.05)'}; border-radius:14px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:16px;">\${pendingSummary.overdueCount > 0 ? '⚠️' : '🔔'}</span>
-        <h4 style="margin:0; font-size:14px; font-weight:700; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'};">
-          Contas a Vencer (Próximos 3 dias)
-        </h4>
+  <!-- Mini Card Quadrado Compacto & Discreto (Alinhado à Direita, max-width: 440px) -->
+  <div style="display:flex; justify-content:flex-end; margin-bottom:18px;">
+    <div class="panel due-bills-panel" style="width:100%; max-width:440px; margin:0; padding:12px 16px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.5)' : 'rgba(240,166,58,0.45)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.08)' : 'rgba(240,166,58,0.06)'}; border-radius:14px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+      
+      <!-- Cabeçalho Discreto -->
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">
+        <div style="display:flex; align-items:center; gap:6px;">
+          <span style="font-size:15px;">\${pendingSummary.overdueCount > 0 ? '🚨' : '⚠️'}</span>
+          <h4 style="margin:0; font-size:12.5px; font-weight:800; letter-spacing:0.02em; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'}; text-transform:uppercase;">
+            Contas a Vencer (\${pendingSummary.items.length})
+          </h4>
+        </div>
+        <span style="font-size:11px; font-weight:700; color:var(--text-dim);">
+          Total: <strong style="color:var(--red);">\${fmt(pendingSummary.totalValue)}</strong>
+        </span>
       </div>
-      <span class="tag" style="background:\${pendingSummary.overdueCount > 0 ? 'var(--red-soft)' : 'rgba(240,166,58,0.15)'}; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'}; font-size:11px; font-weight:700; padding:3px 8px;">
-        \${pendingSummary.items.length} conta(s) • Total: \${fmt(pendingSummary.totalValue)}
-      </span>
-    </div>
 
-    <div class="due-bills-list" style="display:flex; flex-direction:column; gap:6px;">
-      \${pendingSummary.items.map(item => \`
-        <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; border-radius:10px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.3)' : item.statusType === 'today' ? 'rgba(240,166,58,0.3)' : 'var(--card-border)'};">
-          <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
-            <span style="font-size:14px; flex-shrink:0;">\${item.statusType === 'overdue' ? '🚨' : item.statusType === 'today' ? '⚡' : '📅'}</span>
-            <div style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-              <span style="font-weight:700; font-size:13px; color:var(--text);">\${item.desc}</span>
-              <span style="font-size:11px; color:var(--text-faint); margin-left:6px;">(\${item.formattedDate})</span>
+      <!-- Lista Enxuta com Sinal de Emergência e Vencimento na Frente -->
+      <div class="due-bills-list" style="display:flex; flex-direction:column; gap:6px;">
+        \${pendingSummary.items.map(item => \`
+          <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px; border-radius:8px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.4)' : item.statusType === 'today' ? 'rgba(240,166,58,0.4)' : 'var(--card-border)'}; font-size:12px;">
+            
+            <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+              <!-- Sinal de Emergência -->
+              <span style="font-size:13px; flex-shrink:0;" title="\${item.statusText}">
+                \${item.statusType === 'overdue' ? '🚨' : item.statusType === 'today' ? '⚡' : '⚠️'}
+              </span>
+
+              <div style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                <span style="font-weight:700; color:var(--text);">\${item.desc}</span>
+                <!-- Vencimento na Frente -->
+                <span style="font-size:11px; font-weight:600; color:\${item.statusType === 'overdue' ? 'var(--red)' : 'var(--orange)'}; margin-left:6px;">
+                  Vence: \${item.formattedDate}
+                </span>
+              </div>
+            </div>
+
+            <!-- Valor & Botão Pagar -->
+            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+              <span style="font-size:12px; font-weight:800; color:var(--red);">\${fmt(item.val)}</span>
+              <button class="btn-primary" data-paytx="\${item.id}" title="Marcar como Pago" style="padding:3px 8px; font-size:10.5px; font-weight:700; background:linear-gradient(135deg, var(--green), #c9862a); border:none; border-radius:6px; cursor:pointer; color:#08130c; white-space:nowrap;">
+                ✅ Pagar
+              </button>
             </div>
           </div>
+        \`).join('')}
+      </div>
 
-          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-            <span style="font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:6px; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : item.statusType === 'today' ? 'rgba(240,166,58,0.18)' : 'rgba(74,144,226,0.15)'}; color:\${item.statusType === 'overdue' ? 'var(--red)' : item.statusType === 'today' ? 'var(--orange)' : 'var(--blue)'};">
-              \${item.statusText}
-            </span>
-            <span style="font-size:13.5px; font-weight:800; color:var(--red);">\${fmt(item.val)}</span>
-            <button class="btn-primary" data-paytx="\${item.id}" title="Pagar Conta" style="padding:4px 10px; font-size:11px; font-weight:700; background:linear-gradient(135deg, var(--green), #c9862a); border:none; border-radius:8px; cursor:pointer; color:#08130c; white-space:nowrap;">
-              ✅ Pagar
-            </button>
-          </div>
-        </div>
-      \`).join('')}
     </div>
   </div>
   \` : ''}
