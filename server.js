@@ -2546,59 +2546,6 @@ function pageDashboard(){
     </div>
   </div>
 
-  \${pendingSummary.items.length > 0 ? \`
-  <!-- Mini Card Quadrado Compacto & Discreto (Alinhado à Direita, sem cortes) -->
-  <div style="display:flex; justify-content:flex-end; width:100%; margin-bottom:20px;">
-    <div class="panel due-bills-panel" style="width:100%; max-width:480px; margin:0; padding:12px 16px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.5)' : 'rgba(240,166,58,0.45)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.08)' : 'rgba(240,166,58,0.06)'}; border-radius:14px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
-      
-      <!-- Cabeçalho Discreto -->
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">
-        <div style="display:flex; align-items:center; gap:6px;">
-          <span style="font-size:15px;">\${pendingSummary.overdueCount > 0 ? '🚨' : '⚠️'}</span>
-          <h4 style="margin:0; font-size:12.5px; font-weight:800; letter-spacing:0.02em; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'}; text-transform:uppercase;">
-            CONTAS A VENCER (\${pendingSummary.items.length})
-          </h4>
-        </div>
-        <span style="font-size:11px; font-weight:700; color:var(--text-dim);">
-          Total: <strong style="color:var(--red);">\${fmt(pendingSummary.totalValue)}</strong>
-        </span>
-      </div>
-
-      <!-- Lista Enxuta Sem Cortes -->
-      <div class="due-bills-list" style="display:flex; flex-direction:column; gap:6px;">
-        \${pendingSummary.items.map(item => \`
-          <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; padding:7px 10px; border-radius:8px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.4)' : item.statusType === 'today' ? 'rgba(240,166,58,0.4)' : 'var(--card-border)'}; font-size:12px;">
-            
-            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:180px;">
-              <!-- Sinal de Emergência -->
-              <span style="font-size:13px; flex-shrink:0;" title="\${item.statusText}">
-                \${item.statusType === 'overdue' ? '🚨' : item.statusType === 'today' ? '⚡' : '⚠️'}
-              </span>
-
-              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px;">
-                <span style="font-weight:700; color:var(--text);">\${item.desc}</span>
-                <!-- Vencimento na Frente -->
-                <span style="font-size:11px; font-weight:700; color:\${item.statusType === 'overdue' ? 'var(--red)' : 'var(--orange)'}; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : 'rgba(240,166,58,0.15)'}; padding:1px 6px; border-radius:4px;">
-                  Vence: \${item.formattedDate}
-                </span>
-              </div>
-            </div>
-
-            <!-- Valor & Botão Pagar -->
-            <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
-              <span style="font-size:13px; font-weight:800; color:var(--red);">\${fmt(item.val)}</span>
-              <button class="btn-primary" data-paytx="\${item.id}" title="Marcar como Pago" style="padding:3px 8px; font-size:10.5px; font-weight:700; background:linear-gradient(135deg, var(--green), #c9862a); border:none; border-radius:6px; cursor:pointer; color:#08130c; white-space:nowrap;">
-                ✅ Pagar
-              </button>
-            </div>
-          </div>
-        \`).join('')}
-      </div>
-
-    </div>
-  </div>
-  \` : ''}
-
   <div class="kpis">
     <div class="kpi"><div class="row1">Saldo Total <span>👁</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
     <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
@@ -2703,6 +2650,57 @@ function pageDashboard(){
       <button class="btn-ghost" style="width:100%" data-nav="cartoes">Ver todas as contas</button>
     </div>
   </div>
+
+  \${pendingSummary.items.length > 0 ? \`
+  <!-- Mini Card Quadrado Compacto & Discreto (Posicionado com Organização Perfeita) -->
+  <div class="panel due-bills-panel" style="margin-bottom:22px; padding:14px 18px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.5)' : 'rgba(240,166,58,0.45)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.08)' : 'rgba(240,166,58,0.06)'}; border-radius:16px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+    
+    <!-- Cabeçalho Discreto -->
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; padding-bottom:8px; border-bottom:1px solid var(--card-border);">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span style="font-size:15px;">\${pendingSummary.overdueCount > 0 ? '🚨' : '⚠️'}</span>
+        <h4 style="margin:0; font-size:12.5px; font-weight:800; letter-spacing:0.02em; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'}; text-transform:uppercase;">
+          CONTAS A VENCER (\${pendingSummary.items.length})
+        </h4>
+      </div>
+      <span style="font-size:11px; font-weight:700; color:var(--text-dim);">
+        Total: <strong style="color:var(--red);">\${fmt(pendingSummary.totalValue)}</strong>
+      </span>
+    </div>
+
+    <!-- Lista Enxuta Sem Cortes -->
+    <div class="due-bills-list" style="display:flex; flex-direction:column; gap:6px;">
+      \${pendingSummary.items.map(item => \`
+        <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; padding:8px 12px; border-radius:8px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.4)' : item.statusType === 'today' ? 'rgba(240,166,58,0.4)' : 'var(--card-border)'}; font-size:12px;">
+          
+          <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:180px;">
+            <!-- Sinal de Emergência -->
+            <span style="font-size:13px; flex-shrink:0;" title="\${item.statusText}">
+              \${item.statusType === 'overdue' ? '🚨' : item.statusType === 'today' ? '⚡' : '⚠️'}
+            </span>
+
+            <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px;">
+              <span style="font-weight:700; color:var(--text);">\${item.desc}</span>
+              <!-- Vencimento na Frente -->
+              <span style="font-size:11px; font-weight:700; color:\${item.statusType === 'overdue' ? 'var(--red)' : 'var(--orange)'}; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : 'rgba(240,166,58,0.15)'}; padding:1px 6px; border-radius:4px;">
+                Vence: \${item.formattedDate}
+              </span>
+            </div>
+          </div>
+
+          <!-- Valor & Botão Pagar -->
+          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+            <span style="font-size:13px; font-weight:800; color:var(--red);">\${fmt(item.val)}</span>
+            <button class="btn-primary" data-paytx="\${item.id}" title="Marcar como Pago" style="padding:3px 8px; font-size:10.5px; font-weight:700; background:linear-gradient(135deg, var(--green), #c9862a); border:none; border-radius:6px; cursor:pointer; color:#08130c; white-space:nowrap;">
+              ✅ Pagar
+            </button>
+          </div>
+        </div>
+      \`).join('')}
+    </div>
+
+  </div>
+  \` : ''}
 
   <div class="table-panel">
     <div class="panel-head"><h3>Últimas Transações</h3><span class="tag" data-nav="transacoes">Ver todas</span></div>
