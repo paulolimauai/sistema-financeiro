@@ -3005,21 +3005,99 @@ function pageMetas(){
 }
 
 function pageRelatorios(){
-  const allCats = despesasPorCategoria(transactions);
-  const totalReceitas = transactions.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
-  const totalDespesas = transactions.filter(t=>t.type==='out').reduce((s,t)=>s+t.val,0);
+  const list = transactions.filter(inPeriod);
+  const allCats = despesasPorCategoria(list);
+  const totalReceitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
+  const totalDespesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
+  const resultado = totalReceitas - totalDespesas;
+
+  const totalReceitasGeral = transactions.filter(t=>t.type==='in').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
+  const totalDespesasGeral = transactions.filter(t=>t.type==='out').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
+  const resultadoGeral = totalReceitasGeral - totalDespesasGeral;
+
+  const isAllDates = currentPeriod.month === 0;
+
   return \`
-  <div class="page-head"><div><h1>Relatórios</h1><p>Consolidado geral de todas as transações cadastradas</p></div></div>
-  <div class="kpis" style="grid-template-columns:repeat(3,1fr);">
-    <div class="kpi"><div class="row1">Total de Receitas</div><div class="val" style="color:var(--green)">\${fmt(totalReceitas)}</div></div>
-    <div class="kpi"><div class="row1">Total de Despesas</div><div class="val" style="color:var(--red)">\${fmt(totalDespesas)}</div></div>
-    <div class="kpi"><div class="row1">Resultado</div><div class="val" style="color:\${(totalReceitas-totalDespesas)<0?'var(--red)':'var(--green)'}">\${fmt(totalReceitas-totalDespesas)}</div></div>
+  <div class="page-head">
+    <div>
+      <h1>Relatórios Financeiros</h1>
+      <p>Análise consolidada das suas transações — <strong>\${periodLabel()}</strong></p>
+    </div>
+    <div class="head-actions">
+      \${periodPickerHTML()}
+    </div>
   </div>
+
+  <div class="kpis" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:20px;">
+    <div class="kpi">
+      <div class="row1">Total de Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div>
+      <div class="val" style="color:var(--green)">\${fmt(totalReceitas)}</div>
+      <div class="sub">\${isAllDates ? 'Consolidado histórico geral' : periodLabel()}</div>
+    </div>
+    <div class="kpi">
+      <div class="row1">Total de Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div>
+      <div class="val" style="color:var(--red)">\${fmt(totalDespesas)}</div>
+      <div class="sub">\${isAllDates ? 'Consolidado histórico geral' : periodLabel()}</div>
+    </div>
+    <div class="kpi">
+      <div class="row1">Balanço do Período <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div>
+      <div class="val" style="color:\${resultado<0?'var(--red)':'var(--green)'}">\${fmt(resultado)}</div>
+      <div class="sub">\${isAllDates ? 'Resultado acumulado geral' : 'Receitas menos Despesas do mês'}</div>
+    </div>
+  </div>
+
+  \${!isAllDates ? \`
+  <div class="panel" style="margin-bottom:20px; padding:14px 18px; background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
+    <div style="font-size:12.5px; color:var(--text-dim);">
+      💡 <strong>Comparativo Geral Histórico (Todas as Datas):</strong> Receitas <strong>\${fmt(totalReceitasGeral)}</strong> | Despesas <strong>\${fmt(totalDespesasGeral)}</strong> | Saldo Acumulado <strong style="color:\${resultadoGeral<0?'var(--red)':'var(--green)'}">\${fmt(resultadoGeral)}</strong>
+    </div>
+    <button class="btn-ghost" onclick="currentPeriod={year:new Date().getFullYear(), month:0}; try{localStorage.setItem('fin_current_period', JSON.stringify(currentPeriod));}catch(e){} render();" style="font-size:11.5px; padding:4px 10px; border-radius:6px; cursor:pointer;">
+      🌐 Ver Relatório Geral (Histórico Completo)
+    </button>
+  </div>
+  \` : ''}
+
   <div class="table-panel">
-    <div class="panel-head"><h3>Despesas por Categoria (geral)</h3></div>
-    \${allCats.length? \`<table><thead><tr><th>Categoria</th><th>Total Gasto</th><th>% do Total</th></tr></thead>
-    <tbody>\${allCats.map(c=>\`<tr class="trow"><td><span class="pill" style="background:\${c.color}22;color:\${c.color}">\${c.name}</span></td><td class="val-out">\${fmt(c.val)}</td><td>\${Math.round(c.val/(totalDespesas||1)*100)}%</td></tr>\`).join('')}</tbody></table>\`
-    : \`<div class="placeholder"><div class="big">▥</div><h3>Nenhum dado disponível</h3></div>\`}
+    <div class="panel-head">
+      <h3>Despesas por Categoria — \${periodLabel()}</h3>
+      <span class="tag">\${list.filter(t=>t.type==='out').length} despesa(s) no período</span>
+    </div>
+    \${allCats.length ? \`
+    <table>
+      <thead>
+        <tr>
+          <th>Categoria</th>
+          <th>Total Gasto</th>
+          <th>% do Total de Despesas</th>
+        </tr>
+      </thead>
+      <tbody>
+        \${allCats.map(c=>\`
+          <tr class="trow">
+            <td><span class="pill" style="background:\${c.color}22;color:\${c.color}">\${catIcon(c.name)} \${c.name}</span></td>
+            <td class="val-out">\${fmt(c.val)}</td>
+            <td>
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="bar-split" style="flex:1; max-width:120px; height:6px; background:var(--card-border); border-radius:4px; overflow:hidden;">
+                  <div class="g" style="width:\${Math.round(c.val/(totalDespesas||1)*100)}%; height:100%; background:\${c.color}; border-radius:4px;"></div>
+                </div>
+                <span style="font-weight:700; font-size:12px; color:var(--text-dim);">\${Math.round(c.val/(totalDespesas||1)*100)}%</span>
+              </div>
+            </td>
+          </tr>
+        \`).join('')}
+      </tbody>
+      <tfoot>
+        <tr style="background:var(--hover); font-weight:700; border-top:2px solid var(--card-border);">
+          <td style="font-size:12.5px; color:var(--text-dim);">TOTAL DAS DESPESAS DO PERÍODO:</td>
+          <td style="color:var(--red); font-size:14.5px; font-weight:800;">\${fmt(totalDespesas)}</td>
+          <td>100%</td>
+        </tr>
+      </tfoot>
+    </table>
+    \` : \`
+    <div class="placeholder"><div class="big">▥</div><h3>Nenhuma despesa no período</h3><p>Não foram encontradas despesas cadastradas para \${periodLabel()}.</p></div>
+    \`}
   </div>\`;
 }
 
