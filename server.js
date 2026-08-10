@@ -2079,23 +2079,9 @@ const inPeriod = t => {
 function isAccountCreditCard(account) {
   if (!account) return false;
   const accTypeLower = (account.type || '').toLowerCase().trim();
+  const accNameLower = (account.name || '').toLowerCase().trim();
 
-  // 1. Se o tipo for explicitamente Conta Corrente, Poupança, Investimentos, Débito, Dinheiro, etc., NUNCA é cartão de crédito
-  if (
-    accTypeLower.includes('corrente') || 
-    accTypeLower.includes('poupança') || 
-    accTypeLower.includes('poupanca') || 
-    accTypeLower.includes('investimento') || 
-    accTypeLower.includes('dinheiro') || 
-    accTypeLower.includes('caixa') || 
-    accTypeLower.includes('carteira') || 
-    accTypeLower.includes('débito') || 
-    accTypeLower.includes('debito')
-  ) {
-    return false;
-  }
-
-  // 2. Se o tipo for Cartão de Crédito ou Crédito ou Fatura
+  // 1. Se o tipo for explicitamente Cartão de Crédito / Crédito / Fatura
   if (
     accTypeLower.includes('cartão') ||
     accTypeLower.includes('cartao') ||
@@ -2106,9 +2092,8 @@ function isAccountCreditCard(account) {
     return true;
   }
 
-  // 3. Verificação por nome da conta para contas com tipo genérico ("Outros", "", etc.)
-  const accNameLower = (account.name || '').toLowerCase().trim();
-  return (
+  // 2. Se o nome da conta contiver termos explícitos de cartão / fatura / nubank
+  if (
     accNameLower.includes('cartão de crédito') ||
     accNameLower.includes('cartao de credito') ||
     accNameLower.includes('cartão') ||
@@ -2118,8 +2103,22 @@ function isAccountCreditCard(account) {
     accNameLower.includes('amex') ||
     accNameLower.includes('hipercard') ||
     accNameLower.includes('mastercard') ||
-    accNameLower.includes('visa')
-  );
+    accNameLower.includes('visa') ||
+    accNameLower.includes('nubank crédito') ||
+    accNameLower.includes('nubank credito') ||
+    accNameLower.includes('roxinho')
+  ) {
+    return true;
+  }
+
+  // 3. Se for Nubank ("Nubank", "Nu") e o tipo NÃO for especificamente Poupança ou Investimento
+  const isNubankName = accNameLower === 'nubank' || accNameLower.includes('nubank') || accNameLower === 'nu';
+  const isExplicitBankType = accTypeLower.includes('poupança') || accTypeLower.includes('poupanca') || accTypeLower.includes('investimento') || accNameLower.includes('nuconta') || accNameLower.includes('conta corrente');
+  if (isNubankName && !isExplicitBankType) {
+    return true;
+  }
+
+  return false;
 }
 
 function normalizeAccName(str) {
@@ -2130,11 +2129,24 @@ function normalizeAccName(str) {
     .trim();
 }
 
+function isTxExpense(t) {
+  if (!t) return false;
+  const tp = String(t.type || '').toLowerCase().trim();
+  if (tp === 'out' || tp === 'despesa' || tp === 'saida' || tp === 'débito' || tp === 'debito') return true;
+  if (!tp && typeof t.val === 'number' && t.val < 0) return true;
+  return false;
+}
+
+function isTxIncome(t) {
+  if (!t) return false;
+  const tp = String(t.type || '').toLowerCase().trim();
+  if (tp === 'in' || tp === 'receita' || tp === 'entrada' || tp === 'crédito' || tp === 'credito') return true;
+  if (!tp && typeof t.val === 'number' && t.val > 0) return true;
+  return false;
+}
+
 function isTxForAccount(t, account) {
   if (!t || !account) return false;
-
-  // 1. Prioridade máxima: ID da conta
-  if (t.accId != null && account.id != null && String(t.accId) === String(account.id)) return true;
 
   const accNameLower = (account.name || '').toLowerCase().trim();
   if (!accNameLower) return false;
@@ -2144,8 +2156,11 @@ function isTxForAccount(t, account) {
   const tCatLower = (t.cat || '').toLowerCase().trim();
   const tDescLower = (t.desc || '').toLowerCase().trim();
 
-  // 2. Correspondência exata do nome da conta, cartão ou categoria
-  if (tAccLower === accNameLower || tCardLower === accNameLower || tCatLower === accNameLower) return true;
+  // 1. Correspondência direta e prioritária pelo nome explícito do campo da transação
+  if (tAccLower === accNameLower || tCardLower === accNameLower) return true;
+
+  // 2. ID da conta (se a transação tiver ID gravado)
+  if (t.accId != null && account.id != null && String(t.accId) === String(account.id)) return true;
 
   // 3. Correspondência normalizada (removendo "Cartão", "Conta", "Banco", etc.)
   const normAccName = normalizeAccName(account.name);
@@ -2160,31 +2175,30 @@ function isTxForAccount(t, account) {
     if (normTCat && (normTCat.includes(normAccName) || normAccName.includes(normTCat))) return true;
   }
 
-  // 4. Suporte especial estendido para Nubank / Nu / Roxinho
+  // 4. Suporte especial estendido para Nubank / Nu / Roxinho / NuConta / NuPay
   const isNubankAccount = accNameLower.includes('nubank') || accNameLower.includes('roxinho') || accNameLower.includes('nu');
   if (isNubankAccount) {
-    if (
-      tAccLower.includes('nubank') || tAccLower.includes('roxinho') || tAccLower === 'nu' || tAccLower.includes('nupay') ||
+    const isTxNubank = (
+      tAccLower.includes('nubank') || tAccLower.includes('roxinho') || tAccLower === 'nu' || tAccLower.includes('nuconta') || tAccLower.includes('nupay') ||
       tCardLower.includes('nubank') || tCardLower.includes('roxinho') || tCardLower.includes('nupay') ||
       tCatLower.includes('nubank') || tCatLower.includes('roxinho') ||
       tDescLower.includes('nubank') || tDescLower.includes('roxinho') || tDescLower.includes('nupay')
-    ) {
-      return true;
-    }
+    );
+    if (isTxNubank) return true;
   }
 
-  // 5. Se o nome da conta estiver em tAccLower ou accNameLower contiver tAccLower
+  // 5. Comparação por contenção parcial de string no nome da conta
   if (tAccLower && accNameLower.length >= 3) {
     if (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower)) return true;
   }
 
-  // 6. Verificação de palavras-chave na descrição/categoria quando a conta da transação for genérica ou vazia
+  // 6. Transações genéricas ou sem conta definida
   if (!tAccLower || tAccLower === 'sem conta' || tAccLower === 'boleto / outros' || tAccLower === 'dinheiro' || tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito') {
     if (normAccName.length >= 3 && (tDescLower.includes(normAccName) || tCatLower.includes(normAccName))) return true;
     if (accNameLower.length >= 3 && (tDescLower.includes(accNameLower) || tCatLower.includes(accNameLower))) return true;
   }
 
-  // 7. Se a transação estiver marcada como "Cartão de Crédito" e esta conta for o único Cartão de Crédito cadastrado
+  // 7. Se a transação é genérica de Cartão de Crédito e esta conta é o único cartão
   if (isAccountCreditCard(account)) {
     const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
     if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) {
@@ -2203,12 +2217,12 @@ function getCardStats(account) {
   const isCreditCard = isAccountCreditCard(account);
   const cardTx = transactions.filter(t => isTxForAccount(t, account));
 
-  const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
-  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const totalDespesas = cardTx.filter(isTxExpense).reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const totalPagamentos = cardTx.filter(isTxIncome).reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
   
   const periodCardTx = cardTx.filter(inPeriod);
-  const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
-  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const periodDespesas = periodCardTx.filter(isTxExpense).reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const periodPagamentos = periodCardTx.filter(isTxIncome).reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
 
   const initialBalance = parseFloat(account.balance) || 0;
 
@@ -2281,8 +2295,8 @@ function computeCardSummary() {
 
 /* ==================== Cálculos ==================== */
 function computeTotals(list=transactions){
-  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
-  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
+  const receitas = list.filter(isTxIncome).reduce((s,t)=>s+(Math.abs(parseFloat(t.val))||0),0);
+  const despesas = list.filter(isTxExpense).reduce((s,t)=>s+(Math.abs(parseFloat(t.val))||0),0);
   
   let saldoContasBancarias = 0;
   let faturasCartoesCredito = 0;
@@ -2300,8 +2314,8 @@ function computeTotals(list=transactions){
   return { receitas, despesas, saldo, saldoContasBancarias, faturasCartoesCredito };
 }
 function txStatsCardsHTML(list){
-  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
-  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.val,0);
+  const receitas = list.filter(isTxIncome).reduce((s,t)=>s+(Math.abs(parseFloat(t.val))||0),0);
+  const despesas = list.filter(isTxExpense).reduce((s,t)=>s+(Math.abs(parseFloat(t.val))||0),0);
   const saldo = receitas - despesas;
   const saldoColor = saldo < 0 ? 'var(--red)' : 'var(--green)';
   let html = '';
@@ -2313,13 +2327,13 @@ function txStatsCardsHTML(list){
 }
 function despesasPorCategoria(list=transactions){
   const map = {};
-  list.filter(t=>t.type==='out').forEach(t=>{ map[t.cat]=(map[t.cat]||0)+t.val; });
+  list.filter(isTxExpense).forEach(t=>{ map[t.cat]=(map[t.cat]||0)+Math.abs(parseFloat(t.val)||0); });
   return Object.entries(map).map(([name,val])=>({name,val,color:catColor(name)})).sort((a,b)=>b.val-a.val);
 }
 function budgetStatus(list=budgets){
   const periodTx = transactions.filter(inPeriod);
   return list.map(b=>{
-    const spent = periodTx.filter(t=>t.cat===b.category && t.type==='out').reduce((s,t)=>s+t.val,0);
+    const spent = periodTx.filter(t=>t.cat===b.category && isTxExpense(t)).reduce((s,t)=>s+Math.abs(parseFloat(t.val)||0),0);
     const pct = b.limit>0 ? Math.round(spent/b.limit*100) : 0;
     return {...b, spent, pct};
   });
@@ -2826,11 +2840,11 @@ function transactionsTable(list, showActions){
   }
   if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Nenhuma transação registrada no período selecionado.</p></div>\`;
 
-  const totalDespesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.val, 0);
-  const totalReceitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val, 0);
+  const totalDespesas = list.filter(isTxExpense).reduce((s,t)=>s+Math.abs(parseFloat(t.val)||0), 0);
+  const totalReceitas = list.filter(isTxIncome).reduce((s,t)=>s+Math.abs(parseFloat(t.val)||0), 0);
   const saldoPeriodo = totalReceitas - totalDespesas;
-  const countDespesas = list.filter(t=>t.type==='out').length;
-  const countReceitas = list.filter(t=>t.type==='in').length;
+  const countDespesas = list.filter(isTxExpense).length;
+  const countReceitas = list.filter(isTxIncome).length;
 
   return \`
   <table>
@@ -2842,11 +2856,10 @@ function transactionsTable(list, showActions){
           <td>\${t.desc}</td>
           <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${t.cat}</span></td>
           <td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-weight:600;">\${t.acc || '—'}</span></td>
-          <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
-          <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
+          <td><span class="type-ic \${isTxIncome(t)?'in':'out'}">\${isTxIncome(t)?'↑':'↓'}</span></td>
+          <td class="\${isTxIncome(t)?'val-in':'val-out'}">\${isTxIncome(t)?'+':'-'}\${fmt(t.val)}</td>
           <td><span class="pill status-\${t.status.toLowerCase()}">\${t.status}</span></td>
           \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}">✎</button><button data-del="\${t.id}">🗑</button></div></td>\`:''}
-        </tr>\`).join('')}
     </tbody>
     <tfoot>
       <tr style="background:var(--hover); font-weight:700; border-top:2px solid var(--card-border);">
@@ -2855,7 +2868,8 @@ function transactionsTable(list, showActions){
         <td colspan="\${showActions?2:1}"></td>
       </tr>
     </tfoot>
-  </table>
+  </table>\`;
+}
 
   <!-- Aba / Card com Cálculo Consolidado dos Gastos ao final -->
   <div class="tx-footer-summary" style="margin-top:20px; padding:18px 20px; border:1px solid rgba(232,176,75,0.25); border-radius:14px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;">
