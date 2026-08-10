@@ -2547,16 +2547,16 @@ function pageDashboard(){
   </div>
 
   \${pendingSummary.items.length > 0 ? \`
-  <!-- Mini Card Quadrado Compacto & Discreto (Alinhado à Direita, max-width: 440px) -->
-  <div style="display:flex; justify-content:flex-end; margin-bottom:18px;">
-    <div class="panel due-bills-panel" style="width:100%; max-width:440px; margin:0; padding:12px 16px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.5)' : 'rgba(240,166,58,0.45)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.08)' : 'rgba(240,166,58,0.06)'}; border-radius:14px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+  <!-- Mini Card Quadrado Compacto & Discreto (Alinhado à Direita, sem cortes) -->
+  <div style="display:flex; justify-content:flex-end; width:100%; margin-bottom:20px;">
+    <div class="panel due-bills-panel" style="width:100%; max-width:480px; margin:0; padding:12px 16px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.5)' : 'rgba(240,166,58,0.45)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.08)' : 'rgba(240,166,58,0.06)'}; border-radius:14px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
       
       <!-- Cabeçalho Discreto -->
-      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:8px; padding-bottom:6px; border-bottom:1px solid var(--card-border);">
         <div style="display:flex; align-items:center; gap:6px;">
           <span style="font-size:15px;">\${pendingSummary.overdueCount > 0 ? '🚨' : '⚠️'}</span>
           <h4 style="margin:0; font-size:12.5px; font-weight:800; letter-spacing:0.02em; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'}; text-transform:uppercase;">
-            Contas a Vencer (\${pendingSummary.items.length})
+            CONTAS A VENCER (\${pendingSummary.items.length})
           </h4>
         </div>
         <span style="font-size:11px; font-weight:700; color:var(--text-dim);">
@@ -2564,29 +2564,29 @@ function pageDashboard(){
         </span>
       </div>
 
-      <!-- Lista Enxuta com Sinal de Emergência e Vencimento na Frente -->
+      <!-- Lista Enxuta Sem Cortes -->
       <div class="due-bills-list" style="display:flex; flex-direction:column; gap:6px;">
         \${pendingSummary.items.map(item => \`
-          <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding:6px 10px; border-radius:8px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.4)' : item.statusType === 'today' ? 'rgba(240,166,58,0.4)' : 'var(--card-border)'}; font-size:12px;">
+          <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:6px 12px; padding:7px 10px; border-radius:8px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.4)' : item.statusType === 'today' ? 'rgba(240,166,58,0.4)' : 'var(--card-border)'}; font-size:12px;">
             
-            <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+            <div style="display:flex; align-items:center; gap:8px; flex:1; min-width:180px;">
               <!-- Sinal de Emergência -->
               <span style="font-size:13px; flex-shrink:0;" title="\${item.statusText}">
                 \${item.statusType === 'overdue' ? '🚨' : item.statusType === 'today' ? '⚡' : '⚠️'}
               </span>
 
-              <div style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <div style="display:flex; align-items:center; flex-wrap:wrap; gap:4px 8px;">
                 <span style="font-weight:700; color:var(--text);">\${item.desc}</span>
                 <!-- Vencimento na Frente -->
-                <span style="font-size:11px; font-weight:600; color:\${item.statusType === 'overdue' ? 'var(--red)' : 'var(--orange)'}; margin-left:6px;">
+                <span style="font-size:11px; font-weight:700; color:\${item.statusType === 'overdue' ? 'var(--red)' : 'var(--orange)'}; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : 'rgba(240,166,58,0.15)'}; padding:1px 6px; border-radius:4px;">
                   Vence: \${item.formattedDate}
                 </span>
               </div>
             </div>
 
             <!-- Valor & Botão Pagar -->
-            <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-              <span style="font-size:12px; font-weight:800; color:var(--red);">\${fmt(item.val)}</span>
+            <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+              <span style="font-size:13px; font-weight:800; color:var(--red);">\${fmt(item.val)}</span>
               <button class="btn-primary" data-paytx="\${item.id}" title="Marcar como Pago" style="padding:3px 8px; font-size:10.5px; font-weight:700; background:linear-gradient(135deg, var(--green), #c9862a); border:none; border-radius:6px; cursor:pointer; color:#08130c; white-space:nowrap;">
                 ✅ Pagar
               </button>
