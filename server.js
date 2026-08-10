@@ -1458,6 +1458,11 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     saveToStorage('nexus_token', 'token_' + Date.now());
     document.documentElement.classList.add('user-logged-in');
     await loadUserData();
+    if (user.role === 'Administrador' && !isViewingOtherUser) {
+      currentPage = 'usuarios';
+    } else {
+      currentPage = 'dashboard';
+    }
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
     render();
@@ -2164,6 +2169,12 @@ function refreshTxTable(){
 async function render(){
   const el = document.getElementById('pageContent');
   if (!el) return;
+
+  const isAdmin = currentUser && currentUser.role === 'Administrador';
+  const isAdminView = isAdmin && !isViewingOtherUser;
+  if (isAdminView && currentPage !== 'usuarios' && currentPage !== 'logs') {
+    currentPage = 'usuarios';
+  }
 
   let newHTML = '';
   if(currentPage==='usuarios') {
