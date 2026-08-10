@@ -536,6 +536,17 @@ body.light .due-bill-row {
   background: #f8fafc !important;
 }
 
+/* Alinhamento Multidispositivo de Painéis e Cards */
+.due-bills-panel {
+  width: 100%;
+  margin-bottom: 22px;
+  box-sizing: border-box;
+}
+.due-bill-row {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .page-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:14px;}
 .page-head h1{font-size:23px; font-weight:700;}
 .page-head p{color:var(--text-dim); font-size:13px; margin-top:3px;}
