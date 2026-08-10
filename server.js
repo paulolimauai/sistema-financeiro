@@ -1782,7 +1782,8 @@ let isDataLoading = false;
 
 async function loadUserData() {
   if (!currentUser) return;
-  const userKey = 'nexus_data_' + currentUser.email;
+  const cleanEmail = (currentUser.email || '').toLowerCase().trim();
+  const userKey = 'nexus_data_' + cleanEmail;
   
   // 1. Carrega dados do cache local instantaneamente se disponíveis
   let localData = loadFromStorage(userKey, null);
@@ -1794,12 +1795,12 @@ async function loadUserData() {
     isDataLoading = true;
   }
 
-  // 2. Sincroniza em segundo plano com o servidor
+  // 2. Sincroniza em segundo plano com o servidor (garantindo os mesmos dados em todos os dispositivos)
   try {
-    const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(currentUser.email));
+    const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(cleanEmail));
     if (res.ok) {
       const serverData = await res.json();
-      if (serverData) {
+      if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
         applyDataPayload(serverData);
         saveToStorage(userKey, serverData);
       }
@@ -1836,6 +1837,20 @@ async function loadUserData() {
   if (typeof render === 'function' && document.getElementById('appMain') && document.getElementById('appMain').classList.contains('show')) {
     render();
   }
+}
+
+// Sincronização Automática entre Dispositivos ao alternar ou focar no app
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && currentUser && !isViewingOtherUser) {
+      loadUserData();
+    }
+  });
+  window.addEventListener('focus', () => {
+    if (currentUser && !isViewingOtherUser) {
+      loadUserData();
+    }
+  });
 }
 
 async function saveUserData() {
@@ -5116,8 +5131,8 @@ const server = http.createServer((req, res) => {
 
   // Rota GET para buscar dados financeiros do Usuário no banco
   if (req.method === 'GET' && parsedUrl.pathname === '/api/data') {
-    const email = parsedUrl.query.email;
-    pool.query('SELECT dados FROM dados_financeiros WHERE email = $1', [email])
+    const email = (parsedUrl.query.email || '').toLowerCase().trim();
+    pool.query('SELECT dados FROM dados_financeiros WHERE LOWER(email) = LOWER($1)', [email])
       .then(result => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result.rows[0] ? result.rows[0].dados : null));
@@ -5146,12 +5161,13 @@ const server = http.createServer((req, res) => {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ success: false }));
       }
+      const cleanEmail = (payload.email || '').toLowerCase().trim();
       pool.query(
         `INSERT INTO dados_financeiros (email, dados, updated_at)
          VALUES ($1, $2, now())
          ON CONFLICT (email) DO UPDATE
          SET dados = EXCLUDED.dados, updated_at = now();`,
-        [payload.email, payload.data]
+        [cleanEmail, payload.data]
       )
         .then(() => {
           res.writeHead(200, { 'Content-Type': 'application/json' });
