@@ -2141,42 +2141,56 @@ function isTxForAccount(t, account) {
 
   const tAccLower = (t.acc || '').toLowerCase().trim();
   const tCardLower = (t.card || '').toLowerCase().trim();
+  const tCatLower = (t.cat || '').toLowerCase().trim();
+  const tDescLower = (t.desc || '').toLowerCase().trim();
 
-  // 2. Correspondência exata do nome da conta ou do cartão
-  if (tAccLower === accNameLower || tCardLower === accNameLower) return true;
+  // 2. Correspondência exata do nome da conta, cartão ou categoria
+  if (tAccLower === accNameLower || tCardLower === accNameLower || tCatLower === accNameLower) return true;
 
   // 3. Correspondência normalizada (removendo "Cartão", "Conta", "Banco", etc.)
   const normAccName = normalizeAccName(account.name);
   const normTAcc = normalizeAccName(t.acc);
   const normTCard = normalizeAccName(t.card);
+  const normTCat = normalizeAccName(t.cat);
 
   if (normAccName.length >= 2) {
-    if (normTAcc === normAccName || normTCard === normAccName) return true;
+    if (normTAcc === normAccName || normTCard === normAccName || normTCat === normAccName) return true;
     if (normTAcc && (normTAcc.includes(normAccName) || normAccName.includes(normTAcc))) return true;
     if (normTCard && (normTCard.includes(normAccName) || normAccName.includes(normTCard))) return true;
+    if (normTCat && (normTCat.includes(normAccName) || normAccName.includes(normTCat))) return true;
   }
 
-  // 4. Se a transação tem nome parcial do cartão/conta (ex: "Nubank" vs "Cartão Nubank")
+  // 4. Suporte especial estendido para Nubank / Nu / Roxinho
+  const isNubankAccount = accNameLower.includes('nubank') || accNameLower.includes('roxinho') || accNameLower.includes('nu');
+  if (isNubankAccount) {
+    if (
+      tAccLower.includes('nubank') || tAccLower.includes('roxinho') || tAccLower === 'nu' || tAccLower.includes('nupay') ||
+      tCardLower.includes('nubank') || tCardLower.includes('roxinho') || tCardLower.includes('nupay') ||
+      tCatLower.includes('nubank') || tCatLower.includes('roxinho') ||
+      tDescLower.includes('nubank') || tDescLower.includes('roxinho') || tDescLower.includes('nupay')
+    ) {
+      return true;
+    }
+  }
+
+  // 5. Se o nome da conta estiver em tAccLower ou accNameLower contiver tAccLower
   if (tAccLower && accNameLower.length >= 3) {
     if (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower)) return true;
   }
 
-  // 5. Se a transação estiver como "Cartão de Crédito" ou "Cartão" e só houver 1 Cartão de Crédito cadastrado
+  // 6. Verificação de palavras-chave na descrição/categoria quando a conta da transação for genérica ou vazia
+  if (!tAccLower || tAccLower === 'sem conta' || tAccLower === 'boleto / outros' || tAccLower === 'dinheiro' || tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito') {
+    if (normAccName.length >= 3 && (tDescLower.includes(normAccName) || tCatLower.includes(normAccName))) return true;
+    if (accNameLower.length >= 3 && (tDescLower.includes(accNameLower) || tCatLower.includes(accNameLower))) return true;
+  }
+
+  // 7. Se a transação estiver marcada como "Cartão de Crédito" e esta conta for o único Cartão de Crédito cadastrado
   if (isAccountCreditCard(account)) {
     const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
     if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) {
       if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
         return true;
       }
-    }
-  }
-
-  // 6. Verificação de palavras-chave na descrição para transações com conta não especificada
-  if (!tAccLower || tAccLower === 'sem conta' || tAccLower === 'boleto / outros' || tAccLower === 'dinheiro') {
-    const descLower = (t.desc || '').toLowerCase().trim();
-    if (descLower) {
-      if (normAccName.length >= 3 && descLower.includes(normAccName)) return true;
-      if (accNameLower.length >= 3 && descLower.includes(accNameLower)) return true;
     }
   }
 
@@ -2189,12 +2203,12 @@ function getCardStats(account) {
   const isCreditCard = isAccountCreditCard(account);
   const cardTx = transactions.filter(t => isTxForAccount(t, account));
 
-  const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
-  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
+  const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
   
   const periodCardTx = cardTx.filter(inPeriod);
-  const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
-  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
+  const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
 
   const initialBalance = parseFloat(account.balance) || 0;
 
