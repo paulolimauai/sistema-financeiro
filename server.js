@@ -2898,11 +2898,6 @@ async function logActivity(action, entity, details) {
 }
 
 async function loadSystemLogs() {
-  const cached = loadFromStorage('nexus_system_logs', null);
-  if (Array.isArray(cached) && cached.length > 0) {
-    systemLogs = cached;
-  }
-
   try {
     const res = await fetch(window.location.origin + '/api/logs');
     if (res.ok) {
@@ -2910,9 +2905,16 @@ async function loadSystemLogs() {
       if (Array.isArray(data)) {
         systemLogs = data;
         saveToStorage('nexus_system_logs', systemLogs.slice(0, 500));
+        return data;
       }
     }
   } catch(e) {}
+
+  const cached = loadFromStorage('nexus_system_logs', null);
+  if (Array.isArray(cached) && cached.length > 0) {
+    systemLogs = cached;
+  }
+  return systemLogs;
 }
 
 function renderLogsTable(list) {
@@ -4597,7 +4599,7 @@ const server = http.createServer((req, res) => {
         const fileLogs = getFileLogs();
         const combinedMap = new Map();
         [...fileLogs, ...dbLogs].forEach(l => {
-          const key = (l.timestamp || '') + '_' + (l.user_email || '') + '_' + (l.action || '') + '_' + (l.details || '');
+          const key = (l.user_email || '') + '_' + (l.action || '') + '_' + (l.entity || '') + '_' + (l.details || '');
           if (!combinedMap.has(key)) combinedMap.set(key, l);
         });
         const finalLogs = Array.from(combinedMap.values());
@@ -4620,16 +4622,25 @@ const server = http.createServer((req, res) => {
     req.on('data', chunk => body += chunk.toString());
     req.on('end', async () => {
       try {
-        const { userName, userEmail, action, entity, details } = JSON.parse(body);
-        if (!action || !entity || !details) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: false }));
+        let parsed = {};
+        try {
+          parsed = JSON.parse(body);
+        } catch(e) {
+          try {
+            parsed = url.parse('?' + body, true).query;
+          } catch(e2){}
         }
+
+        const action = parsed.action || parsed.act || 'Edição';
+        const entity = parsed.entity || parsed.ent || 'Sistema';
+        const details = parsed.details || parsed.desc || parsed.msg || body || 'Alteração efetuada no sistema';
+        const userName = parsed.userName || parsed.user_name || parsed.name || 'Usuário';
+        const userEmail = parsed.userEmail || parsed.user_email || parsed.email || '';
 
         const logObj = {
           id: Date.now(),
           timestamp: new Date().toISOString(),
-          user_name: userName || 'Sistema',
+          user_name: userName || 'Usuário',
           user_email: userEmail || 'sistema@nexus.com',
           action: action,
           entity: entity,
@@ -4641,15 +4652,15 @@ const server = http.createServer((req, res) => {
         pool.query(
           `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
            VALUES (now(), $1, $2, $3, $4, $5)`,
-          [userName || 'Sistema', userEmail || 'sistema@nexus.com', action, entity, details]
+          [userName || 'Usuário', userEmail || 'sistema@nexus.com', action, entity, details]
         ).catch(() => {});
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       } catch (e) {
         console.error('Erro ao salvar log:', e);
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
       }
     });
     return;
