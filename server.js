@@ -1749,23 +1749,36 @@ function autoMigrateTransactionsAndAccounts() {
 
 function applyDataPayload(data) {
   if (!data) return;
-  categories = data.categories || [];
-  accounts = data.accounts || [];
-  transactions = data.transactions || [];
-  budgets = data.budgets || [];
-  goals = data.goals || [];
-  recurringList = data.recurringList || [];
-  alerts = data.alerts || [];
-  attachments = data.attachments || [];
-  notifications = data.notifications || [];
-  nextAccId = data.nextAccId || 10;
-  nextTxId = data.nextTxId || 10;
-  nextBudgetId = data.nextBudgetId || 10;
-  nextGoalId = data.nextGoalId || 10;
-  nextRecId = data.nextRecId || 10;
-  nextAlertId = data.nextAlertId || 10;
-  nextAttId = data.nextAttId || 10;
-  nextNotifId = data.nextNotifId || 10;
+  
+  if (Array.isArray(data.categories) && data.categories.length > 0) {
+    categories = data.categories;
+  } else if (!categories || categories.length === 0) {
+    categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
+  }
+
+  // Preserva dados existentes caso o payload recebido venha com arrays vazios por falha de resposta
+  if (Array.isArray(data.accounts) && data.accounts.length > 0) {
+    accounts = data.accounts;
+  }
+  if (Array.isArray(data.transactions) && data.transactions.length > 0) {
+    transactions = data.transactions;
+  }
+  if (Array.isArray(data.budgets) && data.budgets.length > 0) budgets = data.budgets;
+  if (Array.isArray(data.goals) && data.goals.length > 0) goals = data.goals;
+  if (Array.isArray(data.recurringList) && data.recurringList.length > 0) recurringList = data.recurringList;
+  if (Array.isArray(data.alerts) && data.alerts.length > 0) alerts = data.alerts;
+  if (Array.isArray(data.attachments) && data.attachments.length > 0) attachments = data.attachments;
+  if (Array.isArray(data.notifications) && data.notifications.length > 0) notifications = data.notifications;
+
+  if (data.nextAccId) nextAccId = Math.max(nextAccId, data.nextAccId);
+  if (data.nextTxId) nextTxId = Math.max(nextTxId, data.nextTxId);
+  if (data.nextBudgetId) nextBudgetId = Math.max(nextBudgetId, data.nextBudgetId);
+  if (data.nextGoalId) nextGoalId = Math.max(nextGoalId, data.nextGoalId);
+  if (data.nextRecId) nextRecId = Math.max(nextRecId, data.nextRecId);
+  if (data.nextAlertId) nextAlertId = Math.max(nextAlertId, data.nextAlertId);
+  if (data.nextAttId) nextAttId = Math.max(nextAttId, data.nextAttId);
+  if (data.nextNotifId) nextNotifId = Math.max(nextNotifId, data.nextNotifId);
+
   migrateCategories();
   autoMigrateTransactionsAndAccounts();
 }
@@ -1777,7 +1790,7 @@ async function loadUserData() {
   const cleanEmail = (currentUser.email || '').toLowerCase().trim();
   const userKey = 'nexus_data_' + cleanEmail;
   
-  // 1. Carrega dados do cache local instantaneamente se disponíveis
+  // 1. Carrega dados do cache local instantaneamente para garantir exibição imediata
   let localData = loadFromStorage(userKey, null);
   if (localData) {
     applyDataPayload(localData);
@@ -1787,7 +1800,7 @@ async function loadUserData() {
     isDataLoading = true;
   }
 
-  // 2. Sincroniza em segundo plano com o servidor (garantindo os mesmos dados em todos os dispositivos)
+  // 2. Sincroniza em segundo plano com o servidor PostgreSQL
   try {
     const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(cleanEmail));
     if (res.ok) {
@@ -1796,33 +1809,9 @@ async function loadUserData() {
         applyDataPayload(serverData);
         saveToStorage(userKey, serverData);
       }
-    } else if (!localData) {
-      categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
-      accounts = [];
-      transactions = [];
-      budgets = [];
-      goals = [];
-      recurringList = [];
-      alerts = [];
-      attachments = [];
-      notifications = [];
-      nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
-      await saveUserData();
     }
   } catch(e) {
-    if (!localData) {
-      categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
-      accounts = [];
-      transactions = [];
-      budgets = [];
-      goals = [];
-      recurringList = [];
-      alerts = [];
-      attachments = [];
-      notifications = [];
-      nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
-      await saveUserData();
-    }
+    console.warn('Aviso de conexão com o banco de dados:', e);
   } finally {
     isDataLoading = false;
   }
@@ -1848,12 +1837,25 @@ if (typeof document !== 'undefined') {
 async function saveUserData() {
   if (!currentUser) return;
   if (isViewingOtherUser) return;
+
+  // Escudo contra exclusão acidental: impede salvar dados totalmente zerados se já existiam contas/transações no cache local
+  const cleanEmail = (currentUser.email || '').toLowerCase().trim();
+  const userKey = 'nexus_data_' + cleanEmail;
+
+  if (accounts.length === 0 && transactions.length === 0) {
+    const existingCache = loadFromStorage(userKey, null);
+    if (existingCache && ((existingCache.accounts && existingCache.accounts.length > 0) || (existingCache.transactions && existingCache.transactions.length > 0))) {
+      console.warn('Escudo ativado: impedindo sobrescrita do banco de dados com payload zerado.');
+      applyDataPayload(existingCache);
+      return;
+    }
+  }
+
   const payloadData = {
     categories, accounts, transactions, budgets, goals, recurringList, alerts, attachments, notifications,
     nextAccId, nextTxId, nextBudgetId, nextGoalId, nextRecId, nextAlertId, nextAttId, nextNotifId
   };
   
-  const userKey = 'nexus_data_' + currentUser.email;
   saveToStorage(userKey, payloadData);
 
   try {
