@@ -3420,6 +3420,23 @@ function openModal(id){
   }
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
+function parseInputValue(valStr) {
+  if (typeof valStr === 'number') return isNaN(valStr) ? 0 : valStr;
+  if (!valStr) return 0;
+  let cleaned = String(valStr).replace(/[^0-9.,-]/g, '').trim();
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    if (cleaned.indexOf('.') < cleaned.indexOf(',')) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (cleaned.includes(',')) {
+    cleaned = cleaned.replace(',', '.');
+  }
+  const num = parseFloat(cleaned);
+  return isNaN(num) ? 0 : num;
+}
+
 function populateCategoriaOptions(type){
   const fCat = document.getElementById('fCategoria');
   if(!fCat) return;
@@ -3430,24 +3447,59 @@ function populateCategoriaOptions(type){
   const list = hasOfType ? categories.filter(c => (c.type||'despesa') === wantType) : categories;
   if(list.some(c=>c.name===prev)) fCat.value = prev;
 }
+
 function setType(t){
   currentType = t;
-  document.getElementById('typeInBtn').className = t==='in' ? 'sel-in' : '';
-  document.getElementById('typeOutBtn').className = t==='out' ? 'sel-out' : '';
+  const inBtn = document.getElementById('typeInBtn');
+  const outBtn = document.getElementById('typeOutBtn');
+  if(inBtn) inBtn.className = t==='in' ? 'sel-in' : '';
+  if(outBtn) outBtn.className = t==='out' ? 'sel-out' : '';
   populateCategoriaOptions(t);
+  const fStatusEl = document.getElementById('fStatus');
+  if(fStatusEl && !editingId) {
+    fStatusEl.value = t==='in' ? 'Recebido' : 'Pago';
+  }
   const fContaEl = document.getElementById('fConta');
   if(fContaEl) {
     populateAccountOptions(fContaEl.value);
   }
 }
+
 async function saveTransaction(){
-  const desc = document.getElementById('fDesc').value.trim();
-  const val = parseFloat(document.getElementById('fValor').value);
-  const date = document.getElementById('fData').value;
-  const cat = document.getElementById('fCategoria').value;
-  const status = document.getElementById('fStatus').value;
-  const accSel = document.getElementById('fConta') ? document.getElementById('fConta').value : '';
-  if(!desc || isNaN(val) || val<=0 || !date){ showToast('Preencha todos os campos corretamente'); return; }
+  const descEl = document.getElementById('fDesc');
+  const valorEl = document.getElementById('fValor');
+  const dateEl = document.getElementById('fData');
+  const catEl = document.getElementById('fCategoria');
+  const statusEl = document.getElementById('fStatus');
+  const accEl = document.getElementById('fConta');
+
+  const desc = descEl ? descEl.value.trim() : '';
+  const val = parseInputValue(valorEl ? valorEl.value : '');
+  const date = dateEl ? dateEl.value : '';
+  const cat = catEl ? catEl.value : '';
+  const status = statusEl ? statusEl.value : 'Pago';
+  const accSel = accEl ? accEl.value : '';
+
+  if(!desc) {
+    showToast('⚠️ Por favor, informe a descrição da transação.');
+    if(descEl) descEl.focus();
+    return;
+  }
+  if(isNaN(val) || val <= 0) {
+    showToast('⚠️ Por favor, informe um valor válido maior que zero (Ex: 100,50).');
+    if(valorEl) valorEl.focus();
+    return;
+  }
+  if(!date) {
+    showToast('⚠️ Por favor, selecione a data da transação.');
+    if(dateEl) dateEl.focus();
+    return;
+  }
+  if(!cat) {
+    showToast('⚠️ Por favor, selecione uma categoria.');
+    if(catEl) catEl.focus();
+    return;
+  }
 
   const targetAcc = accounts.find(a => a.name === accSel);
   const accId = targetAcc ? targetAcc.id : null;
