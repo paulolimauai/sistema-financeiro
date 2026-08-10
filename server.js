@@ -2919,15 +2919,65 @@ async function loadSystemLogs() {
 
 function renderLogsTable(list) {
   if (!list || list.length === 0) {
-              <span style="font-size:11px; color:var(--text-faint);">${l.user_email || '—'}</span>
-            </div>
-          </td>
-          <td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-weight:600;">\${l.entity}</span></td>
-          <td style="font-size:12.5px; line-height:1.4;">\${l.details}</td>
-        </tr>\`;
-      }).join('')}
-    </tbody>
-  </table>\`;
+    return '<div class="placeholder"><div class="big">📜</div><h3>Nenhum registro de log encontrado</h3><p>As ações e alterações dos usuários serão registradas aqui em tempo real.</p></div>';
+  }
+
+  let rowsHtml = list.map(function(l) {
+    const dateStr = l.timestamp ? new Date(l.timestamp).toLocaleString('pt-BR') : '—';
+    let actionBadgeClass = 'var(--purple)';
+    let actionBg = 'rgba(155,107,216,0.15)';
+    const actLower = (l.action || '').toLowerCase();
+    if (actLower.includes('cria') || actLower.includes('novo') || actLower.includes('adiç')) {
+      actionBadgeClass = 'var(--green)';
+      actionBg = 'var(--green-soft)';
+    } else if (actLower.includes('ediç') || actLower.includes('alter')) {
+      actionBadgeClass = 'var(--orange)';
+      actionBg = 'rgba(232,176,75,0.15)';
+    } else if (actLower.includes('excl') || actLower.includes('remov') || actLower.includes('desativ')) {
+      actionBadgeClass = 'var(--red)';
+      actionBg = 'var(--red-soft)';
+    } else if (actLower.includes('login') || actLower.includes('acesso')) {
+      actionBadgeClass = 'var(--blue)';
+      actionBg = 'rgba(74,144,226,0.15)';
+    }
+
+    let formattedDetails = (l.details || '');
+    if (formattedDetails.includes('➔')) {
+      const parts = formattedDetails.split(' | ');
+      formattedDetails = parts.map(function(part) {
+        if (part.includes('➔')) {
+          const colonIdx = part.indexOf(': ');
+          let fieldName = '';
+          let valsStr = part;
+          if (colonIdx !== -1) {
+            fieldName = part.substring(0, colonIdx);
+            valsStr = part.substring(colonIdx + 2);
+          }
+          const arrowIdx = valsStr.indexOf('➔');
+          const oldV = arrowIdx !== -1 ? valsStr.substring(0, arrowIdx).trim() : '';
+          const newV = arrowIdx !== -1 ? valsStr.substring(arrowIdx + 1).trim() : '';
+
+          return '<span style="display:inline-flex; align-items:center; margin:2px 4px 2px 0; padding:4px 9px; background:rgba(255,255,255,0.04); border-radius:8px; border:1px solid rgba(255,255,255,0.08); font-size:12px;">'
+            + (fieldName ? '<strong style="color:var(--text-dim); margin-right:5px;">' + fieldName + ':</strong> ' : '')
+            + '<span style="color:#ef5a5a; text-decoration:line-through; margin-right:4px; opacity:0.85;">' + oldV + '</span>'
+            + '<span style="color:#e8b04b; font-weight:bold; margin:0 5px;">➔</span>'
+            + '<span style="color:#3ec7c7; font-weight:700;">' + newV + '</span>'
+            + '</span>';
+        }
+        return '<span style="display:inline-block; margin:2px 0;">' + part + '</span>';
+      }).join(' ');
+    }
+
+    return '<tr class="trow">'
+      + '<td style="font-size:12px; color:var(--text-dim); white-space:nowrap;">' + dateStr + '</td>'
+      + '<td><div style="display:flex; flex-direction:column;"><strong style="font-size:12.5px;">' + (l.user_name || 'Usuário') + '</strong><span style="font-size:11px; color:var(--text-faint);">' + (l.user_email || '—') + '</span></div></td>'
+      + '<td><span class="pill" style="background:' + actionBg + '; color:' + actionBadgeClass + '; font-weight:700;">' + l.action + '</span></td>'
+      + '<td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-weight:600;">' + l.entity + '</span></td>'
+      + '<td style="font-size:12.5px; line-height:1.5;">' + formattedDetails + '</td>'
+      + '</tr>';
+  }).join('');
+
+  return '<table id="logsTable"><thead><tr><th style="width:160px;">Data e Hora</th><th style="width:200px;">Usuário (Login)</th><th style="width:130px;">Ação</th><th style="width:150px;">Módulo / Entidade</th><th>Informações Alteradas / Detalhes</th></tr></thead><tbody>' + rowsHtml + '</tbody></table>';
 }
 
 function filterLogsTable() {
