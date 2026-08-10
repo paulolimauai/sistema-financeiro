@@ -4216,13 +4216,33 @@ async function deleteGoal(id){
 }
 async function addContribution(id){
   const g = goals.find(x=>x.id===id);
+  if (!g) return;
   const v = prompt('Adicionar quanto à meta "' + g.name + '"? (R$)');
   if(v===null) return;
   const val = parseFloat(v.replace(',','.'));
   if(isNaN(val) || val<=0){ showToast('Valor inválido'); return; }
   g.current += val;
+
+  const now = new Date();
+  const targetYear = (currentPeriod.month === 0 || !currentPeriod.year) ? now.getFullYear() : currentPeriod.year;
+  const targetMonth = (currentPeriod.month === 0 || !currentPeriod.month) ? (now.getMonth() + 1) : currentPeriod.month;
+  const txDate = pdCustom(targetYear, targetMonth, 30);
+  const mainAcc = accounts[0] || null;
+
+  transactions.push({
+    id: nextTxId++,
+    desc: 'Contribuição para Meta: ' + g.name,
+    val: val,
+    date: txDate,
+    cat: 'Investimentos',
+    status: 'Pago',
+    type: 'out',
+    acc: mainAcc ? mainAcc.name : 'Conta Principal',
+    accId: mainAcc ? mainAcc.id : null
+  });
+
   await saveUserData();
-  showToast('Valor adicionado à meta!');
+  showToast('Valor adicionado à meta e registrado nas transações!');
   logActivity('Edição', 'Meta', 'Adicionou contribuição de ' + fmt(val) + ' à meta "' + g.name + '" (Atual: ' + fmt(g.current) + ')');
   render();
 }
