@@ -2000,8 +2000,21 @@ function catOptionsHTML(type, selected){
   list = list.slice().sort((a,b)=> (b.count||0)-(a.count||0) || a.name.localeCompare(b.name,'pt-BR'));
   return list.map(c=>'<option value="'+c.name+'"'+(selected===c.name?' selected':'')+'>'+(c.icon||'📁')+' '+c.name+'</option>').join('');
 }
-const periodLabel = ()=> MONTHS[currentPeriod.month-1] + ' / ' + currentPeriod.year;
-const inPeriod = t => { const d=new Date(t.date+'T00:00'); return (d.getMonth()+1)===currentPeriod.month && d.getFullYear()===currentPeriod.year; };
+const periodLabel = () => currentPeriod.month === 0 ? 'Todas as Datas (Geral)' : ((MONTHS[currentPeriod.month-1] || 'Mês ' + currentPeriod.month) + ' / ' + currentPeriod.year);
+
+const inPeriod = t => {
+  if (!t || !t.date) return false;
+  if (currentPeriod.month === 0) return true;
+  
+  const dParts = String(t.date).split('T')[0].split('-');
+  if (dParts.length === 3) {
+    const y = parseInt(dParts[0]);
+    const m = parseInt(dParts[1]);
+    return m === currentPeriod.month && y === currentPeriod.year;
+  }
+  const d = new Date(t.date);
+  return (d.getMonth() + 1) === currentPeriod.month && d.getFullYear() === currentPeriod.year;
+};
 
 /* ==================== Cálculos de Cartões e Limites ==================== */
 function isAccountCreditCard(account) {
@@ -2457,15 +2470,19 @@ function updateHeaderUser(){
 }
 
 function periodPickerHTML(){
+  const isAllDates = currentPeriod.month === 0;
+  const labelText = isAllDates ? 'Todas as Datas (Geral)' : (MONTHS[currentPeriod.month-1] + ' / ' + currentPeriod.year);
+
   return \`
   <div class="period-wrap">
     <button type="button" class="period" id="periodBtn">
       <span class="period-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="3"/><line x1="3" y1="9.5" x2="21" y2="9.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><circle cx="8" cy="14" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="14" r="1.1" fill="currentColor" stroke="none"/><circle cx="16" cy="14" r="1.1" fill="currentColor" stroke="none"/></svg></span>
-      <span class="period-text">\${MONTHS[currentPeriod.month-1]} <span class="period-year">/ \${currentPeriod.year}</span></span>
+      <span class="period-text">\${labelText}</span>
       <svg class="period-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </button>
     <div class="period-panel" id="periodPanel">
-      <button type="button" class="period-today-btn" id="periodTodayBtn">📍 Ir para o mês atual</button>
+      <button type="button" class="period-today-btn" id="periodTodayBtn" style="margin-bottom:6px;">📍 Ir para o mês atual</button>
+      <button type="button" class="period-today-btn" id="periodAllDatesBtn" style="background:rgba(74,144,226,0.15); color:var(--blue); margin-bottom:12px;">🌐 Ver Todas as Datas (Visão Geral)</button>
       <div class="field"><label>Ano</label><select id="periodYearSel"></select></div>
       <div class="field"><label>Mês</label><select id="periodMonthSel"></select></div>
       <button class="btn-primary" id="periodApplyBtn" style="width:100%;justify-content:center">Aplicar</button>
@@ -4665,6 +4682,17 @@ function attachPageEvents(){
       periodBtn.classList.remove('open');
       render();
     };
+    const allDatesBtn = document.getElementById('periodAllDatesBtn');
+    if (allDatesBtn) {
+      allDatesBtn.onclick = () => {
+        const now = new Date();
+        currentPeriod = { year: now.getFullYear(), month: 0 };
+        try { localStorage.setItem('fin_current_period', JSON.stringify(currentPeriod)); } catch(e){}
+        document.getElementById('periodPanel').classList.remove('show');
+        periodBtn.classList.remove('open');
+        render();
+      };
+    }
   }
 
   const search = document.getElementById('txSearch');
