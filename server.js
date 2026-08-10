@@ -4273,7 +4273,7 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
     return;
   }
 
-  // Garante a sessão imediatamente a partir do cache local
+  // Define sessão inicial a partir do cache
   currentUser = cachedUser || { email: sessionEmail, name: sessionEmail.split('@')[0], role: 'Usuário' };
   document.documentElement.classList.add('user-logged-in');
   document.getElementById('authPage').classList.remove('show');
@@ -4283,7 +4283,7 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
   await loadUserData();
   if (typeof render === 'function') render();
 
-  // Validação em segundo plano sem interromper a tela
+  // Valida e atualiza a função (role) real do usuário a partir do servidor
   try {
     await syncUsersWithServer();
     const user = registeredUsers.find(u => u.email.toLowerCase() === sessionEmail.toLowerCase());
@@ -4302,6 +4302,14 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
       currentUser = user;
       saveToStorage('nexus_session', { email: user.email });
       saveToStorage('nexus_cached_user', user);
+
+      // Redireciona e re-renderiza o menu de acordo com o perfil atualizado
+      if (currentUser.role === 'Administrador' && !isViewingOtherUser) {
+        if (currentPage !== 'usuarios' && currentPage !== 'logs') {
+          currentPage = 'usuarios';
+        }
+      }
+      if (typeof render === 'function') render();
     }
   } catch(e) {}
 })();
