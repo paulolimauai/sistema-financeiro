@@ -1,4 +1,5 @@
-require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
 const http = require('http');
 const url = require('url');
 const net = require('net');
@@ -2869,6 +2870,9 @@ async function logActivity(action, entity, details) {
   };
 
   systemLogs.unshift(logEntry);
+  try {
+    saveToStorage('nexus_system_logs', systemLogs.slice(0, 500));
+  } catch(e){}
 
   try {
     fetch(window.location.origin + '/api/logs', {
@@ -2886,12 +2890,18 @@ async function logActivity(action, entity, details) {
 }
 
 async function loadSystemLogs() {
+  const cached = loadFromStorage('nexus_system_logs', null);
+  if (Array.isArray(cached) && cached.length > 0) {
+    systemLogs = cached;
+  }
+
   try {
     const res = await fetch(window.location.origin + '/api/logs');
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
         systemLogs = data;
+        saveToStorage('nexus_system_logs', systemLogs.slice(0, 500));
       }
     }
   } catch(e) {}
@@ -4503,17 +4513,53 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Persistência resiliente de Logs em Arquivo Local + Banco de Dados
+  const LOGS_FILE_PATH = path.join(__dirname, 'system_logs.json');
+
+  function getFileLogs() {
+    try {
+      if (fs.existsSync(LOGS_FILE_PATH)) {
+        const data = fs.readFileSync(LOGS_FILE_PATH, 'utf8');
+        return JSON.parse(data) || [];
+      }
+    } catch (e) {
+      console.error('Erro ao ler system_logs.json:', e);
+    }
+    return [];
+  }
+
+  function saveFileLogEntry(entry) {
+    try {
+      const list = getFileLogs();
+      list.unshift(entry);
+      if (list.length > 1000) list.pop();
+      fs.writeFileSync(LOGS_FILE_PATH, JSON.stringify(list, null, 2), 'utf8');
+    } catch (e) {
+      console.error('Erro ao escrever system_logs.json:', e);
+    }
+  }
+
   // Rota GET de Logs de Auditoria
   if (req.method === 'GET' && parsedUrl.pathname === '/api/logs') {
     pool.query('SELECT id, timestamp, user_name, user_email, action, entity, details FROM system_logs ORDER BY id DESC LIMIT 500')
       .then(result => {
+        const dbLogs = result.rows || [];
+        const fileLogs = getFileLogs();
+        const combinedMap = new Map();
+        [...fileLogs, ...dbLogs].forEach(l => {
+          const key = (l.timestamp || '') + '_' + (l.user_email || '') + '_' + (l.action || '') + '_' + (l.details || '');
+          if (!combinedMap.has(key)) combinedMap.set(key, l);
+        });
+        const finalLogs = Array.from(combinedMap.values());
+        finalLogs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result.rows));
+        res.end(JSON.stringify(finalLogs));
       })
       .catch(err => {
-        console.error('Erro ao buscar logs:', err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Erro no banco de dados' }));
+        console.error('Aviso ao buscar logs no banco (usando fallback local):', err.message);
+        const fileLogs = getFileLogs();
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(fileLogs));
       });
     return;
   }
@@ -4529,11 +4575,25 @@ const server = http.createServer((req, res) => {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false }));
         }
-        await pool.query(
+
+        const logObj = {
+          id: Date.now(),
+          timestamp: new Date().toISOString(),
+          user_name: userName || 'Sistema',
+          user_email: userEmail || 'sistema@nexus.com',
+          action: action,
+          entity: entity,
+          details: details
+        };
+
+        saveFileLogEntry(logObj);
+
+        pool.query(
           `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
            VALUES (now(), $1, $2, $3, $4, $5)`,
           [userName || 'Sistema', userEmail || 'sistema@nexus.com', action, entity, details]
-        );
+        ).catch(() => {});
+
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       } catch (e) {
