@@ -1723,6 +1723,7 @@ document.getElementById('logoutBtn').onclick = async () => {
   currentUser = null;
   isViewingOtherUser = false;
   adminOriginalUser = null;
+  resetUserDataToEmpty();
   localStorage.removeItem('nexus_session');
   localStorage.removeItem('nexus_cached_user');
   localStorage.removeItem('nexus_token');
@@ -1745,6 +1746,26 @@ let attachments = [];
 let notifications = [];
 
 let nextAccId = 1, nextTxId = 1, nextBudgetId = 1, nextGoalId = 1, nextRecId = 1, nextAlertId = 1, nextAttId = 1, nextNotifId = 1;
+
+function resetUserDataToEmpty() {
+  categories = BASE_CATEGORIES.map(c => ({...c, count: 0}));
+  accounts = [];
+  transactions = [];
+  budgets = [];
+  goals = [];
+  recurringList = [];
+  alerts = [];
+  attachments = [];
+  notifications = [];
+  nextAccId = 1;
+  nextTxId = 1;
+  nextBudgetId = 1;
+  nextGoalId = 1;
+  nextRecId = 1;
+  nextAlertId = 1;
+  nextAttId = 1;
+  nextNotifId = 1;
+}
 
 /* ==================== Migração: tipo de categoria ==================== */
 const RECEITA_NAME_HINTS = ['salário','salario','renda','freela','freelance','bônus','bonus','valor extra','extra','13º','decimo terceiro','décimo terceiro','rendimento','dividendo','investimento','reembolso'];
@@ -1869,13 +1890,15 @@ async function loadUserData() {
   if (!currentUser) return;
   const userKey = 'nexus_data_' + currentUser.email;
   
-  // 1. Carrega dados do cache local instantaneamente se disponíveis
+  // 1. Carrega dados do cache local do usuario específico se disponível
   let localData = loadFromStorage(userKey, null);
-  if (localData) {
+  if (localData && typeof localData === 'object' && Object.keys(localData).length > 0) {
     applyDataPayload(localData);
     isDataLoading = false;
     if (typeof render === 'function') render();
   } else {
+    // Se nao houver cache local deste usuário específico, LIMPA A MEMÓRIA IMEDIATAMENTE para prevenir contaminação!
+    resetUserDataToEmpty();
     isDataLoading = true;
   }
 
@@ -1884,35 +1907,22 @@ async function loadUserData() {
     const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(currentUser.email));
     if (res.ok) {
       const serverData = await res.json();
-      if (serverData) {
+      if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
         applyDataPayload(serverData);
         saveToStorage(userKey, serverData);
+      } else {
+        // Novo usuário sem dados no banco: inicializa totalmente limpo
+        resetUserDataToEmpty();
+        await saveUserData();
       }
     } else if (!localData) {
-      categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
-      accounts = [];
-      transactions = [];
-      budgets = [];
-      goals = [];
-      recurringList = [];
-      alerts = [];
-      attachments = [];
-      notifications = [];
-      nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
+      resetUserDataToEmpty();
       await saveUserData();
     }
   } catch(e) {
+    console.error('Erro ao buscar dados do servidor:', e);
     if (!localData) {
-      categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
-      accounts = [];
-      transactions = [];
-      budgets = [];
-      goals = [];
-      recurringList = [];
-      alerts = [];
-      attachments = [];
-      notifications = [];
-      nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
+      resetUserDataToEmpty();
       await saveUserData();
     }
   } finally {
