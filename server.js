@@ -3069,10 +3069,8 @@ function populateAccountOptions(selectedAcc) {
   const fConta = document.getElementById('fConta');
   if(!fConta) return;
 
-  // Todas as contas cadastradas ficam disponíveis (para despesas, receitas ou pagamentos de fatura)
-  const filteredAccounts = accounts;
-
-  let htmlOptions = filteredAccounts.map(a => {
+  // 1. Mapeia todas as contas e cartões cadastrados pelo usuário
+  let htmlOptions = accounts.map(a => {
     const stats = getCardStats(a);
     const label = stats.isCreditCard 
       ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + (currentType === 'in' ? ' — Pgto Fatura/Estorno' : '') + ')') 
@@ -3080,25 +3078,44 @@ function populateAccountOptions(selectedAcc) {
     return '<option value="' + a.name + '"' + (selectedAcc === a.name ? ' selected' : '') + '>' + label + '</option>';
   }).join('');
 
-  // Opções de pagamento fora de cartão de crédito pessoal / conta bancária
+  // 2. Opções adicionais de pagamento / recebimento padrão
   const extraOptions = [
-    { value: 'Dinheiro', label: '💵 Dinheiro em Espécie' },
-    { value: 'Boleto / Outros', label: '📄 Boleto / Pix / Outros' }
+    { value: 'Cartão de Crédito', label: '💳 Cartão de Crédito' },
+    { value: 'Dinheiro em Espécie', label: '💵 Dinheiro em Espécie' },
+    { value: 'Boleto / Pix / Outros', label: '📄 Boleto / Pix / Outros' }
   ];
 
   extraOptions.forEach(opt => {
-    if (!accounts.some(a => a.name.toLowerCase().trim() === opt.value.toLowerCase().trim())) {
+    const existsInAccounts = accounts.some(a => {
+      const aName = (a.name || '').toLowerCase().trim();
+      const oVal = opt.value.toLowerCase().trim();
+      return aName === oVal;
+    });
+
+    if (!existsInAccounts) {
       htmlOptions += '<option value="' + opt.value + '"' + (selectedAcc === opt.value ? ' selected' : '') + '>' + opt.label + '</option>';
     }
   });
 
   if(!htmlOptions) {
-    fConta.innerHTML = '<option value="">Sem contas cadastradas</option>';
+    fConta.innerHTML = '<option value="Cartão de Crédito">💳 Cartão de Crédito</option><option value="Dinheiro em Espécie">💵 Dinheiro em Espécie</option><option value="Boleto / Pix / Outros">📄 Boleto / Pix / Outros</option>';
     updateCardLimitHint();
     return;
   }
 
   fConta.innerHTML = htmlOptions;
+
+  // Se a categoria selecionada for 'Cartão de Crédito' e selectedAcc não for especificado, seleciona o primeiro cartão de crédito
+  const fCat = document.getElementById('fCategoria');
+  if(fCat && (fCat.value || '').toLowerCase().includes('cartão') && !selectedAcc) {
+    const firstCard = accounts.find(a => isAccountCreditCard(a));
+    if(firstCard) {
+      fConta.value = firstCard.name;
+    } else {
+      fConta.value = 'Cartão de Crédito';
+    }
+  }
+
   updateCardLimitHint();
 }
 
@@ -3111,7 +3128,14 @@ function updateCardLimitHint() {
   const acc = accounts.find(a => a.name === accName);
 
   if(!acc) {
-    hintEl.style.display = 'none';
+    if ((accName || '').toLowerCase().includes('cartão') || (accName || '').toLowerCase().includes('cartao')) {
+      hintEl.style.display = 'flex';
+      hintEl.style.background = 'rgba(232,176,75,0.15)';
+      hintEl.style.color = 'var(--orange)';
+      hintEl.innerHTML = '💳 <span><strong>Cartão de Crédito:</strong> Lançamento como despesa de cartão de crédito</span>';
+    } else {
+      hintEl.style.display = 'none';
+    }
     return;
   }
 
@@ -3185,6 +3209,16 @@ function openModal(id){
   populateAccountOptions(selectedAcc);
   const fContaEl = document.getElementById('fConta');
   if(fContaEl) fContaEl.onchange = updateCardLimitHint;
+  const fCatEl = document.getElementById('fCategoria');
+  if(fCatEl) {
+    fCatEl.onchange = () => {
+      const fc = document.getElementById('fConta');
+      if((fCatEl.value || '').toLowerCase().includes('cartão') || (fCatEl.value || '').toLowerCase().includes('cartao')) {
+        const firstCard = accounts.find(a => isAccountCreditCard(a));
+        populateAccountOptions(firstCard ? firstCard.name : 'Cartão de Crédito');
+      }
+    };
+  }
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
 function populateCategoriaOptions(type){
