@@ -2459,7 +2459,12 @@ function getPendingBillsSummary() {
 
   const pendingTxs = transactions.filter(t => {
     if (t.type !== 'out' || t.status === 'Pago' || t.status === 'Recebido') return false;
-    return true;
+    const dParts = t.date ? t.date.split('-') : [];
+    const d = dParts.length === 3 ? new Date(parseInt(dParts[0]), parseInt(dParts[1]) - 1, parseInt(dParts[2])) : new Date(t.date);
+    d.setHours(0,0,0,0);
+    const diffDays = Math.round((d - today) / (1000 * 60 * 60 * 24));
+    // Mostrar apenas contas VENCIDAS (diffDays < 0) ou a vencer nos próximos 3 DIAS (diffDays <= 3)
+    return diffDays <= 3;
   });
 
   const items = pendingTxs.map(t => {
@@ -2480,12 +2485,10 @@ function getPendingBillsSummary() {
       statusType = 'today';
       statusText = 'VENCE HOJE';
       isUrgent = true;
-    } else if (diffDays <= 7) {
+    } else {
       statusType = 'soon';
       statusText = \`VENCE EM \${diffDays} DIA\${diffDays === 1 ? '' : 'S'}\`;
-    } else {
-      statusType = 'upcoming';
-      statusText = \`Vence em \${diffDays} dias\`;
+      isUrgent = true;
     }
 
     return {
@@ -2544,47 +2547,38 @@ function pageDashboard(){
   </div>
 
   \${pendingSummary.items.length > 0 ? \`
-  <!-- Aba / Painel de Alerta de Contas a Vencer & Vencidas no Dashboard -->
-  <div class="panel due-bills-panel" style="margin-bottom:20px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.45)' : 'rgba(240,166,58,0.4)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.06)' : 'rgba(240,166,58,0.06)'};">
-    <div class="panel-head" style="margin-bottom:12px; flex-wrap:wrap; gap:10px;">
-      <h3 style="display:flex;align-items:center;gap:8px; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'};">
-        <span style="font-size:18px;">\${pendingSummary.overdueCount > 0 ? '⚠️' : '🔔'}</span>
-        Contas a Vencer & Vencidas
-      </h3>
+  <!-- Mini Card / Quadrado Compacto de Alerta de Contas a Vencer (Até 3 dias) -->
+  <div class="panel due-bills-panel" style="margin-bottom:20px; padding:14px 18px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.45)' : 'rgba(240,166,58,0.4)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.05)' : 'rgba(240,166,58,0.05)'}; border-radius:14px;">
+    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
       <div style="display:flex; align-items:center; gap:8px;">
-        <span class="tag" style="background:\${pendingSummary.overdueCount > 0 ? 'var(--red-soft)' : 'rgba(240,166,58,0.15)'}; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'}; font-weight:700;">
-          \${pendingSummary.items.length} pendência(s) • Total a pagar: \${fmt(pendingSummary.totalValue)}
-        </span>
+        <span style="font-size:16px;">\${pendingSummary.overdueCount > 0 ? '⚠️' : '🔔'}</span>
+        <h4 style="margin:0; font-size:14px; font-weight:700; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'};">
+          Contas a Vencer (Próximos 3 dias)
+        </h4>
       </div>
+      <span class="tag" style="background:\${pendingSummary.overdueCount > 0 ? 'var(--red-soft)' : 'rgba(240,166,58,0.15)'}; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'}; font-size:11px; font-weight:700; padding:3px 8px;">
+        \${pendingSummary.items.length} conta(s) • Total: \${fmt(pendingSummary.totalValue)}
+      </span>
     </div>
 
-    <div class="due-bills-list" style="display:flex; flex-direction:column; gap:10px;">
+    <div class="due-bills-list" style="display:flex; flex-direction:column; gap:6px;">
       \${pendingSummary.items.map(item => \`
-        <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.35)' : item.statusType === 'today' ? 'rgba(240,166,58,0.35)' : 'var(--card-border)'};">
-          <div style="display:flex; align-items:center; gap:12px; min-width:220px; flex:1;">
-            <div style="width:40px; height:40px; border-radius:10px; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : item.statusType === 'today' ? 'rgba(240,166,58,0.15)' : 'var(--green-soft)'}; color:\${item.statusType === 'overdue' ? 'var(--red)' : item.statusType === 'today' ? 'var(--orange)' : 'var(--green)'}; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; flex-shrink:0;">
-              \${item.statusType === 'overdue' ? '⚠️' : item.statusType === 'today' ? '⚡' : '📅'}
-            </div>
-            <div>
-              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                <span style="font-weight:700; font-size:14px; color:var(--text);">\${item.desc}</span>
-                <span style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:999px; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : item.statusType === 'today' ? 'rgba(240,166,58,0.18)' : 'rgba(74,144,226,0.15)'}; color:\${item.statusType === 'overdue' ? 'var(--red)' : item.statusType === 'today' ? 'var(--orange)' : 'var(--blue)'};">
-                  \${item.statusText}
-                </span>
-              </div>
-              <div style="font-size:11.5px; color:var(--text-faint); margin-top:2px;">
-                Vencimento: <strong>\${item.formattedDate}</strong> • Categoria: \${item.cat || 'Sem categoria'} \${item.acc ? '• Conta: ' + item.acc : ''}
-              </div>
+        <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; border-radius:10px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.3)' : item.statusType === 'today' ? 'rgba(240,166,58,0.3)' : 'var(--card-border)'};">
+          <div style="display:flex; align-items:center; gap:10px; min-width:0; flex:1;">
+            <span style="font-size:14px; flex-shrink:0;">\${item.statusType === 'overdue' ? '🚨' : item.statusType === 'today' ? '⚡' : '📅'}</span>
+            <div style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+              <span style="font-weight:700; font-size:13px; color:var(--text);">\${item.desc}</span>
+              <span style="font-size:11px; color:var(--text-faint); margin-left:6px;">(\${item.formattedDate})</span>
             </div>
           </div>
 
-          <div style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
-            <div style="text-align:right;">
-              <div style="font-size:16px; font-weight:800; color:var(--red);">\${fmt(item.val)}</div>
-              <div style="font-size:10.5px; color:var(--text-dim);">Pendente</div>
-            </div>
-            <button class="btn-primary" data-paytx="\${item.id}" style="padding:8px 14px; font-size:12px; font-weight:700; background:linear-gradient(135deg, var(--green), #c9862a); border:none; border-radius:10px; cursor:pointer; color:#08130c; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
-              ✅ Pagar / Dar Baixa
+          <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
+            <span style="font-size:9.5px; font-weight:800; padding:2px 6px; border-radius:6px; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : item.statusType === 'today' ? 'rgba(240,166,58,0.18)' : 'rgba(74,144,226,0.15)'}; color:\${item.statusType === 'overdue' ? 'var(--red)' : item.statusType === 'today' ? 'var(--orange)' : 'var(--blue)'};">
+              \${item.statusText}
+            </span>
+            <span style="font-size:13.5px; font-weight:800; color:var(--red);">\${fmt(item.val)}</span>
+            <button class="btn-primary" data-paytx="\${item.id}" title="Pagar Conta" style="padding:4px 10px; font-size:11px; font-weight:700; background:linear-gradient(135deg, var(--green), #c9862a); border:none; border-radius:8px; cursor:pointer; color:#08130c; white-space:nowrap;">
+              ✅ Pagar
             </button>
           </div>
         </div>
