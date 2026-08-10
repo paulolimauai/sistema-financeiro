@@ -528,6 +528,13 @@ body.light .cards-summary-panel .kpi, body.light .tx-footer-summary .kpi {
 body.light .cards-summary-panel .kpi .row1, body.light .cards-summary-panel .kpi .sub {
   color: #64748b !important;
 }
+body.light .due-bills-panel {
+  background: #ffffff !important;
+  box-shadow: 0 4px 15px rgba(20,30,60,0.06) !important;
+}
+body.light .due-bill-row {
+  background: #f8fafc !important;
+}
 
 .page-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:14px;}
 .page-head h1{font-size:23px; font-weight:700;}
@@ -2446,6 +2453,76 @@ function periodPickerHTML(){
 }
 
 /* ==================== Dashboard ==================== */
+function getPendingBillsSummary() {
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  const pendingTxs = transactions.filter(t => {
+    if (t.type !== 'out' || t.status === 'Pago' || t.status === 'Recebido') return false;
+    return true;
+  });
+
+  const items = pendingTxs.map(t => {
+    const dParts = t.date ? t.date.split('-') : [];
+    const d = dParts.length === 3 ? new Date(parseInt(dParts[0]), parseInt(dParts[1]) - 1, parseInt(dParts[2])) : new Date(t.date);
+    d.setHours(0,0,0,0);
+
+    const diffDays = Math.round((d - today) / (1000 * 60 * 60 * 24));
+    let statusType = 'soon';
+    let statusText = '';
+    let isUrgent = false;
+
+    if (diffDays < 0) {
+      statusType = 'overdue';
+      statusText = \`VENCIDA (há \${Math.abs(diffDays)} dia\${Math.abs(diffDays) === 1 ? '' : 's'})\`;
+      isUrgent = true;
+    } else if (diffDays === 0) {
+      statusType = 'today';
+      statusText = 'VENCE HOJE';
+      isUrgent = true;
+    } else if (diffDays <= 7) {
+      statusType = 'soon';
+      statusText = \`VENCE EM \${diffDays} DIA\${diffDays === 1 ? '' : 'S'}\`;
+    } else {
+      statusType = 'upcoming';
+      statusText = \`Vence em \${diffDays} dias\`;
+    }
+
+    return {
+      ...t,
+      diffDays,
+      statusType,
+      statusText,
+      isUrgent,
+      formattedDate: dParts.length === 3 ? \`\${dParts[2]}/\${dParts[1]}/\${dParts[0]}\` : t.date
+    };
+  });
+
+  items.sort((a,b) => a.diffDays - b.diffDays);
+
+  const totalValue = items.reduce((acc, curr) => acc + (curr.val || 0), 0);
+  const urgentCount = items.filter(i => i.isUrgent).length;
+  const overdueCount = items.filter(i => i.statusType === 'overdue').length;
+
+  return {
+    items,
+    totalValue,
+    urgentCount,
+    overdueCount
+  };
+}
+
+async function markTransactionAsPaid(id) {
+  const t = transactions.find(x => x.id === id);
+  if (!t) return;
+  t.status = 'Pago';
+  showToast(\`✅ Conta "\${t.desc}" marcada como PAGA!\`);
+  logActivity('Pagamento', 'Transação', \`Baixa realizada no pagamento de "\${t.desc}" (\${fmt(t.val)}).\`);
+  await pushNotification(\`Pagamento realizado: \${t.desc} — \${fmt(t.val)}\`, '✅');
+  await saveUserData();
+  render();
+}
+
 function pageDashboard(){
   const periodTx = transactions.filter(inPeriod);
   const {receitas,despesas,saldo} = computeTotals(periodTx);
@@ -2455,6 +2532,7 @@ function pageDashboard(){
   const despPct = 100-recPct;
   const lastTx = periodTx.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
   const cardSummary = computeCardSummary();
+  const pendingSummary = getPendingBillsSummary();
 
   return \`
   <div class="page-head">
@@ -2464,6 +2542,56 @@ function pageDashboard(){
       <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
     </div>
   </div>
+
+  \${pendingSummary.items.length > 0 ? \`
+  <!-- Aba / Painel de Alerta de Contas a Vencer & Vencidas no Dashboard -->
+  <div class="panel due-bills-panel" style="margin-bottom:20px; border:1px solid \${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.45)' : 'rgba(240,166,58,0.4)'}; background:\${pendingSummary.overdueCount > 0 ? 'rgba(239,90,90,0.06)' : 'rgba(240,166,58,0.06)'};">
+    <div class="panel-head" style="margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+      <h3 style="display:flex;align-items:center;gap:8px; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'};">
+        <span style="font-size:18px;">\${pendingSummary.overdueCount > 0 ? '⚠️' : '🔔'}</span>
+        Contas a Vencer & Vencidas
+      </h3>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="tag" style="background:\${pendingSummary.overdueCount > 0 ? 'var(--red-soft)' : 'rgba(240,166,58,0.15)'}; color:\${pendingSummary.overdueCount > 0 ? 'var(--red)' : 'var(--orange)'}; font-weight:700;">
+          \${pendingSummary.items.length} pendência(s) • Total a pagar: \${fmt(pendingSummary.totalValue)}
+        </span>
+      </div>
+    </div>
+
+    <div class="due-bills-list" style="display:flex; flex-direction:column; gap:10px;">
+      \${pendingSummary.items.map(item => \`
+        <div class="due-bill-row" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; padding:12px 14px; border-radius:12px; background:var(--card); border:1px solid \${item.statusType === 'overdue' ? 'rgba(239,90,90,0.35)' : item.statusType === 'today' ? 'rgba(240,166,58,0.35)' : 'var(--card-border)'};">
+          <div style="display:flex; align-items:center; gap:12px; min-width:220px; flex:1;">
+            <div style="width:40px; height:40px; border-radius:10px; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : item.statusType === 'today' ? 'rgba(240,166,58,0.15)' : 'var(--green-soft)'}; color:\${item.statusType === 'overdue' ? 'var(--red)' : item.statusType === 'today' ? 'var(--orange)' : 'var(--green)'}; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; flex-shrink:0;">
+              \${item.statusType === 'overdue' ? '⚠️' : item.statusType === 'today' ? '⚡' : '📅'}
+            </div>
+            <div>
+              <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="font-weight:700; font-size:14px; color:var(--text);">\${item.desc}</span>
+                <span style="font-size:10px; font-weight:800; padding:2px 8px; border-radius:999px; background:\${item.statusType === 'overdue' ? 'var(--red-soft)' : item.statusType === 'today' ? 'rgba(240,166,58,0.18)' : 'rgba(74,144,226,0.15)'}; color:\${item.statusType === 'overdue' ? 'var(--red)' : item.statusType === 'today' ? 'var(--orange)' : 'var(--blue)'};">
+                  \${item.statusText}
+                </span>
+              </div>
+              <div style="font-size:11.5px; color:var(--text-faint); margin-top:2px;">
+                Vencimento: <strong>\${item.formattedDate}</strong> • Categoria: \${item.cat || 'Sem categoria'} \${item.acc ? '• Conta: ' + item.acc : ''}
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex; align-items:center; gap:14px; flex-shrink:0;">
+            <div style="text-align:right;">
+              <div style="font-size:16px; font-weight:800; color:var(--red);">\${fmt(item.val)}</div>
+              <div style="font-size:10.5px; color:var(--text-dim);">Pendente</div>
+            </div>
+            <button class="btn-primary" data-paytx="\${item.id}" style="padding:8px 14px; font-size:12px; font-weight:700; background:linear-gradient(135deg, var(--green), #c9862a); border:none; border-radius:10px; cursor:pointer; color:#08130c; white-space:nowrap; box-shadow:0 2px 8px rgba(0,0,0,0.2);">
+              ✅ Pagar / Dar Baixa
+            </button>
+          </div>
+        </div>
+      \`).join('')}
+    </div>
+  </div>
+  \` : ''}
 
   <div class="kpis">
     <div class="kpi"><div class="row1">Saldo Total <span>👁</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
@@ -4181,6 +4309,7 @@ function attachPageEvents(){
   const gerCat = document.getElementById('btnGerenciarCategorias'); if(gerCat) gerCat.onclick = openCatManageModal;
   document.querySelectorAll('[data-edit]').forEach(el=>el.onclick = ()=>openModal(parseInt(el.getAttribute('data-edit'))));
   document.querySelectorAll('[data-del]').forEach(el=>el.onclick = ()=>deleteTransaction(parseInt(el.getAttribute('data-del'))));
+  document.querySelectorAll('[data-paytx]').forEach(el=>el.onclick = ()=>markTransactionAsPaid(parseInt(el.getAttribute('data-paytx'))));
 
   const novaConta = document.getElementById('btnNovaConta'); if(novaConta) novaConta.onclick = ()=>openAccountModal(null);
   document.querySelectorAll('[data-editacc]').forEach(el=>el.onclick = ()=>openAccountModal(parseInt(el.getAttribute('data-editacc'))));
