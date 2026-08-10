@@ -1406,11 +1406,19 @@ tr.trow:hover td{background:var(--hover);}
 <script>
 /* ==================== Gerenciamento de LocalStorage e Servidor ==================== */
 function loadFromStorage(key, defaultVal) {
-  const data = localStorage.getItem(key);
-  return data ? JSON.parse(data) : defaultVal;
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : defaultVal;
+  } catch(e) {
+    return defaultVal;
+  }
 }
 function saveToStorage(key, val) {
-  localStorage.setItem(key, JSON.stringify(val));
+  try {
+    localStorage.setItem(key, JSON.stringify(val));
+  } catch(e) {
+    console.warn('Aviso: Armazenamento local (localStorage) excedeu a cota máxima. Os dados são mantidos e salvos no PostgreSQL.', e);
+  }
 }
 
 let registeredUsers = [];
@@ -4385,6 +4393,45 @@ async function confirmImport(){
   navigate('transacoes');
 }
 
+async function compressImageIfNeeded(file) {
+  if (!file || !file.type || !file.type.startsWith('image/')) return null;
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX_WIDTH = 1280;
+        const MAX_HEIGHT = 1280;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+          if (width > height) {
+            height = Math.round((height * MAX_WIDTH) / width);
+            width = MAX_WIDTH;
+          } else {
+            width = Math.round((width * MAX_HEIGHT) / height);
+            height = MAX_HEIGHT;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+        resolve(compressedDataUrl);
+      };
+      img.onerror = () => resolve(e.target.result);
+      img.src = e.target.result;
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
 async function addAttachment(){
   const attTxEl = document.getElementById('attTx');
   const txId = attTxEl ? (parseInt(attTxEl.value) || null) : null;
@@ -4393,29 +4440,46 @@ async function addAttachment(){
   if(files.length === 0){ showToast('Selecione ao menos um arquivo'); return; }
 
   let addedCount = 0;
+  showToast('Processando anexo(s)...');
+
   for (const file of files) {
-    await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = reader.result;
+    try {
+      let dataUrl = null;
+      if (file.type && file.type.startsWith('image/')) {
+        dataUrl = await compressImageIfNeeded(file);
+      }
+      if (!dataUrl) {
+        dataUrl = await new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => resolve(null);
+          reader.readAsDataURL(file);
+        });
+      }
+
+      if (dataUrl) {
         attachments.push({
           id: nextAttId++,
           txId: txId,
           name: file.name,
-          type: file.type || '',
+          type: file.type || 'application/octet-stream',
           dataUrl: dataUrl,
           createdAt: new Date().toISOString()
         });
         addedCount++;
-        resolve();
-      };
-      reader.onerror = resolve;
-      reader.readAsDataURL(file);
-    });
+      }
+    } catch(e) {
+      console.error('Erro ao processar anexo:', e);
+    }
   }
-  await saveUserData();
-  showToast(\`\${addedCount} anexo(s) incluído(s) com sucesso!\`);
-  render();
+
+  if (addedCount > 0) {
+    await saveUserData();
+    showToast(\`\${addedCount} anexo(s) incluído(s) com sucesso!\`);
+    render();
+  } else {
+    showToast('Erro ao ler os arquivos selecionados');
+  }
 }
 
 async function relinkAttachment(id, newTxId){
