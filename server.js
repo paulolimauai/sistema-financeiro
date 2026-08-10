@@ -2990,23 +2990,47 @@ function pageMetas(){
     \${goals.length? goals.map(g=>{
       const pct = Math.min(100, Math.round(g.current/g.target*100));
       return \`<div class="acc-card">
-        <div class="top">
-          <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${g.name}</h3>
-          <div class="row-actions"><button data-editmeta="\${g.id}" title="Editar">✎</button><button data-delmeta="\${g.id}" title="Excluir">🗑</button></div>
-        </div>
-        <p style="color:var(--text-faint);font-size:11.5px;margin-bottom:10px;">Prazo: \${new Date(g.deadline+'T00:00').toLocaleDateString('pt-BR')}</p>
-        <div class="val" style="font-size:18px;">\${fmt(g.current)} <span style="color:var(--text-faint);font-size:12px;font-weight:400"> / \${fmt(g.target)}</span></div>
-        <div class="bar-split" style="background:var(--card-border);margin-top:10px"><div class="g" style="width:\${pct}%"></div></div>
-        <div class="split-labels" style="margin-top:6px"><span>\${pct}% concluído</span></div>
-        <button class="btn-ghost" style="width:100%;margin-top:12px" data-addcontrib="\${g.id}">+ Adicionar valor</button>
-      </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">◎</div><h3>Nenhuma meta cadastrada</h3></div>\`}
-  </div>\`;
+  txList.forEach(t => {
+    if (!t || !t.date) return;
+    const dParts = String(t.date).split('T')[0].split('-');
+    if (dParts.length !== 3) return;
+    const key = dParts[0] + '-' + dParts[1];
+    if (!monthMap[key]) {
+      monthMap[key] = { year: parseInt(dParts[0]), month: parseInt(dParts[1]), in: 0, out: 0, count: 0, catMap: {} };
+    }
+    const val = parseFloat(t.val) || 0;
+    if (t.type === 'in') {
+      monthMap[key].in += val;
+    } else {
+      monthMap[key].out += val;
+      if (t.cat) {
+        monthMap[key].catMap[t.cat] = (monthMap[key].catMap[t.cat] || 0) + val;
+      }
+    }
+    monthMap[key].count++;
+  });
+
+  const sortedKeys = Object.keys(monthMap).sort((a, b) => b.localeCompare(a));
+  return sortedKeys.map(key => {
+    const item = monthMap[key];
+    const net = item.in - item.out;
+    let topCat = '—';
+    let topCatVal = 0;
+    Object.entries(item.catMap).forEach(([cName, cVal]) => {
+      if (cVal > topCatVal) {
+        topCatVal = cVal;
+        topCat = cName;
+      }
+    });
+    return { ...item, key, net, topCat, topCatVal };
+  });
 }
 
 function pageRelatorios(){
   const list = transactions.filter(inPeriod);
   const allCats = despesasPorCategoria(list);
+  const monthlyList = getMonthlyBreakdown(transactions);
+
   const totalReceitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
   const totalDespesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
   const resultado = totalReceitas - totalDespesas;
@@ -3017,11 +3041,34 @@ function pageRelatorios(){
 
   const isAllDates = currentPeriod.month === 0;
 
+  const monthlyRowsHTML = monthlyList.map(m => {
+    const isCurrentSel = currentPeriod.year === m.year && currentPeriod.month === m.month;
+    const monthName = MONTHS[m.month - 1] + ' / ' + m.year;
+    return '<tr class="trow" style="' + (isCurrentSel ? 'background:rgba(74,144,226,0.08); border-left:3px solid var(--blue);' : '') + '">' +
+      '<td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text); font-weight:700; font-size:12px;">📅 ' + monthName + '</span></td>' +
+      '<td class="val-in" style="font-weight:700;">+' + fmt(m.in) + '</td>' +
+      '<td class="val-out" style="font-weight:700;">-' + fmt(m.out) + '</td>' +
+      '<td><span class="pill" style="background:' + (m.net < 0 ? 'var(--red-soft)' : 'var(--green-soft)') + '; color:' + (m.net < 0 ? 'var(--red)' : 'var(--green)') + '; font-weight:800; font-size:12px;">' + fmt(m.net) + '</span></td>' +
+      '<td><span class="pill" style="background:' + catColor(m.topCat) + '22; color:' + catColor(m.topCat) + '; font-weight:600;">' + catIcon(m.topCat) + ' ' + m.topCat + ' (' + fmt(m.topCatVal) + ')</span></td>' +
+      '<td style="color:var(--text-dim); font-size:12px; font-weight:600;">' + m.count + ' registro(s)</td>' +
+      '<td><button class="btn-ghost" onclick="currentPeriod={year:' + m.year + ', month:' + m.month + '}; try{localStorage.setItem(\'fin_current_period\', JSON.stringify(currentPeriod));}catch(e){} render();" style="padding:4px 10px; font-size:11px; border-radius:6px; cursor:pointer;">🔍 Filtrar este mês</button></td>' +
+    '</tr>';
+  }).join('');
+
+  const catRowsHTML = allCats.map(c => {
+    const pct = Math.round(c.val / (totalDespesas || 1) * 100);
+    return '<tr class="trow">' +
+      '<td><span class="pill" style="background:' + c.color + '22;color:' + c.color + '">' + catIcon(c.name) + ' ' + c.name + '</span></td>' +
+      '<td class="val-out">' + fmt(c.val) + '</td>' +
+      '<td><div style="display:flex; align-items:center; gap:10px;"><div class="bar-split" style="flex:1; max-width:120px; height:6px; background:var(--card-border); border-radius:4px; overflow:hidden;"><div class="g" style="width:' + pct + '%; height:100%; background:' + c.color + '; border-radius:4px;"></div></div><span style="font-weight:700; font-size:12px; color:var(--text-dim);">' + pct + '%</span></div></td>' +
+    '</tr>';
+  }).join('');
+
   return \`
   <div class="page-head">
     <div>
       <h1>Relatórios Financeiros</h1>
-      <p>Análise consolidada das suas transações — <strong>\${periodLabel()}</strong></p>
+      <p>Consolidado histórico de todos os meses cadastrados e análise detalhada — <strong>\${periodLabel()}</strong></p>
     </div>
     <div class="head-actions">
       \${periodPickerHTML()}
@@ -3030,37 +3077,61 @@ function pageRelatorios(){
 
   <div class="kpis" style="grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-bottom:20px;">
     <div class="kpi">
-      <div class="row1">Total de Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div>
-      <div class="val" style="color:var(--green)">\${fmt(totalReceitas)}</div>
-      <div class="sub">\${isAllDates ? 'Consolidado histórico geral' : periodLabel()}</div>
+      <div class="row1">Total Receitas Acumuladas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div>
+      <div class="val" style="color:var(--green)">\${fmt(totalReceitasGeral)}</div>
+      <div class="sub">Histórico total (\${monthlyList.length} mês/meses)</div>
     </div>
     <div class="kpi">
-      <div class="row1">Total de Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div>
-      <div class="val" style="color:var(--red)">\${fmt(totalDespesas)}</div>
-      <div class="sub">\${isAllDates ? 'Consolidado histórico geral' : periodLabel()}</div>
+      <div class="row1">Total Despesas Acumuladas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div>
+      <div class="val" style="color:var(--red)">\${fmt(totalDespesasGeral)}</div>
+      <div class="sub">Histórico total (\${monthlyList.length} mês/meses)</div>
     </div>
     <div class="kpi">
-      <div class="row1">Balanço do Período <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div>
-      <div class="val" style="color:\${resultado<0?'var(--red)':'var(--green)'}">\${fmt(resultado)}</div>
-      <div class="sub">\${isAllDates ? 'Resultado acumulado geral' : 'Receitas menos Despesas do mês'}</div>
+      <div class="row1">Resultado Geral Acumulado <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div>
+      <div class="val" style="color:\${resultadoGeral < 0 ? 'var(--red)' : 'var(--green)'}">\${fmt(resultadoGeral)}</div>
+      <div class="sub">Saldo acumulado no sistema</div>
     </div>
   </div>
 
-  \${!isAllDates ? \`
-  <div class="panel" style="margin-bottom:20px; padding:14px 18px; background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-    <div style="font-size:12.5px; color:var(--text-dim);">
-      💡 <strong>Comparativo Geral Histórico (Todas as Datas):</strong> Receitas <strong>\${fmt(totalReceitasGeral)}</strong> | Despesas <strong>\${fmt(totalDespesasGeral)}</strong> | Saldo Acumulado <strong style="color:\${resultadoGeral<0?'var(--red)':'var(--green)'}">\${fmt(resultadoGeral)}</strong>
+  <!-- Tabela 1: Consolidado Mês a Mês (Todos os Meses Cadastrados) -->
+  <div class="table-panel" style="margin-bottom:24px; border:1px solid rgba(74,144,226,0.3);">
+    <div class="panel-head" style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <div>
+        <h3 style="font-size:15px; font-weight:800; display:flex; align-items:center; gap:8px;">
+          <span>📊</span> Consolidado Mês a Mês (Todos os Meses Cadastrados)
+        </h3>
+        <p style="font-size:12px; color:var(--text-faint); margin-top:2px;">Resumo financeiro mensal de todas as transações registradas no sistema</p>
+      </div>
+      <span class="tag" style="background:rgba(74,144,226,0.15); color:var(--blue); font-weight:700;">\${monthlyList.length} mês(es) registrado(s)</span>
     </div>
-    <button class="btn-ghost" onclick="currentPeriod={year:new Date().getFullYear(), month:0}; try{localStorage.setItem('fin_current_period', JSON.stringify(currentPeriod));}catch(e){} render();" style="font-size:11.5px; padding:4px 10px; border-radius:6px; cursor:pointer;">
-      🌐 Ver Relatório Geral (Histórico Completo)
-    </button>
-  </div>
-  \` : ''}
 
+    \${monthlyList.length ? \`
+    <table>
+      <thead>
+        <tr>
+          <th>Mês / Ano</th>
+          <th>Receitas (+)</th>
+          <th>Despesas (-)</th>
+          <th>Balanço do Mês</th>
+          <th>Maior Gasto</th>
+          <th>Lançamentos</th>
+          <th>Ação</th>
+        </tr>
+      </thead>
+      <tbody>
+        \${monthlyRowsHTML}
+      </tbody>
+    </table>
+    \` : \`
+    <div class="placeholder"><div class="big">📅</div><h3>Nenhum mês registrado</h3><p>Não há lançamentos cadastrados em nenhum período.</p></div>
+    \`}
+  </div>
+
+  <!-- Tabela 2: Despesas por Categoria -->
   <div class="table-panel">
     <div class="panel-head">
       <h3>Despesas por Categoria — \${periodLabel()}</h3>
-      <span class="tag">\${list.filter(t=>t.type==='out').length} despesa(s) no período</span>
+      <span class="tag">\${list.filter(t => t.type === 'out').length} despesa(s) no período</span>
     </div>
     \${allCats.length ? \`
     <table>
@@ -3072,20 +3143,7 @@ function pageRelatorios(){
         </tr>
       </thead>
       <tbody>
-        \${allCats.map(c=>\`
-          <tr class="trow">
-            <td><span class="pill" style="background:\${c.color}22;color:\${c.color}">\${catIcon(c.name)} \${c.name}</span></td>
-            <td class="val-out">\${fmt(c.val)}</td>
-            <td>
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div class="bar-split" style="flex:1; max-width:120px; height:6px; background:var(--card-border); border-radius:4px; overflow:hidden;">
-                  <div class="g" style="width:\${Math.round(c.val/(totalDespesas||1)*100)}%; height:100%; background:\${c.color}; border-radius:4px;"></div>
-                </div>
-                <span style="font-weight:700; font-size:12px; color:var(--text-dim);">\${Math.round(c.val/(totalDespesas||1)*100)}%</span>
-              </div>
-            </td>
-          </tr>
-        \`).join('')}
+        \${catRowsHTML}
       </tbody>
       <tfoot>
         <tr style="background:var(--hover); font-weight:700; border-top:2px solid var(--card-border);">
