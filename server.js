@@ -237,17 +237,74 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
 }
 
 /* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
+/* ==================== Tela de Auth Premium (Glassmorphism & Dourado/Âmbar) ==================== */
 .auth-container{
   --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
   --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
   position:relative; overflow:hidden;
-  display:none; align-items:center; justify-content:center; min-height:100vh; padding:20px;
+  display:none; align-items:center; justify-content:center; min-height:100vh; padding:30px 20px;
   background:
-    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
-    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
-    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
+    radial-gradient(circle at 10% 20%, rgba(232,176,75,0.14), transparent 45%),
+    radial-gradient(circle at 90% 80%, rgba(201,134,42,0.12), transparent 48%),
+    radial-gradient(circle at 50% 50%, rgba(16,185,129,0.06), transparent 60%),
+    linear-gradient(165deg, #07090d 0%, #0c0f16 45%, #13100b 100%);
 }
 .auth-container.show { display: flex; }
+
+.auth-wrapper {
+  position: relative; z-index: 2;
+  display: flex; gap: 48px; align-items: center; justify-content: center;
+  max-width: 980px; width: 100%; margin: auto;
+}
+
+.auth-hero {
+  flex: 1.1; display: flex; flex-direction: column; gap: 20px;
+  color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.4);
+}
+@media (max-width: 860px) {
+  .auth-hero { display: none; }
+  .auth-wrapper { justify-content: center; }
+}
+
+.auth-hero-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px; border-radius: 30px;
+  background: rgba(232,176,75,0.12); border: 1px solid rgba(232,176,75,0.3);
+  color: var(--auth-accent); font-size: 11.5px; font-weight: 700; letter-spacing: 0.5px;
+  text-transform: uppercase; width: fit-content;
+}
+
+.auth-hero h1 {
+  font-size: 32px; font-weight: 800; line-height: 1.25; letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #ffffff 30%, var(--auth-accent-3) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+
+.auth-hero p.desc {
+  font-size: 14.5px; color: #a1a9b8; line-height: 1.6; max-width: 440px;
+}
+
+.auth-hero-features {
+  display: flex; flex-direction: column; gap: 12px; margin-top: 6px;
+}
+
+.auth-feat-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; border-radius: 12px;
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  backdrop-filter: blur(10px); transition: transform 0.2s, border-color 0.2s;
+}
+.auth-feat-item:hover {
+  transform: translateX(4px); border-color: rgba(232,176,75,0.3); background: rgba(232,176,75,0.05);
+}
+.auth-feat-icon {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  background: rgba(232,176,75,0.15); color: var(--auth-accent);
+  display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;
+}
+.auth-feat-text strong { display: block; font-size: 13.5px; color: #f0f3f8; font-weight: 700; }
+.auth-feat-text small { font-size: 11.5px; color: #8c95a6; }
+
 .auth-grid{
   position:absolute; inset:0; z-index:0; pointer-events:none;
   background-image:
@@ -294,10 +351,12 @@ body.light .auth-blob{opacity:.16;}
 }
 .auth-box{
   position:relative; z-index:1;
-  background:var(--card); border:1px solid var(--card-border); border-radius:18px;
-  padding:36px; width:100%; max-width:400px;
-  box-shadow:var(--shadow), 0 0 0 1px rgba(232,176,75,.06);
-  animation:authIn .55s cubic-bezier(.16,1,.3,1);
+  background: rgba(14, 18, 27, 0.78);
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(232,176,75,0.22); border-radius: 24px;
+  padding: 40px 36px; width: 100%; max-width: 420px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 35px rgba(232,176,75,0.08);
+  animation: authIn .55s cubic-bezier(.16,1,.3,1);
 }
 .auth-box .brand{display:flex; justify-content:center; margin-bottom:24px; padding:0;}
 .auth-box .brand .logo{
@@ -308,34 +367,56 @@ body.light .auth-blob{opacity:.16;}
   0%,100%{box-shadow:0 0 0 0 rgba(232,176,75,.45);}
   50%{box-shadow:0 0 0 9px rgba(232,176,75,0);}
 }
-.auth-box h2{font-size:20px; font-weight:700; margin-bottom:6px; text-align:center;}
-.auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
-.auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
+.auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; text-align:center; color:#fff;}
+.auth-box p.sub{font-size:13px; color:#8c95a6; text-align:center; margin-bottom:24px; transition:color .2s;}
+.auth-box .field{margin-bottom:18px; animation:fieldIn .45s ease backwards;}
 .auth-box .field:nth-of-type(1){animation-delay:.05s;}
 .auth-box .field:nth-of-type(2){animation-delay:.1s;}
-.auth-box .field input:focus, .auth-box .field select:focus{
-  border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft); transform:translateY(-1px);
+
+.auth-box .field label { display:block; font-size:12px; font-weight:600; color:#a1a9b8; margin-bottom:6px; }
+
+.auth-box .field input {
+  width:100%; background:rgba(10, 14, 22, 0.65) !important;
+  border:1px solid rgba(255, 255, 255, 0.12) !important;
+  color:#fff !important; border-radius:12px !important;
+  padding:12px 14px 12px 42px !important; font-size:14px !important; outline:none;
+  transition:border-color .2s, box-shadow .2s, background .2s, transform .15s !important;
 }
-.auth-box .field input{transition:border-color .2s, box-shadow .2s, transform .15s;}
-.auth-forgot{display:block; text-align:right; font-size:12px; color:var(--text-dim); margin-top:8px; cursor:pointer; transition:color .15s;}
+
+.auth-box .field input:focus {
+  border-color:var(--auth-accent) !important;
+  box-shadow:0 0 0 4px rgba(232,176,75,0.18) !important;
+  background:rgba(14, 19, 30, 0.9) !important; transform:translateY(-1px);
+}
+
+.field-icon-wrap {
+  position: relative; width: 100%;
+}
+.field-icon-wrap .input-ic {
+  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+  font-size: 15px; pointer-events: none; opacity: 0.65; transition: opacity 0.2s; z-index: 2;
+}
+
+.auth-forgot{display:block; text-align:right; font-size:12px; color:#8c95a6; margin-top:8px; cursor:pointer; transition:color .15s;}
 .auth-forgot:hover{color:var(--auth-accent); text-decoration:underline;}
 .auth-box .btn-auth{
-  position:relative; overflow:hidden;
+  position:relative; overflow:hidden; height:48px;
   width:100%; padding:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); border:none;
-  border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;
-  transition:filter .2s, transform .15s;
+  border-radius:12px; font-weight:800; font-size:14.5px; cursor:pointer; margin-top:8px;
+  box-shadow:0 8px 24px rgba(232,176,75,0.25);
+  transition:filter .2s, transform .15s, box-shadow .2s;
 }
 .auth-box .btn-auth::after{
   content:''; position:absolute; top:0; left:-75%; width:45%; height:100%;
   background:linear-gradient(120deg, transparent, rgba(255,255,255,.45), transparent);
   transform:skewX(-20deg);
 }
-.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-1px);}
+.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-2px); box-shadow:0 12px 30px rgba(232,176,75,0.38);}
 .auth-box .btn-auth:hover::after{animation:shimmer .9s ease;}
 .auth-box .btn-auth:active{transform:translateY(0) scale(.98);}
 @keyframes shimmer{from{left:-75%;} to{left:130%;}}
-.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:22px; padding-top:18px; border-top:1px solid var(--card-border);}
-.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:600; cursor:pointer;}
+.auth-toggle{text-align:center; font-size:13px; color:#8c95a6; margin-top:22px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.08);}
+.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:700; cursor:pointer;}
 .auth-toggle a:hover{text-decoration:underline;}
 
 /* ==================== App principal Centralizado ==================== */
@@ -947,83 +1028,135 @@ tr.trow:hover td{background:var(--hover);}
   <div class="auth-blob b1"></div>
   <div class="auth-blob b2"></div>
 
-  <!-- Login -->
-  <div class="auth-box" id="loginBox">
-    <div class="brand">
-      <div class="logo">N</div>
-      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
-    </div>
-    <h2>Acessar Conta</h2>
-    <p class="sub">Informe suas credenciais para continuar</p>
-    <form id="loginForm">
-      <div class="field">
-        <label>E-mail</label>
-        <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
-      </div>
-      <div class="field">
-        <label>Senha</label>
-        <div class="pass-field">
-          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-          <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
+  <div class="auth-wrapper">
+    <!-- Hero Experience (Left Column on Desktop) -->
+    <div class="auth-hero">
+      <div class="auth-hero-badge">✦ PLATAFORMA FINANCEIRA PREMIUM</div>
+      <h1>Controle suas finanças com inteligência e precisão.</h1>
+      <p class="desc">Gerencie contas bancárias, acompanhe faturas e limites disponíveis de cartões em tempo real com relatórios automatizados.</p>
+      <div class="auth-hero-features">
+        <div class="auth-feat-item">
+          <div class="auth-feat-icon">💳</div>
+          <div class="auth-feat-text">
+            <strong>Gestão Avançada de Cartões</strong>
+            <small>Cálculo em tempo real de faturas do Nubank, Digio e demais cartões</small>
+          </div>
         </div>
-        <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
+        <div class="auth-feat-item">
+          <div class="auth-feat-icon">📊</div>
+          <div class="auth-feat-text">
+            <strong>Relatórios & Auditoria de Logs</strong>
+            <small>Histórico visual detalhado de todas as alterações efetuadas</small>
+          </div>
+        </div>
+        <div class="auth-feat-item">
+          <div class="auth-feat-icon">🛡️</div>
+          <div class="auth-feat-text">
+            <strong>Acesso Seguro Multiusuário</strong>
+            <small>Painel isolado para administradores e clientes</small>
+          </div>
+        </div>
       </div>
-      <button type="submit" class="btn-auth">Entrar no Sistema</button>
-    </form>
-    <div class="auth-toggle">
-      Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
+    </div>
+
+    <!-- Forms Container (Right Column) -->
+    <div style="flex:1; max-width:420px; width:100%;">
+      <!-- Login -->
+      <div class="auth-box" id="loginBox">
+        <div class="brand">
+          <div class="logo">N</div>
+          <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+        </div>
+        <h2>Acessar Conta</h2>
+        <p class="sub">Informe suas credenciais para continuar</p>
+        <form id="loginForm">
+          <div class="field">
+            <label>E-mail</label>
+            <div class="field-icon-wrap">
+              <span class="input-ic">✉️</span>
+              <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
+            </div>
+          </div>
+          <div class="field">
+            <label>Senha</label>
+            <div class="pass-field field-icon-wrap">
+              <span class="input-ic">🔒</span>
+              <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+              <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
+            </div>
+            <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
+          </div>
+          <button type="submit" class="btn-auth">Entrar no Sistema →</button>
+        </form>
+        <div class="auth-toggle">
+          Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
+        </div>
+      </div>
+
+      <!-- Recuperar Senha -->
+      <div class="auth-box" id="forgotBox" style="display:none;">
+        <div class="brand">
+          <div class="logo">N</div>
+          <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+        </div>
+        <h2>Recuperar Senha</h2>
+        <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos sua senha</p>
+
+        <form id="forgotStep1">
+          <div class="field">
+            <label>E-mail</label>
+            <div class="field-icon-wrap">
+              <span class="input-ic">✉️</span>
+              <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
+            </div>
+          </div>
+          <button type="submit" class="btn-auth" id="btnSendPassword">Enviar Senha por E-mail →</button>
+        </form>
+
+        <div class="auth-toggle">
+          Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
+        </div>
+      </div>
+
+      <!-- Cadastro -->
+      <div class="auth-box" id="registerBox" style="display:none;">
+        <div class="brand">
+          <div class="logo">N</div>
+          <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+        </div>
+        <h2>Criar Conta</h2>
+        <p class="sub">Preencha seus dados para começar</p>
+        <form id="registerForm">
+          <div class="field">
+            <label>Nome Completo</label>
+            <div class="field-icon-wrap">
+              <span class="input-ic">👤</span>
+              <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
+            </div>
+          </div>
+          <div class="field">
+            <label>E-mail</label>
+            <div class="field-icon-wrap">
+              <span class="input-ic">✉️</span>
+              <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
+            </div>
+          </div>
+          <div class="field">
+            <label>Senha</label>
+            <div class="field-icon-wrap">
+              <span class="input-ic">🔒</span>
+              <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+            </div>
+          </div>
+          <button type="submit" class="btn-auth">Cadastrar Conta →</button>
+        </form>
+        <div class="auth-toggle">
+          Já tem uma conta? <a id="goLogin">Fazer Login</a>
+        </div>
+      </div>
     </div>
   </div>
 
-  <!-- Recuperar Senha -->
-  <div class="auth-box" id="forgotBox" style="display:none;">
-    <div class="brand">
-      <div class="logo">N</div>
-      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
-    </div>
-    <h2>Recuperar Senha</h2>
-    <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos sua senha</p>
-
-    <form id="forgotStep1">
-      <div class="field">
-        <label>E-mail</label>
-        <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
-      </div>
-      <button type="submit" class="btn-auth" id="btnSendPassword">Enviar Senha por E-mail</button>
-    </form>
-
-    <div class="auth-toggle">
-      Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
-    </div>
-  </div>
-
-  <!-- Cadastro -->
-  <div class="auth-box" id="registerBox" style="display:none;">
-    <div class="brand">
-      <div class="logo">N</div>
-      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
-    </div>
-    <h2>Criar Conta</h2>
-    <p class="sub">Preencha seus dados para começar</p>
-    <form id="registerForm">
-      <div class="field">
-        <label>Nome Completo</label>
-        <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
-      </div>
-      <div class="field">
-        <label>E-mail</label>
-        <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
-      </div>
-      <div class="field">
-        <label>Senha</label>
-        <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
-      </div>
-      <button type="submit" class="btn-auth">Cadastrar Conta</button>
-    </form>
-    <div class="auth-toggle">
-      Já tem uma conta? <a id="goLogin">Fazer Login</a>
-    </div>
-  </div>
   <div class="auth-dev-credit">
     <div class="dev-chip">
       <span class="dev-avatar">PL</span>
