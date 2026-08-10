@@ -1952,16 +1952,19 @@ function isAccountCreditCard(account) {
   const accTypeLower = (account.type || '').toLowerCase().trim();
   const accNameLower = (account.name || '').toLowerCase().trim();
 
-  // Se for explicitamente cartão de débito, não tratar como crédito
-  if (accTypeLower.includes('débito') || accTypeLower.includes('debito')) return false;
+  // Se for explicitamente débito, poupança ou investimento sem menção a crédito, não é cartão de crédito
+  if ((accTypeLower.includes('débito') || accTypeLower.includes('debito') || accTypeLower.includes('poupança') || accTypeLower.includes('poupanca')) && !accTypeLower.includes('crédito') && !accTypeLower.includes('credito')) {
+    return false;
+  }
 
   return (
     accTypeLower.includes('cartão de crédito') ||
     accTypeLower.includes('cartao de credito') ||
     accTypeLower.includes('crédito') ||
     accTypeLower.includes('credito') ||
-    accTypeLower === 'cartão' ||
-    accTypeLower === 'cartao' ||
+    accTypeLower.includes('cartão') ||
+    accTypeLower.includes('cartao') ||
+    accTypeLower.includes('fatura') ||
     accNameLower.includes('digio') ||
     accNameLower.includes('nubank') ||
     accNameLower.includes('roxinho') ||
@@ -1976,16 +1979,34 @@ function isAccountCreditCard(account) {
     accNameLower.includes('bradesco') ||
     accNameLower.includes('itaú') ||
     accNameLower.includes('itau') ||
+    accNameLower.includes('amex') ||
+    accNameLower.includes('elo') ||
+    accNameLower.includes('mastercard') ||
+    accNameLower.includes('visa') ||
+    accNameLower.includes('hipercard') ||
+    accNameLower.includes('btg') ||
+    accNameLower.includes('banrisul') ||
+    accNameLower.includes('safra') ||
     accNameLower.includes('cartão') ||
-    accNameLower.includes('cartao')
+    accNameLower.includes('cartao') ||
+    accNameLower.includes('credito') ||
+    accNameLower.includes('crédito')
   );
+}
+
+function normalizeAccName(str) {
+  if (!str) return '';
+  return str.toLowerCase()
+    .replace(/cartão de crédito|cartao de credito|cartão de débito|cartao de debito|cartão|cartao|conta corrente|conta poupança|conta poupanca|conta|banco|crédito|credito|débito|debito/gi, '')
+    .replace(/[^a-z0-9]/gi, '')
+    .trim();
 }
 
 function isTxForAccount(t, account) {
   if (!t || !account) return false;
 
-  // 1. Verificação por ID da conta (prioridade máxima)
-  if (t.accId != null && String(t.accId) === String(account.id)) return true;
+  // 1. Prioridade máxima: ID da conta
+  if (t.accId != null && account.id != null && String(t.accId) === String(account.id)) return true;
 
   const accNameLower = (account.name || '').toLowerCase().trim();
   if (!accNameLower) return false;
@@ -1993,26 +2014,39 @@ function isTxForAccount(t, account) {
   const tAccLower = (t.acc || '').toLowerCase().trim();
   const tCardLower = (t.card || '').toLowerCase().trim();
 
-  // 2. Verificação por correspondência exata do nome da conta ou do cartão
+  // 2. Correspondência exata do nome da conta ou do cartão
   if (tAccLower === accNameLower || tCardLower === accNameLower) return true;
 
-  // Se t.acc corresponde exatamente ao nome de OUTRA conta cadastrada, NÃO vincular a esta por substring
+  // 3. Correspondência normalizada (removendo "Cartão", "Conta", "Banco", etc.)
+  const normAccName = normalizeAccName(account.name);
+  const normTAcc = normalizeAccName(t.acc);
+  const normTCard = normalizeAccName(t.card);
+
+  if (normAccName.length >= 2) {
+    if (normTAcc === normAccName || normTCard === normAccName) return true;
+  }
+
+  // Se t.acc corresponde exatamente ao nome de OUTRA conta cadastrada, NÃO vincular por aproximação
   if (tAccLower && accounts.some(a => String(a.id) !== String(account.id) && (a.name || '').toLowerCase().trim() === tAccLower)) {
     return false;
   }
 
-  // 3. Verificação por inclusão apenas se t.acc não pertencer a outra conta
-  if (tAccLower && tAccLower.length >= 4 && accNameLower.length >= 4) {
-    if (tAccLower === accNameLower) return true;
+  // 4. Se a transação estiver como "Cartão de Crédito" ou "Cartão" e só houver 1 Cartão de Crédito cadastrado
+  if (isAccountCreditCard(account)) {
+    const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
+    if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) {
+      if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
+        return true;
+      }
+    }
   }
 
-  // 4. Verificação de palavras-chave na descrição caso t.acc seja genérico/não especificado
+  // 5. Verificação de palavras-chave na descrição para transações com conta não especificada
   if (!tAccLower || tAccLower === 'sem conta' || tAccLower === 'boleto / outros' || tAccLower === 'dinheiro') {
     const descLower = (t.desc || '').toLowerCase().trim();
     if (descLower) {
-      if (accNameLower.length >= 4 && descLower.includes(accNameLower)) return true;
-      if (accNameLower.includes('nubank') && (descLower.includes('nubank') || descLower.includes('nu '))) return true;
-      if (accNameLower.includes('digio') && descLower.includes('digio')) return true;
+      if (normAccName.length >= 3 && descLower.includes(normAccName)) return true;
+      if (accNameLower.length >= 3 && descLower.includes(accNameLower)) return true;
     }
   }
 
@@ -2039,8 +2073,8 @@ function getCardStats(account) {
     const totalLimit = initialBalance;
     const spentTotal = Math.max(0, totalDespesas - totalPagamentos);
     const spentPeriod = Math.max(0, periodDespesas - periodPagamentos);
-    const availableLimit = Math.max(0, totalLimit - spentTotal);
-    const usagePct = totalLimit > 0 ? Math.min(100, Math.round((spentTotal / totalLimit) * 100)) : 0;
+    const availableLimit = totalLimit - (totalDespesas - totalPagamentos);
+    const usagePct = totalLimit > 0 ? Math.min(100, Math.max(0, Math.round((spentTotal / totalLimit) * 100))) : 0;
     const currentBalance = availableLimit;
 
     return {
@@ -2058,7 +2092,6 @@ function getCardStats(account) {
     };
   } else {
     // Para Contas Bancárias (Conta Corrente, Poupança, Investimentos, etc.)
-    // balance representa o Saldo Inicial cadastrado
     const spentTotal = totalDespesas;
     const spentPeriod = periodDespesas;
     const currentBalance = initialBalance + totalPagamentos - totalDespesas;
