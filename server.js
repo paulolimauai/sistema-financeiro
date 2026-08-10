@@ -1725,34 +1725,18 @@ function autoMigrateTransactionsAndAccounts() {
   let changed = false;
 
   transactions.forEach(t => {
-    // 1. Se a transação não tem accId ou precisa de vinculação, associa por nome exato ou parcial
-    if (t.accId == null && t.acc) {
-      const match = accounts.find(a => a.name.toLowerCase().trim() === t.acc.toLowerCase().trim());
+    // 1. Se t.accId aponta para um ID de conta que não existe mais, reseta para relinkar
+    if (t.accId != null && !accounts.some(a => String(a.id) === String(t.accId))) {
+      t.accId = null;
+      changed = true;
+    }
+
+    // 2. Se a transação não tem accId válido, encontra a conta correspondente
+    if (t.accId == null) {
+      const match = accounts.find(a => isTxForAccount(t, a));
       if (match) {
         t.accId = match.id;
         t.acc = match.name;
-        changed = true;
-      } else {
-        const partialMatch = accounts.find(a => {
-          const accName = a.name.toLowerCase().trim();
-          const tAccName = t.acc.toLowerCase().trim();
-          return accName.length >= 3 && (tAccName.includes(accName) || accName.includes(tAccName));
-        });
-        if (partialMatch) {
-          t.accId = partialMatch.id;
-          t.acc = partialMatch.name;
-          changed = true;
-        }
-      }
-    } else if (!t.acc && t.desc) {
-      const descLower = t.desc.toLowerCase().trim();
-      const matchByDesc = accounts.find(a => {
-        const accName = a.name.toLowerCase().trim();
-        return accName.length >= 3 && descLower.includes(accName);
-      });
-      if (matchByDesc) {
-        t.accId = matchByDesc.id;
-        t.acc = matchByDesc.name;
         changed = true;
       }
     }
@@ -2094,14 +2078,16 @@ function isTxForAccount(t, account) {
 
   if (normAccName.length >= 2) {
     if (normTAcc === normAccName || normTCard === normAccName) return true;
+    if (normTAcc && (normTAcc.includes(normAccName) || normAccName.includes(normTAcc))) return true;
+    if (normTCard && (normTCard.includes(normAccName) || normAccName.includes(normTCard))) return true;
   }
 
-  // Se t.acc corresponde exatamente ao nome de OUTRA conta cadastrada, NÃO vincular por aproximação
-  if (tAccLower && accounts.some(a => String(a.id) !== String(account.id) && (a.name || '').toLowerCase().trim() === tAccLower)) {
-    return false;
+  // 4. Se a transação tem nome parcial do cartão/conta (ex: "Nubank" vs "Cartão Nubank")
+  if (tAccLower && accNameLower.length >= 3) {
+    if (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower)) return true;
   }
 
-  // 4. Se a transação estiver como "Cartão de Crédito" ou "Cartão" e só houver 1 Cartão de Crédito cadastrado
+  // 5. Se a transação estiver como "Cartão de Crédito" ou "Cartão" e só houver 1 Cartão de Crédito cadastrado
   if (isAccountCreditCard(account)) {
     const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
     if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) {
@@ -2111,7 +2097,7 @@ function isTxForAccount(t, account) {
     }
   }
 
-  // 5. Verificação de palavras-chave na descrição para transações com conta não especificada
+  // 6. Verificação de palavras-chave na descrição para transações com conta não especificada
   if (!tAccLower || tAccLower === 'sem conta' || tAccLower === 'boleto / outros' || tAccLower === 'dinheiro') {
     const descLower = (t.desc || '').toLowerCase().trim();
     if (descLower) {
