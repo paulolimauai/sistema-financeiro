@@ -177,9 +177,14 @@ const htmlContent = `<!DOCTYPE html>
     if (t === 'light') {
       document.documentElement.classList.add('light');
     }
-    var s = localStorage.getItem('nexus_session') || localStorage.getItem('nexus_cached_user');
-    if (s) {
+    var cu = localStorage.getItem('nexus_cached_user');
+    var s = localStorage.getItem('nexus_session');
+    if (s || cu) {
       document.documentElement.classList.add('user-logged-in');
+      var uObj = cu ? JSON.parse(cu) : null;
+      if (uObj && uObj.role === 'Administrador') {
+        document.documentElement.classList.add('is-admin');
+      }
     }
   } catch(e){}
 })();
@@ -187,6 +192,28 @@ const htmlContent = `<!DOCTYPE html>
 <style>
 html.user-logged-in #authPage { display: none !important; }
 html.user-logged-in #appMain { display: block !important; }
+
+html.is-admin nav.menu button[data-page="dashboard"],
+html.is-admin nav.menu button[data-page="transacoes"],
+html.is-admin nav.menu button[data-page="cartoes"],
+html.is-admin nav.menu button[data-page="orcamentos"],
+html.is-admin nav.menu button[data-page="metas"],
+html.is-admin nav.menu button[data-page="relatorios"],
+html.is-admin nav.mobile-drawer-nav button[data-page="dashboard"],
+html.is-admin nav.mobile-drawer-nav button[data-page="transacoes"],
+html.is-admin nav.mobile-drawer-nav button[data-page="cartoes"],
+html.is-admin nav.mobile-drawer-nav button[data-page="orcamentos"],
+html.is-admin nav.mobile-drawer-nav button[data-page="metas"],
+html.is-admin nav.mobile-drawer-nav button[data-page="relatorios"] {
+  display: none !important;
+}
+
+html.is-admin #menuUsuariosBtn,
+html.is-admin #menuLogsBtn,
+html.is-admin #mobileDrawerUsuariosBtn,
+html.is-admin #mobileDrawerLogsBtn {
+  display: flex !important;
+}
 
 :root{
   --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
@@ -1052,8 +1079,8 @@ tr.trow:hover td{background:var(--hover);}
         </div>
         <div class="icon-btn" id="miniThemeBtn" title="Alternar Tema"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 0 1 1-9-9Z"/></svg></div>
         <div class="user" id="userMenu" data-nav="config">
-          <div class="avatar" id="headerAvatar">PL</div>
-          <div><div class="uname" id="headerName">Paulo Lima</div><div class="urole" id="headerRole">Usuário</div></div>
+          <div class="avatar" id="headerAvatar">--</div>
+          <div><div class="uname" id="headerName">...</div><div class="urole" id="headerRole">...</div></div>
         </div>
         <button class="btn-ghost" id="logoutBtn">Sair</button>
       </div>
@@ -4346,6 +4373,14 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
       document.getElementById('appMain').classList.add('show');
       if (cachedUser) {
         currentUser = cachedUser;
+        if (currentUser.role === 'Administrador') {
+          document.documentElement.classList.add('is-admin');
+          currentPage = 'usuarios';
+        } else {
+          document.documentElement.classList.remove('is-admin');
+        }
+        if (typeof updateHeaderUser === 'function') updateHeaderUser();
+        if (typeof updateAdminMenuVisibility === 'function') updateAdminMenuVisibility();
       }
     }
   } catch(e){}
