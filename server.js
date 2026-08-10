@@ -450,38 +450,52 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
 .app{
   display:none; min-height:100vh; position:relative; flex-direction:column;
   background:
-    radial-gradient(circle at 12% 0%, rgba(232,176,75,.10), transparent 40%),
-    radial-gradient(circle at 88% 18%, rgba(201,134,42,.08), transparent 45%),
-    radial-gradient(circle at 50% 100%, rgba(232,176,75,.05), transparent 55%),
-    var(--bg);
+    radial-gradient(circle at 15% 15%, rgba(232, 176, 75, 0.20) 0%, transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(74, 144, 226, 0.20) 0%, transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(155, 107, 216, 0.12) 0%, transparent 50%),
+    linear-gradient(145deg, #050811 0%, #0d1222 50%, #060914 100%);
+  background-attachment: fixed;
 }
 .app.show{display:flex;}
 body.light .app{
   background:
-    radial-gradient(circle at 12% 0%, rgba(232,176,75,.08), transparent 40%),
-    radial-gradient(circle at 88% 18%, rgba(201,134,42,.06), transparent 45%),
-    var(--bg);
+    radial-gradient(circle at 15% 15%, rgba(232,176,75,.12), transparent 42%),
+    radial-gradient(circle at 85% 25%, rgba(74,144,226,.10), transparent 42%),
+    linear-gradient(145deg, #f8fafc 0%, #edf2f7 100%);
 }
 
 .app-bg-scene{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
 .app-bg-grid{
   position:absolute; inset:0;
   background-image:
-    linear-gradient(rgba(232,176,75,.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232,176,75,.06) 1px, transparent 1px);
-  background-size:54px 54px;
-  -webkit-mask-image:radial-gradient(circle at 20% 0%, #000 0%, transparent 65%);
-  mask-image:radial-gradient(circle at 20% 0%, #000 0%, transparent 65%);
+    radial-gradient(rgba(232,176,75,.07) 1px, transparent 1px);
+  background-size:36px 36px;
+  opacity:0.45;
 }
-.app-bg-chart{position:absolute; inset:0; width:100%; height:100%; opacity:.16;}
-.app-blob{position:absolute; border-radius:50%; filter:blur(90px); opacity:.16; will-change:transform;}
-.app-blob.a1{width:420px; height:420px; background:var(--green); top:-140px; right:-120px; animation:blobFloat 30s ease-in-out infinite;}
-.app-blob.a2{width:360px; height:360px; background:#c9862a; bottom:-150px; left:20%; animation:blobFloat 34s ease-in-out infinite; animation-delay:-10s;}
-.app-blob.a3{width:300px; height:300px; background:var(--teal); opacity:.08; top:38%; left:-100px; animation:blobFloat 38s ease-in-out infinite; animation-delay:-18s;}
+.app-bg-chart{position:absolute; inset:0; width:100%; height:100%; opacity:.22;}
+.app-blob{position:absolute; border-radius:50%; pointer-events:none; will-change:transform;}
+.app-blob.a1{
+  width:520px; height:520px;
+  background:radial-gradient(circle, rgba(232,176,75,0.22) 0%, rgba(232,176,75,0) 70%);
+  top:-140px; right:-100px;
+  filter:blur(70px); opacity:.8; animation:blobFloat 28s ease-in-out infinite alternate;
+}
+.app-blob.a2{
+  width:460px; height:460px;
+  background:radial-gradient(circle, rgba(74,144,226,0.24) 0%, rgba(74,144,226,0) 70%);
+  bottom:-150px; left:10%;
+  filter:blur(70px); opacity:.8; animation:blobFloat 32s ease-in-out infinite alternate-reverse;
+}
+.app-blob.a3{
+  width:380px; height:380px;
+  background:radial-gradient(circle, rgba(155,107,216,0.18) 0%, rgba(155,107,216,0) 70%);
+  top:40%; left:-120px;
+  filter:blur(80px); opacity:.7; animation:blobFloat 36s ease-in-out infinite alternate;
+}
 body.light .app-bg-grid{opacity:.6;}
 body.light .app-bg-chart{opacity:.08;}
-body.light .app-blob{opacity:.08;}
-body.light .app-blob.a3{opacity:.05;}
+body.light .app-blob{opacity:.12;}
+body.light .app-blob.a3{opacity:.08;}
 
 /* ==================== Cabeçalho superior (nav horizontal & drawer mobile) ==================== */
 .topheader{
@@ -539,19 +553,56 @@ body.light .app-blob.a3{opacity:.05;}
 .brand .name span{display:block; color:var(--green); font-size:11px; letter-spacing:.06em; font-weight:700;}
 
 nav.menu{
-  display:flex; align-items:center; flex-wrap:nowrap; gap:4px; width:100%;
-  padding:0 16px 10px; max-width:1440px; margin:0 auto;
+  display:flex; align-items:center; flex-wrap:nowrap; gap:6px; width:100%;
+  padding:4px 16px 12px; max-width:1440px; margin:0 auto;
   overflow-x:auto; scrollbar-width:thin;
 }
-nav.menu::-webkit-scrollbar{height:5px;}
-nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:10px;}
+nav.menu::-webkit-scrollbar{height:4px;}
+nav.menu::-webkit-scrollbar-thumb{background:rgba(232,176,75,0.3); border-radius:10px;}
 .menu button{
-  display:flex; align-items:center; gap:7px; text-align:left; background:none; border:none;
-  color:var(--text-dim); padding:11px 12px; border-radius:10px; font-size:14.5px; font-weight:600; cursor:pointer;
-  transition:background .15s,color .15s; white-space:nowrap; flex-shrink:0;
+  position: relative;
+  display:flex; align-items:center; gap:8px; text-align:left;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.menu button:hover{background:var(--hover); color:var(--text);}
-.menu button.active{background:var(--green-soft); color:var(--green); font-weight:700;}
+.menu button:hover{
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--text);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.menu button.active{
+  background: linear-gradient(135deg, rgba(232, 176, 75, 0.24), rgba(201, 134, 42, 0.16));
+  border: 1px solid rgba(232, 176, 75, 0.5);
+  color: #ffffff;
+  font-weight: 800;
+  box-shadow: 0 4px 18px rgba(232, 176, 75, 0.28), 0 0 12px rgba(232, 176, 75, 0.15);
+  transform: translateY(-1px);
+}
+.menu button.active::after {
+  content: '';
+  position: absolute;
+  bottom: -3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 3px;
+  background: var(--green);
+  border-radius: 3px;
+  box-shadow: 0 0 8px var(--green);
+}
 .menu button .ic{width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;}
 .menu button .ic svg, .icon-btn svg{width:18px; height:18px; display:block;}
 
