@@ -294,12 +294,16 @@ body.light .auth-blob{opacity:.16;}
 }
 .auth-box{
   position:relative; z-index:1;
-  background:var(--card); border:1px solid rgba(232,176,75,.3); border-radius:24px;
-  padding:36px; width:100%; max-width:420px;
-  box-shadow:0 20px 60px rgba(0,0,0,0.85), 0 0 35px rgba(232,176,75,0.18);
-  animation:authIn .55s cubic-bezier(.16,1,.3,1);
+  background: rgba(18, 22, 30, 0.78);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(232, 176, 75, 0.38);
+  border-radius: 26px;
+  padding: 38px 34px; width: 100%; max-width: 430px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.8), 0 0 45px rgba(232, 176, 75, 0.15);
+  animation: authIn .55s cubic-bezier(.16,1,.3,1);
 }
-.auth-box .brand{display:flex; justify-content:center; margin-bottom:24px; padding:0;}
+.auth-box .brand{display:flex; justify-content:center; margin-bottom:20px; padding:0;}
 .auth-box .brand .logo{
   background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)) !important; color:var(--auth-text-on) !important;
   animation:logoPulse 3s ease-in-out infinite;
@@ -308,34 +312,112 @@ body.light .auth-blob{opacity:.16;}
   0%,100%{box-shadow:0 0 0 0 rgba(232,176,75,.45);}
   50%{box-shadow:0 0 0 9px rgba(232,176,75,0);}
 }
-.auth-box h2{font-size:20px; font-weight:700; margin-bottom:6px; text-align:center;}
-.auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
+.auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; text-align:center; letter-spacing:-0.01em;}
+.auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:22px; transition:color .2s;}
 .auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
 .auth-box .field:nth-of-type(1){animation-delay:.05s;}
 .auth-box .field:nth-of-type(2){animation-delay:.1s;}
+.auth-box .field label{display:block; font-size:12px; font-weight:700; color:var(--text-dim); margin-bottom:6px;}
 .auth-box .field input:focus, .auth-box .field select:focus{
-  border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft); transform:translateY(-1px);
+  border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft), 0 0 15px rgba(232, 176, 75, 0.2); transform:translateY(-1px);
 }
-.auth-box .field input{transition:border-color .2s, box-shadow .2s, transform .15s;}
-.auth-forgot{display:block; text-align:right; font-size:12px; color:var(--text-dim); margin-top:8px; cursor:pointer; transition:color .15s;}
-.auth-forgot:hover{color:var(--auth-accent); text-decoration:underline;}
+.auth-box .field input{
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  color: var(--text);
+  transition: border-color .2s, box-shadow .2s, transform .15s, background .2s;
+}
+.auth-row-options {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+}
+.auth-remember {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  cursor: pointer;
+  user-select: none;
+}
+.auth-remember input[type="checkbox"] {
+  accent-color: var(--auth-accent);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+.auth-forgot{display:inline-block; font-size:12px; color:var(--auth-accent); cursor:pointer; transition:color .15s; font-weight:600;}
+.auth-forgot:hover{color:var(--auth-accent-3); text-decoration:underline;}
 .auth-box .btn-auth{
   position:relative; overflow:hidden;
-  width:100%; padding:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); border:none;
-  border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;
-  transition:filter .2s, transform .15s;
+  width:100%; padding:13px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); border:none;
+  border-radius:12px; font-weight:800; font-size:14.5px; cursor:pointer; margin-top:12px;
+  box-shadow: 0 4px 18px rgba(232, 176, 75, 0.25);
+  transition:filter .2s, transform .15s, box-shadow .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
 }
 .auth-box .btn-auth::after{
   content:''; position:absolute; top:0; left:-75%; width:45%; height:100%;
   background:linear-gradient(120deg, transparent, rgba(255,255,255,.45), transparent);
   transform:skewX(-20deg);
 }
-.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-1px);}
+.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-1px); box-shadow: 0 6px 24px rgba(232, 176, 75, 0.35);}
 .auth-box .btn-auth:hover::after{animation:shimmer .9s ease;}
 .auth-box .btn-auth:active{transform:translateY(0) scale(.98);}
 @keyframes shimmer{from{left:-75%;} to{left:130%;}}
-.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:22px; padding-top:18px; border-top:1px solid var(--card-border);}
-.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:600; cursor:pointer;}
+.auth-divider {
+  display: flex;
+  align-items: center;
+  margin: 20px 0 14px 0;
+  color: var(--text-faint);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.auth-divider::before, .auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
+}
+.auth-divider span {
+  padding: 0 10px;
+}
+.auth-social-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+.btn-social {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.btn-social:hover {
+  background: rgba(232, 176, 75, 0.15);
+  border-color: var(--auth-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px rgba(232, 176, 75, 0.2);
+}
+.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:20px; padding-top:16px; border-top:1px solid var(--card-border);}
+.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:700; cursor:pointer;}
 .auth-toggle a:hover{text-decoration:underline;}
 
 /* ==================== App principal Centralizado ==================== */
@@ -998,11 +1080,11 @@ tr.trow:hover td{background:var(--hover);}
   <!-- Login -->
   <div class="auth-box" id="loginBox">
     <div class="brand">
-      <div class="logo">N</div>
-      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+      <div class="logo">S</div>
+      <div class="name">SISTEMA<span>FINANCEIRO PRO</span></div>
     </div>
-    <h2>Acessar Conta</h2>
-    <p class="sub">Informe suas credenciais para continuar</p>
+    <h2>Bem-vindo de volta</h2>
+    <p class="sub">Acesse sua conta para gerenciar suas finanças.</p>
     <form id="loginForm">
       <div class="field">
         <label>E-mail</label>
@@ -1014,10 +1096,29 @@ tr.trow:hover td{background:var(--hover);}
           <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
           <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
         </div>
+      </div>
+
+      <div class="auth-row-options">
+        <label class="auth-remember">
+          <input type="checkbox" id="loginRemember" checked>
+          <span>Lembrar de mim</span>
+        </label>
         <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
       </div>
-      <button type="submit" class="btn-auth">Entrar no Sistema</button>
+
+      <button type="submit" class="btn-auth">Entrar na Conta →</button>
     </form>
+
+    <div class="auth-divider">
+      <span>ou entre com</span>
+    </div>
+
+    <div class="auth-social-row">
+      <button class="btn-social" type="button" title="Entrar com Google" onclick="showToast('Acesso com conta Google habilitado')">G</button>
+      <button class="btn-social" type="button" title="Entrar com Apple" onclick="showToast('Acesso com conta Apple habilitado')"></button>
+      <button class="btn-social" type="button" title="Entrar com LinkedIn" onclick="showToast('Acesso com conta LinkedIn habilitado')">in</button>
+    </div>
+
     <div class="auth-toggle">
       Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
     </div>
