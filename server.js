@@ -2225,6 +2225,7 @@ function refreshTxTable(){
   const fTipo = document.getElementById('txFiltroTipo');
   const fCat = document.getElementById('txFiltroCat');
   const fStatus = document.getElementById('txFiltroStatus');
+  const fConta = document.getElementById('txFiltroConta');
   const tableWrap = document.getElementById('txTableWrap');
   if(!search || !tableWrap) return false;
 
@@ -2239,6 +2240,16 @@ function refreshTxTable(){
   if(fTipo && fTipo.value) list = list.filter(t=>t.type===fTipo.value);
   if(fCat && fCat.value) list = list.filter(t=>t.cat===fCat.value);
   if(fStatus && fStatus.value) list = list.filter(t=>t.status===fStatus.value);
+  if(fConta && fConta.value) {
+    const targetAcc = accounts.find(a => a.name === fConta.value);
+    if (targetAcc) {
+      list = list.filter(t => isTxForAccount(t, targetAcc));
+    } else {
+      const qAcc = fConta.value.toLowerCase().trim();
+      list = list.filter(t => (t.acc || '').toLowerCase().trim().includes(qAcc));
+    }
+  }
+
   list.sort((a,b)=>b.date.localeCompare(a.date));
   tableWrap.innerHTML = transactionsTable(list, true);
   const statsRow = document.getElementById('txStatsRow'); if(statsRow) statsRow.innerHTML = txStatsCardsHTML(list);
@@ -2600,6 +2611,7 @@ function transactionsTable(list, showActions){
 
 function pageTransacoes(){
   const periodTx = transactions.filter(inPeriod);
+  const accOptsHTML = accounts.map(a => '<option value="' + a.name + '">' + a.name + ' (' + a.type + ')</option>').join('');
   return \`
   <div class="page-head">
     <div><h1>Transações — \${periodLabel()}</h1><p>Gerencie suas receitas e despesas do mês selecionado</p></div>
@@ -2612,6 +2624,7 @@ function pageTransacoes(){
   <div class="table-panel">
     <div class="filters">
       <input id="txSearch" placeholder="Buscar por descrição...">
+      <select id="txFiltroConta"><option value="">Todas as Contas / Cartões</option>\${accOptsHTML}</select>
       <select id="txFiltroTipo"><option value="">Todos os tipos</option><option value="in">Receitas</option><option value="out">Despesas</option></select>
       <select id="txFiltroCat"><option value="">Todas categorias</option>\${catOptionsHTML(null)}</select>
       <select id="txFiltroStatus"><option value="">Todos status</option><option>Pago</option><option>Recebido</option><option>Pendente</option></select>
@@ -2684,7 +2697,7 @@ function pageContas(){
     \${list.length ? list.map(a => {
       const stats = getCardStats(a);
       return \`
-      <div class="acc-card" style="position:relative; background:var(--card); border:1px solid var(--card-border); border-radius:14px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; min-height:220px; box-sizing:border-box;">
+      <div class="acc-card" style="position:relative; background:var(--card); border:1px solid var(--card-border); border-radius:14px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; min-height:260px; box-sizing:border-box;">
         <div>
           <div class="top" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
             <div class="id-group" style="display:flex; align-items:center; gap:10px; min-width:0;">
@@ -2730,6 +2743,9 @@ function pageContas(){
             </div>
           \`}
         </div>
+        <button class="btn-ghost" data-viewcardtx="\${a.name}" style="padding:6px 12px; font-size:11.5px; margin-top:12px; width:100%; border-radius:8px; border:1px solid var(--card-border); background:rgba(255,255,255,0.03); color:var(--text-dim); display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
+          🔍 Ver lançamentos desta conta (\${stats.txCount})
+        </button>
       </div>\`;
     }).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
   </div>\`;
@@ -4214,8 +4230,9 @@ function attachPageEvents(){
   const fTipo = document.getElementById('txFiltroTipo');
   const fCat = document.getElementById('txFiltroCat');
   const fStatus = document.getElementById('txFiltroStatus');
+  const fConta = document.getElementById('txFiltroConta');
   if(search){
-    [search,fTipo,fCat,fStatus].forEach(el=>{
+    [search,fTipo,fCat,fStatus,fConta].forEach(el=>{
       if(el) {
         el.addEventListener('input', refreshTxTable);
         el.addEventListener('change', refreshTxTable);
@@ -4223,6 +4240,21 @@ function attachPageEvents(){
     });
     refreshTxTable();
   }
+
+  document.querySelectorAll('[data-viewcardtx]').forEach(btn => {
+    btn.onclick = () => {
+      const cardName = btn.getAttribute('data-viewcardtx');
+      currentPage = 'transacoes';
+      render();
+      setTimeout(() => {
+        const fc = document.getElementById('txFiltroConta');
+        if (fc) {
+          fc.value = cardName;
+          refreshTxTable();
+        }
+      }, 50);
+    };
+  });
 }
 
 function navigate(page){
