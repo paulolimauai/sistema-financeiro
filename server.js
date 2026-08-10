@@ -2002,6 +2002,24 @@ function catOptionsHTML(type, selected){
 }
 const periodLabel = () => currentPeriod.month === 0 ? 'Todas as Datas (Geral)' : ((MONTHS[currentPeriod.month-1] || 'Mês ' + currentPeriod.month) + ' / ' + currentPeriod.year);
 
+function formatDateBR(dateVal) {
+  if (!dateVal) return '—';
+  try {
+    const str = String(dateVal).trim();
+    if (str.includes('T')) {
+      const parts = str.split('T')[0].split('-');
+      if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+    }
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      return parts[2].padStart(2,'0') + '/' + parts[1].padStart(2,'0') + '/' + parts[0];
+    }
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) return d.toLocaleDateString('pt-BR');
+  } catch(e){}
+  return String(dateVal);
+}
+
 const inPeriod = t => {
   if (!t || !t.date) return false;
   if (currentPeriod.month === 0) return true;
@@ -2015,6 +2033,7 @@ const inPeriod = t => {
   const d = new Date(t.date);
   return (d.getMonth() + 1) === currentPeriod.month && d.getFullYear() === currentPeriod.year;
 };
+
 
 /* ==================== Cálculos de Cartões e Limites ==================== */
 function isAccountCreditCard(account) {
@@ -2765,7 +2784,7 @@ function transactionsTable(list, showActions){
     <tbody>
       \${list.map(t=>\`
         <tr class="trow">
-          <td>\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')}</td>
+          <td>\${formatDateBR(t.date)}</td>
           <td>\${t.desc}</td>
           <td><span class="pill" style="background:\${catColor(t.cat)}22; color:\${catColor(t.cat)}">\${catIcon(t.cat)} \${t.cat}</span></td>
           <td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-weight:600;">\${t.acc || '—'}</span></td>
@@ -2994,7 +3013,7 @@ function pageMetas(){
           <h3 style="font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">\${g.name}</h3>
           <div class="row-actions"><button data-editmeta="\${g.id}" title="Editar">✎</button><button data-delmeta="\${g.id}" title="Excluir">🗑</button></div>
         </div>
-        <p style="color:var(--text-faint);font-size:11.5px;margin-bottom:10px;">Prazo: \${new Date(g.deadline+'T00:00').toLocaleDateString('pt-BR')}</p>
+        <p style="color:var(--text-faint);font-size:11.5px;margin-bottom:10px;">Prazo: \${formatDateBR(g.deadline)}</p>
         <div class="val" style="font-size:18px;">\${fmt(g.current)} <span style="color:var(--text-faint);font-size:12px;font-weight:400"> / \${fmt(g.target)}</span></div>
         <div class="bar-split" style="background:var(--card-border);margin-top:10px"><div class="g" style="width:\${pct}%"></div></div>
         <div class="split-labels" style="margin-top:6px"><span>\${pct}% concluído</span></div>
@@ -3161,7 +3180,7 @@ function pageAnexos(){
         <label>Transação Vinculada</label>
         <select id="attTx" style="width:100%;">
           <option value="0">Nenhuma (Anexo Avulso / Recibo Padrão)</option>
-          \${sortedTx.map(t=>\`<option value="\${t.id}">\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')} — \${t.desc} (\${fmt(t.val)})</option>\`).join('')}
+          \${sortedTx.map(t=>\`<option value="\${t.id}">\${formatDateBR(t.date)} — \${t.desc} (\${fmt(t.val)})</option>\`).join('')}
         </select>
       </div>
       <div class="field" style="flex:1; min-width:200px; margin-bottom:0;">
@@ -3213,7 +3232,7 @@ function pageAnexos(){
             <label style="display:block; font-size:10.5px; color:var(--text-faint); margin-bottom:3px; font-weight:600;">Transação Vinculada:</label>
             <select data-relinkatt="\${a.id}" style="width:100%; font-size:11.5px; padding:5px 8px; border-radius:6px; background:var(--bg); border:1px solid var(--card-border); color:var(--text);">
               <option value="0" \${!a.txId ? 'selected' : ''}>Sem vincular (Anexo Avulso)</option>
-              \${sortedTx.map(tx => \`<option value="\${tx.id}" \${tx.id === a.txId ? 'selected' : ''}>\${new Date(tx.date+'T00:00').toLocaleDateString('pt-BR')} — \${tx.desc}</option>\`).join('')}
+              \${sortedTx.map(tx => \`<option value="\${tx.id}" \${tx.id === a.txId ? 'selected' : ''}>\${formatDateBR(tx.date)} — \${tx.desc}</option>\`).join('')}
             </select>
           </div>
         </div>
@@ -3341,7 +3360,7 @@ function pageUsuarios(){
           <div class="user-info">
             <div class="n">\${u.name}</div>
             <div class="e">\${u.email}</div>
-            <div class="stats">\${stats.hasData ? \`\${stats.txCount} transaç\${stats.txCount===1?'ão':'ões'} · \${stats.accCount} conta\${stats.accCount===1?'':'s'} · \${stats.budCount} orçamento\${stats.budCount===1?'':'s'} · \${stats.goalCount} meta\${stats.goalCount===1?'':'s'}\${stats.lastDate ? \` · última mov. em \${new Date(stats.lastDate+'T00:00').toLocaleDateString('pt-BR')}\` : ''}\` : 'Ainda sem atividade registrada'}</div>
+            <div class="stats">\${stats.hasData ? \`\${stats.txCount} transaç\${stats.txCount===1?'ão':'ões'} · \${stats.accCount} conta\${stats.accCount===1?'':'s'} · \${stats.budCount} orçamento\${stats.budCount===1?'':'s'} · \${stats.goalCount} meta\${stats.goalCount===1?'':'s'}\${stats.lastDate ? \` · última mov. em \${formatDateBR(stats.lastDate)}\` : ''}\` : 'Ainda sem atividade registrada'}</div>
           </div>
           <span class="role-badge \${u.role==='Administrador'?'admin':'user'}">\${u.role}</span>
           \${u.active===false ? '<span class="role-badge inactive">Desativado</span>' : ''}
@@ -5108,9 +5127,109 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 </body>
 </html>`;
 
-// Servidor HTTP com suporte para cargas de dados pesadas (JSON), agora com PostgreSQL
+// Persistência resiliente de Logs em Arquivo Local + Banco de Dados
+const LOGS_FILE_PATH = path.join(__dirname, 'system_logs.json');
+const LOCAL_DATA_PATH = path.join(__dirname, 'local_database_data.json');
+const LOCAL_USERS_PATH = path.join(__dirname, 'local_users.json');
+
+function getFileLogs() {
+  try {
+    if (fs.existsSync(LOGS_FILE_PATH)) {
+      const data = fs.readFileSync(LOGS_FILE_PATH, 'utf8');
+      return JSON.parse(data) || [];
+    }
+  } catch (e) {
+    console.error('Erro ao ler system_logs.json:', e);
+  }
+  return [];
+}
+
+function saveFileLogEntry(entry) {
+  try {
+    const list = getFileLogs();
+    list.unshift(entry);
+    if (list.length > 1000) list.pop();
+    fs.writeFileSync(LOGS_FILE_PATH, JSON.stringify(list, null, 2), 'utf8');
+  } catch (e) {
+    console.error('Erro ao escrever system_logs.json:', e);
+  }
+}
+
+function recordSystemLog(userName, userEmail, action, entity, details) {
+  const logObj = {
+    id: Date.now(),
+    timestamp: new Date().toISOString(),
+    user_name: userName || 'Sistema',
+    user_email: userEmail || 'sistema@nexus.com',
+    action: action || 'Ação',
+    entity: entity || 'Sistema',
+    details: details || 'Alteração registrada no sistema'
+  };
+
+  saveFileLogEntry(logObj);
+
+  pool.query(
+    `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
+     VALUES (now(), $1, $2, $3, $4, $5)`,
+    [logObj.user_name, logObj.user_email, logObj.action, logObj.entity, logObj.details]
+  ).catch(err => {
+    // Gravado no arquivo system_logs.json caso o banco falhe
+  });
+}
+
+function getLocalUsers() {
+  try {
+    if (fs.existsSync(LOCAL_USERS_PATH)) {
+      const content = fs.readFileSync(LOCAL_USERS_PATH, 'utf8');
+      return JSON.parse(content) || [];
+    }
+  } catch (e) {}
+  return [DEFAULT_ADMIN];
+}
+
+function saveLocalUsers(users) {
+  try {
+    fs.writeFileSync(LOCAL_USERS_PATH, JSON.stringify(users, null, 2), 'utf8');
+  } catch (e) {}
+}
+
+function getLocalData(email) {
+  try {
+    if (fs.existsSync(LOCAL_DATA_PATH)) {
+      const allData = JSON.parse(fs.readFileSync(LOCAL_DATA_PATH, 'utf8')) || {};
+      return allData[email.toLowerCase().trim()] || null;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function saveLocalData(email, data) {
+  try {
+    let allData = {};
+    if (fs.existsSync(LOCAL_DATA_PATH)) {
+      allData = JSON.parse(fs.readFileSync(LOCAL_DATA_PATH, 'utf8')) || {};
+    }
+    allData[email.toLowerCase().trim()] = data;
+    fs.writeFileSync(LOCAL_DATA_PATH, JSON.stringify(allData, null, 2), 'utf8');
+  } catch (e) {}
+}
+
+// Servidor HTTP de Alta Performance e Resiliência
 const server = http.createServer((req, res) => {
   const parsedUrl = url.parse(req.url, true);
+
+  // Cabeçalhos globais de CORS
+  const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS, PUT, DELETE',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true'
+  };
+
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, corsHeaders);
+    return res.end();
+  }
 
   // Rota POST para Login de Usuário
   if (req.method === 'POST' && parsedUrl.pathname === '/api/login') {
@@ -5120,52 +5239,45 @@ const server = http.createServer((req, res) => {
       try {
         const { email, password } = JSON.parse(body);
         if (!email || !password) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'E-mail e senha são obrigatórios' }));
         }
 
-        const result = await pool.query(
-          'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
-          [email]
-        );
+        let user = null;
+        try {
+          const result = await pool.query(
+            'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
+            [email]
+          );
+          if (result.rows.length > 0) user = result.rows[0];
+        } catch (dbErr) {
+          console.warn('[AVISO BD] Falha ao consultar PostgreSQL. Usando banco local.');
+          const localUsers = getLocalUsers();
+          user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+        }
 
-        if (result.rows.length === 0 || result.rows[0].password !== password) {
-          res.writeHead(401, { 'Content-Type': 'application/json' });
+        if (!user || user.password !== password) {
+          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'E-mail ou senha incorretos!' }));
         }
 
-        const user = result.rows[0];
         if (user.active === false) {
-          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'Seu usuário foi desativado pelo administrador.' }));
         }
 
-        const loginLogObj = {
-          id: Date.now(),
-          timestamp: new Date().toISOString(),
-          user_name: user.name,
-          user_email: user.email,
-          action: 'Login',
-          entity: 'Autenticação',
-          details: 'Usuário realizou login com sucesso no sistema'
-        };
-        saveFileLogEntry(loginLogObj);
-        pool.query(
-          `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
-           VALUES (now(), $1, $2, 'Login', 'Autenticação', 'Usuário realizou login com sucesso no sistema')`,
-          [user.name, user.email]
-        ).catch(() => {});
+        recordSystemLog(user.name, user.email, 'Login', 'Autenticação', 'Usuário realizou login com sucesso no sistema');
 
         const token = 'token_' + Date.now() + '_' + Math.random().toString(36).substring(2);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({
           success: true,
           token: token,
-          user: { id: user.id, name: user.name, email: user.email, role: user.role }
+          user: { id: user.id || Date.now(), name: user.name, email: user.email, role: user.role }
         }));
       } catch (err) {
         console.error('Erro no endpoint de login:', err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'Falha no servidor durante a autenticação.' }));
       }
     });
@@ -5180,30 +5292,46 @@ const server = http.createServer((req, res) => {
       try {
         const { name, email, password } = JSON.parse(body);
         if (!name || !email || !password) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'Todos os campos são obrigatórios' }));
         }
 
-        const existing = await pool.query(
-          'SELECT id FROM usuarios WHERE LOWER(email) = LOWER($1)',
-          [email]
-        );
+        const cleanEmail = email.toLowerCase().trim();
+        let isExisting = false;
+        try {
+          const existing = await pool.query(
+            'SELECT id FROM usuarios WHERE LOWER(email) = LOWER($1)',
+            [cleanEmail]
+          );
+          if (existing.rows.length > 0) isExisting = true;
+        } catch (dbErr) {
+          const localUsers = getLocalUsers();
+          if (localUsers.some(u => u.email.toLowerCase() === cleanEmail)) isExisting = true;
+        }
 
-        if (existing.rows.length > 0) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
+        if (isExisting) {
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'Este e-mail já está cadastrado!' }));
         }
 
-        await pool.query(
-          'INSERT INTO usuarios (name, email, password, role, active) VALUES ($1, $2, $3, $4, $5)',
-          [name, email, password, 'Usuário', true]
-        );
+        try {
+          await pool.query(
+            'INSERT INTO usuarios (name, email, password, role, active) VALUES ($1, $2, $3, $4, $5)',
+            [name, cleanEmail, password, 'Usuário', true]
+          );
+        } catch (e) {}
 
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        const localUsers = getLocalUsers();
+        localUsers.push({ id: Date.now(), name, email: cleanEmail, password, role: 'Usuário', active: true });
+        saveLocalUsers(localUsers);
+
+        recordSystemLog(name, cleanEmail, 'Cadastro', 'Autenticação', 'Novo usuário cadastrou-se no sistema');
+
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ success: true, message: 'Conta criada com sucesso!' }));
       } catch (err) {
         console.error('Erro no endpoint de cadastro:', err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'Falha no servidor durante o cadastro.' }));
       }
     });
@@ -5218,38 +5346,45 @@ const server = http.createServer((req, res) => {
       try {
         const { email } = JSON.parse(body);
         if (!email) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'E-mail é obrigatório' }));
         }
 
-        const result = await pool.query(
-          'SELECT id, name, email, password FROM usuarios WHERE LOWER(email) = LOWER($1)',
-          [email]
-        );
+        let user = null;
+        try {
+          const result = await pool.query(
+            'SELECT id, name, email, password FROM usuarios WHERE LOWER(email) = LOWER($1)',
+            [email]
+          );
+          if (result.rows.length > 0) user = result.rows[0];
+        } catch(e) {
+          const localUsers = getLocalUsers();
+          user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+        }
 
-        if (result.rows.length === 0) {
-          res.writeHead(404, { 'Content-Type': 'application/json' });
+        if (!user) {
+          res.writeHead(404, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'E-mail não cadastrado.' }));
         }
 
-        const user = result.rows[0];
-
-        // Se a senha for um hash criptografado longo ou vazia, gera uma nova senha legível e atualiza no banco
         let sendPassword = user.password;
         if (!sendPassword || sendPassword.length > 30 || sendPassword.includes(':')) {
           sendPassword = Math.floor(100000 + Math.random() * 900000).toString();
-          await pool.query('UPDATE usuarios SET password = $1 WHERE id = $2', [sendPassword, user.id]);
+          pool.query('UPDATE usuarios SET password = $1 WHERE email = $2', [sendPassword, user.email]).catch(()=>{});
+          const localUsers = getLocalUsers();
+          const lu = localUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
+          if (lu) { lu.password = sendPassword; saveLocalUsers(localUsers); }
         }
 
-        // Tenta o disparo de e-mail real via SMTP
+        recordSystemLog(user.name, user.email, 'Recuperação', 'Autenticação', 'Solicitou recuperação de senha');
+
         const emailSent = await sendPasswordEmail(user.email, user.name, sendPassword);
 
         if (emailSent) {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: true, mode: 'email' }));
         } else {
-          // Se o e-mail não puder ser enviado por falta de credenciais SMTP, exibe a nova senha temporária gerada na tela
-          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ 
             success: true, 
             mode: 'direct', 
@@ -5258,7 +5393,7 @@ const server = http.createServer((req, res) => {
         }
       } catch (err) {
         console.error('Erro ao processar recuperação de senha:', err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'Falha ao processar solicitação de senha.' }));
       }
     });
@@ -5269,89 +5404,70 @@ const server = http.createServer((req, res) => {
   if (req.method === 'GET' && parsedUrl.pathname === '/api/users') {
     pool.query('SELECT name, email, password, role, active FROM usuarios ORDER BY id ASC')
       .then(result => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        saveLocalUsers(result.rows);
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result.rows));
       })
       .catch(err => {
-        console.error('Erro ao buscar usuários:', err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Erro no banco de dados' }));
+        console.warn('Usando lista de usuários do backup local:', err.message);
+        const localUsers = getLocalUsers();
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(localUsers));
       });
     return;
   }
 
-  // Rota POST de Usuários (recebe a lista completa e sincroniza com a tabela)
+  // Rota POST de Usuários (Sincronização do Administrador)
   if (req.method === 'POST' && parsedUrl.pathname === '/api/users') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', async () => {
-      const client = await pool.connect();
       try {
         const users = JSON.parse(body);
         if (!Array.isArray(users)) throw new Error('Formato inválido');
 
-        await client.query('BEGIN');
+        saveLocalUsers(users);
+        recordSystemLog('Administrador', 'admin@nexusfinanceiro.com', 'Sincronização', 'Usuários', 'Administrador atualizou a lista de usuários');
 
-        const emails = users.map(u => u.email);
-        // Remove usuários que não estão mais na lista enviada (ex: exclusão pelo admin)
-        await client.query(
-          `DELETE FROM usuarios WHERE email <> ALL($1::text[])`,
-          [emails.length ? emails : ['__nunca__']]
-        );
+        try {
+          const client = await pool.connect();
+          try {
+            await client.query('BEGIN');
+            const emails = users.map(u => u.email);
+            await client.query(
+              `DELETE FROM usuarios WHERE email <> ALL($1::text[])`,
+              [emails.length ? emails : ['__nunca__']]
+            );
 
-        // Insere ou atualiza cada usuário da lista (upsert por e-mail)
-        for (const u of users) {
-          await client.query(
-            `INSERT INTO usuarios (name, email, password, role, active)
-             VALUES ($1, $2, $3, $4, $5)
-             ON CONFLICT (email) DO UPDATE
-             SET name = EXCLUDED.name,
-                 password = EXCLUDED.password,
-                 role = EXCLUDED.role,
-                 active = EXCLUDED.active;`,
-            [u.name, u.email, u.password, u.role, u.active !== false]
-          );
-        }
+            for (const u of users) {
+              await client.query(
+                `INSERT INTO usuarios (name, email, password, role, active)
+                 VALUES ($1, $2, $3, $4, $5)
+                 ON CONFLICT (email) DO UPDATE
+                 SET name = EXCLUDED.name,
+                     password = EXCLUDED.password,
+                     role = EXCLUDED.role,
+                     active = EXCLUDED.active;`,
+                [u.name, u.email, u.password, u.role, u.active !== false]
+              );
+            }
+            await client.query('COMMIT');
+          } catch(e) {
+            await client.query('ROLLBACK');
+          } finally {
+            client.release();
+          }
+        } catch(dbErr) {}
 
-        await client.query('COMMIT');
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       } catch (e) {
-        await client.query('ROLLBACK');
         console.error('Erro ao salvar usuários:', e);
-        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false }));
-      } finally {
-        client.release();
       }
     });
     return;
-  }
-
-  // Persistência resiliente de Logs em Arquivo Local + Banco de Dados
-  const LOGS_FILE_PATH = path.join(__dirname, 'system_logs.json');
-
-  function getFileLogs() {
-    try {
-      if (fs.existsSync(LOGS_FILE_PATH)) {
-        const data = fs.readFileSync(LOGS_FILE_PATH, 'utf8');
-        return JSON.parse(data) || [];
-      }
-    } catch (e) {
-      console.error('Erro ao ler system_logs.json:', e);
-    }
-    return [];
-  }
-
-  function saveFileLogEntry(entry) {
-    try {
-      const list = getFileLogs();
-      list.unshift(entry);
-      if (list.length > 1000) list.pop();
-      fs.writeFileSync(LOGS_FILE_PATH, JSON.stringify(list, null, 2), 'utf8');
-    } catch (e) {
-      console.error('Erro ao escrever system_logs.json:', e);
-    }
   }
 
   // Rota GET de Logs de Auditoria
@@ -5367,13 +5483,12 @@ const server = http.createServer((req, res) => {
         });
         const finalLogs = Array.from(combinedMap.values());
         finalLogs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify(finalLogs));
       })
       .catch(err => {
-        console.error('Aviso ao buscar logs no banco (usando fallback local):', err.message);
         const fileLogs = getFileLogs();
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify(fileLogs));
       });
     return;
@@ -5383,7 +5498,7 @@ const server = http.createServer((req, res) => {
   if (req.method === 'POST' && parsedUrl.pathname === '/api/logs') {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
-    req.on('end', async () => {
+    req.on('end', () => {
       try {
         let parsed = {};
         try {
@@ -5400,29 +5515,12 @@ const server = http.createServer((req, res) => {
         const userName = parsed.userName || parsed.user_name || parsed.name || 'Usuário';
         const userEmail = parsed.userEmail || parsed.user_email || parsed.email || '';
 
-        const logObj = {
-          id: Date.now(),
-          timestamp: new Date().toISOString(),
-          user_name: userName || 'Usuário',
-          user_email: userEmail || 'sistema@nexus.com',
-          action: action,
-          entity: entity,
-          details: details
-        };
+        recordSystemLog(userName, userEmail, action, entity, details);
 
-        saveFileLogEntry(logObj);
-
-        pool.query(
-          `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
-           VALUES (now(), $1, $2, $3, $4, $5)`,
-          [userName || 'Usuário', userEmail || 'sistema@nexus.com', action, entity, details]
-        ).catch(() => {});
-
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       } catch (e) {
-        console.error('Erro ao salvar log:', e);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
       }
     });
@@ -5434,13 +5532,16 @@ const server = http.createServer((req, res) => {
     const email = (parsedUrl.query.email || '').toLowerCase().trim();
     pool.query('SELECT dados FROM dados_financeiros WHERE LOWER(email) = LOWER($1)', [email])
       .then(result => {
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result.rows[0] ? result.rows[0].dados : null));
+        const serverData = result.rows[0] ? result.rows[0].dados : null;
+        if (serverData) saveLocalData(email, serverData);
+        const finalData = serverData || getLocalData(email);
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(finalData));
       })
       .catch(err => {
-        console.error('Erro ao buscar dados financeiros:', err);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false, error: 'Erro no banco de dados' }));
+        const localData = getLocalData(email);
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(localData));
       });
     return;
   }
@@ -5454,46 +5555,77 @@ const server = http.createServer((req, res) => {
       try {
         payload = JSON.parse(body);
       } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ success: false }));
       }
       if (!payload.email || !payload.data) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({ success: false }));
       }
       const cleanEmail = (payload.email || '').toLowerCase().trim();
+
+      saveLocalData(cleanEmail, payload.data);
+      recordSystemLog(cleanEmail, cleanEmail, 'Salvamento', 'Dados Financeiros', 'Atualizou dados financeiros no sistema');
+
       pool.query(
         `INSERT INTO dados_financeiros (email, dados, updated_at)
          VALUES ($1, $2, now())
          ON CONFLICT (email) DO UPDATE
          SET dados = EXCLUDED.dados, updated_at = now();`,
         [cleanEmail, payload.data]
-      )
-        .then(() => {
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: true }));
-        })
-        .catch(err => {
-          console.error('Erro ao salvar nas configurações:', err);
-          res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ success: false, error: 'ErrorCode: DB' }));
-        });
+      ).catch(err => {
+        console.warn('[AVISO BD] Falha ao salvar no PostgreSQL. Dados salvos com resiliência local.', err.message);
+      });
+
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true }));
     });
     return;
   }
 
-  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  // Suporte a arquivos estáticos (Imagens, Favicon, CSS, JS)
+  const pathname = parsedUrl.pathname;
+  if (pathname === '/favicon.ico') {
+    const faviconPath = path.join(__dirname, 'favicon.ico');
+    if (fs.existsSync(faviconPath)) {
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'image/x-icon' });
+      return fs.createReadStream(faviconPath).pipe(res);
+    }
+    res.writeHead(204, corsHeaders);
+    return res.end();
+  }
+
+  if (pathname.startsWith('/images/') || pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|json)$/i)) {
+    const safePath = path.normalize(path.join(__dirname, pathname)).replace(/^(\.\.[\/\\])+/, '');
+    if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
+      const ext = path.extname(safePath).toLowerCase();
+      const mimeTypes = {
+        '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
+        '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json'
+      };
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
+      return fs.createReadStream(safePath).pipe(res);
+    }
+  }
+
+  res.writeHead(200, { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' });
   res.end(htmlContent);
 });
 
 initDatabase()
   .then(() => {
-    server.listen(PORT, () => {
-      console.log(`Servidor rodando na porta ${PORT}`);
-      console.log(`Conectado ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
-    });
+    console.log(`[BANCO] Conectado com sucesso ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
   })
   .catch(err => {
-    console.error('Falha ao conectar/inicializar o banco de dados PostgreSQL:', err);
-    process.exit(1);
+    console.warn(`[BANCO AVISO] PostgreSQL indisponível. O sistema funcionará com alta resiliência e fallback JSON local: ${err.message}`);
+  })
+  .finally(() => {
+    server.listen(PORT, () => {
+      console.log(`==================================================`);
+      console.log(`🚀 Servidor Nexus Financeiro Hub rodando na porta ${PORT}`);
+      console.log(`📋 Logs do banco disponíveis em tempo real no VS Code: system_logs.json`);
+      console.log(`==================================================`);
+    });
   });
+

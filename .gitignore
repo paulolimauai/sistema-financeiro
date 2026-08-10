@@ -1,2 +1,5 @@
 node_modules/
 .env
+local_database_data.json
+local_users.json
+

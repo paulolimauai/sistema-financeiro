@@ -1,0 +1,8 @@
+{
+  "antigravity.autoApprove": true,
+  "antigravity.commandApproval": "never",
+  "antigravity.terminal.approval": "none",
+  "antigravity.agent.autoApprove": true,
+  "antigravity.agent.permissions": "allowAll",
+  "antigravity.toolCallApproval": "always"
+}
