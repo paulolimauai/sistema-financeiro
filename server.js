@@ -3049,24 +3049,106 @@ function pageImportar(){
 function pageAnexos(){
   const sortedTx = transactions.slice().sort((a,b)=>b.date.localeCompare(a.date));
   return \`
-  <div class="page-head"><div><h1>Anexos</h1><p>Comprovantes e recibos vinculados às transações</p></div></div>
-  <div class="panel">
-    <div class="field-row">
-      <div class="field"><label>Transação vinculada</label><select id="attTx">\${sortedTx.map(t=>\`<option value="\${t.id}">\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')} — \${t.desc}</option>\`).join('')}</select></div>
-      <div class="field"><label>Arquivo</label><input type="file" id="attFile" accept="image/*,.pdf"></div>
+  <div class="page-head">
+    <div>
+      <h1>Anexos & Comprovantes</h1>
+      <p>Cadastre novos comprovantes, vincule a transações e faça downloads dos arquivos</p>
     </div>
-    <button class="btn-primary" id="btnAddAnexo">+ Anexar</button>
   </div>
-  <div class="cat-cards" style="margin-top:16px;">
+
+  <div class="panel" style="margin-bottom:22px;">
+    <div style="margin-bottom:14px;">
+      <h3 style="font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px; margin:0;">
+        <span>📎</span> Cadastrar / Incluir Novos Anexos
+      </h3>
+      <p style="font-size:12px; color:var(--text-faint); margin-top:3px;">
+        Selecione a transação vinculada e escolha um ou mais arquivos (imagens, recibos ou PDFs).
+      </p>
+    </div>
+
+    <div class="field-row" style="align-items:flex-end; flex-wrap:wrap; gap:12px;">
+      <div class="field" style="flex:1.5; min-width:240px; margin-bottom:0;">
+        <label>Transação Vinculada</label>
+        <select id="attTx" style="width:100%;">
+          <option value="0">Nenhuma (Anexo Avulso / Recibo Padrão)</option>
+          \${sortedTx.map(t=>\`<option value="\${t.id}">\${new Date(t.date+'T00:00').toLocaleDateString('pt-BR')} — \${t.desc} (\${fmt(t.val)})</option>\`).join('')}
+        </select>
+      </div>
+      <div class="field" style="flex:1; min-width:200px; margin-bottom:0;">
+        <label>Arquivo(s)</label>
+        <input type="file" id="attFile" multiple accept="image/*,.pdf,.doc,.docx,.txt" style="width:100%;">
+      </div>
+      <div class="field" style="flex:0 0 auto; margin-bottom:0;">
+        <button class="btn-primary" id="btnAddAnexo" style="padding:10px 20px; font-weight:700;">+ Incluir Anexo(s)</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-bottom:12px; display:flex; align-items:center; justify-content:space-between;">
+    <h3 style="font-size:15px; font-weight:700;">Anexos Cadastrados (\${attachments.length})</h3>
+  </div>
+
+  <div class="cat-cards" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:16px;">
     \${attachments.length? attachments.map(a=>{
       const t = transactions.find(x=>x.id===a.txId);
-      return \`<div class="cat-card">
-        <div class="row-actions"><button data-delatt="\${a.id}">🗑</button></div>
-        \${a.dataUrl ? \`<img src="\${a.dataUrl}" style="width:100%;height:90px;object-fit:cover;border-radius:8px;margin-bottom:8px;">\` : \`<div style="font-size:28px;margin-bottom:8px;">📎</div>\`}
-        <h4 style="font-size:12.5px;">\${a.name}</h4>
-        <p style="color:var(--text-faint);font-size:11px;margin-top:4px;">\${t? t.desc : 'Transação removida'}</p>
-      </div>\`;
-    }).join('') : \`<div class="placeholder"><div class="big">📎</div><h3>Nenhum anexo enviado</h3></div>\`}
+      const isImage = (a.type && a.type.startsWith('image/')) || (a.dataUrl && a.dataUrl.startsWith('data:image/'));
+      const isPdf = (a.type && a.type.includes('pdf')) || (a.dataUrl && a.dataUrl.startsWith('data:application/pdf')) || (a.name && a.name.toLowerCase().endsWith('.pdf'));
+
+      return \`
+      <div class="cat-card" style="display:flex; flex-direction:column; justify-content:space-between; padding:14px; border-radius:14px; border:1px solid var(--card-border); background:var(--card);">
+        <div>
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <span class="pill" style="background:rgba(232,176,75,0.15); color:var(--green); font-weight:700; font-size:11px;">
+              \${isPdf ? '📄 PDF' : isImage ? '🖼️ Imagem' : '📎 Documento'}
+            </span>
+            <div class="row-actions">
+              <button data-delatt="\${a.id}" title="Excluir Anexo">🗑</button>
+            </div>
+          </div>
+
+          <div style="cursor:pointer; text-align:center; margin-bottom:10px;" data-previewatt="\${a.id}" title="Clique para Visualizar">
+            \${isImage && a.dataUrl ? \`
+              <img src="\${a.dataUrl}" style="width:100%; height:110px; object-fit:cover; border-radius:10px; border:1px solid var(--card-border);">
+            \` : \`
+              <div style="width:100%; height:90px; background:var(--hover); border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:34px; color:var(--green);">
+                \${isPdf ? '📄' : '📎'}
+              </div>
+            \`}
+          </div>
+
+          <h4 style="font-size:13px; font-weight:700; margin-bottom:4px; word-break:break-word; color:var(--text);">\${a.name}</h4>
+          
+          <!-- Dropdown para alterar/vincular transação ("para não vincular nada errado") -->
+          <div style="margin-top:10px;">
+            <label style="display:block; font-size:10.5px; color:var(--text-faint); margin-bottom:3px; font-weight:600;">Transação Vinculada:</label>
+            <select data-relinkatt="\${a.id}" style="width:100%; font-size:11.5px; padding:5px 8px; border-radius:6px; background:var(--bg); border:1px solid var(--card-border); color:var(--text);">
+              <option value="0" \${!a.txId ? 'selected' : ''}>Sem vincular (Anexo Avulso)</option>
+              \${sortedTx.map(tx => \`<option value="\${tx.id}" \${tx.id === a.txId ? 'selected' : ''}>\${new Date(tx.date+'T00:00').toLocaleDateString('pt-BR')} — \${tx.desc}</option>\`).join('')}
+            </select>
+          </div>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:10px; border-top:1px solid var(--card-border);">
+          \${a.dataUrl ? \`
+            <a href="\${a.dataUrl}" download="\${a.name || 'comprovante'}" class="btn-primary" style="flex:1; padding:6px 10px; font-size:11.5px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; justify-content:center; gap:4px;" title="Baixar Arquivo">
+              📥 Baixar
+            </a>
+            <button data-previewatt="\${a.id}" class="btn-ghost" style="padding:6px 12px; font-size:11.5px; font-weight:600;" title="Visualizar">
+              👁️ Ver
+            </button>
+          \` : \`
+            <span style="font-size:11px; color:var(--text-faint);">Sem arquivo salvo</span>
+          \`}
+        </div>
+      </div>
+      \`;
+    }).join('') : \`
+      <div class="placeholder" style="grid-column:1/-1; padding:40px 20px;">
+        <div class="big">📎</div>
+        <h3>Nenhum anexo cadastrado</h3>
+        <p>Utilize o formulário acima para enviar comprovantes ou recibos das suas transações.</p>
+      </div>
+    \`}
   </div>\`;
 }
 
@@ -4303,26 +4385,85 @@ async function confirmImport(){
   navigate('transacoes');
 }
 
-function addAttachment(){
-  const txId = parseInt(document.getElementById('attTx').value);
+async function addAttachment(){
+  const attTxEl = document.getElementById('attTx');
+  const txId = attTxEl ? (parseInt(attTxEl.value) || null) : null;
   const fileInput = document.getElementById('attFile');
-  const file = fileInput.files[0];
-  if(!file){ showToast('Selecione um arquivo'); return; }
-  const isImage = file.type.startsWith('image/');
-  const finish = async (dataUrl)=>{
-    attachments.push({id: nextAttId++, txId, name:file.name, dataUrl});
-    await saveUserData();
-    showToast('Anexo adicionado!');
-    render();
-  };
-  if(isImage){
-    const reader = new FileReader();
-    reader.onload = ()=>finish(reader.result);
-    reader.readAsDataURL(file);
-  } else {
-    finish(null);
+  const files = Array.from(fileInput ? fileInput.files : []);
+  if(files.length === 0){ showToast('Selecione ao menos um arquivo'); return; }
+
+  let addedCount = 0;
+  for (const file of files) {
+    await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result;
+        attachments.push({
+          id: nextAttId++,
+          txId: txId,
+          name: file.name,
+          type: file.type || '',
+          dataUrl: dataUrl,
+          createdAt: new Date().toISOString()
+        });
+        addedCount++;
+        resolve();
+      };
+      reader.onerror = resolve;
+      reader.readAsDataURL(file);
+    });
   }
+  await saveUserData();
+  showToast(\`\${addedCount} anexo(s) incluído(s) com sucesso!\`);
+  render();
 }
+
+async function relinkAttachment(id, newTxId){
+  const att = attachments.find(a => a.id === id);
+  if (!att) return;
+  att.txId = newTxId ? parseInt(newTxId) : null;
+  await saveUserData();
+  showToast('Vínculo da transação atualizado!');
+  render();
+}
+
+function previewAttachment(id){
+  const att = attachments.find(a => a.id === id);
+  if (!att || !att.dataUrl) { showToast('Não foi possível carregar a visualização'); return; }
+  const isImage = (att.type && att.type.startsWith('image/')) || (att.dataUrl && att.dataUrl.startsWith('data:image/'));
+  const isPdf = (att.type && att.type.includes('pdf')) || (att.dataUrl && att.dataUrl.startsWith('data:application/pdf')) || (att.name && att.name.toLowerCase().endsWith('.pdf'));
+
+  let contentHtml = '';
+  if (isImage) {
+    contentHtml = \`<img src="\${att.dataUrl}" style="max-width:100%; max-height:75vh; object-fit:contain; border-radius:10px; display:block; margin:0 auto;">\`;
+  } else if (isPdf) {
+    contentHtml = \`<iframe src="\${att.dataUrl}" style="width:100%; height:75vh; border:none; border-radius:10px;"></iframe>\`;
+  } else {
+    contentHtml = \`<div style="text-align:center; padding:40px 20px;"><div style="font-size:48px; margin-bottom:12px;">📄</div><h4>\${att.name}</h4><p style="color:var(--text-dim); margin-top:8px;">Arquivo disponível para download</p><a href="\${att.dataUrl}" download="\${att.name}" class="btn-primary" style="display:inline-flex; align-items:center; gap:6px; margin-top:16px; text-decoration:none; padding:8px 18px;">📥 Baixar Arquivo Agora</a></div>\`;
+  }
+
+  const modalOverlay = document.createElement('div');
+  modalOverlay.className = 'overlay show';
+  modalOverlay.style.zIndex = '3000';
+  modalOverlay.innerHTML = \`
+    <div class="modal" style="max-width:850px; width:92vw;">
+      <button class="close-x" onclick="this.closest('.overlay').remove()">✕</button>
+      <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:14px; padding-bottom:10px; border-bottom:1px solid var(--card-border);">
+        <h3 style="font-size:15px; font-weight:700; margin:0; display:flex; align-items:center; gap:8px;">
+          <span>📎</span> \${att.name}
+        </h3>
+        <a href="\${att.dataUrl}" download="\${att.name || 'comprovante'}" class="btn-primary" style="padding:6px 14px; font-size:12px; font-weight:700; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">
+          📥 Baixar Arquivo
+        </a>
+      </div>
+      <div style="background:var(--bg); padding:12px; border-radius:12px; border:1px solid var(--card-border);">
+        \${contentHtml}
+      </div>
+    </div>
+  \`;
+  document.body.appendChild(modalOverlay);
+}
+
 async function deleteAttachment(id){
   if(!confirm('Remover este anexo?')) return;
   attachments = attachments.filter(a=>a.id!==id);
@@ -4375,6 +4516,8 @@ function attachPageEvents(){
 
   const addAtt = document.getElementById('btnAddAnexo'); if(addAtt) addAtt.onclick = addAttachment;
   document.querySelectorAll('[data-delatt]').forEach(el=>el.onclick = ()=>deleteAttachment(parseInt(el.getAttribute('data-delatt'))));
+  document.querySelectorAll('[data-relinkatt]').forEach(el=>el.onchange = (e)=>relinkAttachment(parseInt(el.getAttribute('data-relinkatt')), e.target.value));
+  document.querySelectorAll('[data-previewatt]').forEach(el=>el.onclick = ()=>previewAttachment(parseInt(el.getAttribute('data-previewatt'))));
 
   const saveCfg = document.getElementById('btnSalvarConfig');
   if(saveCfg){
