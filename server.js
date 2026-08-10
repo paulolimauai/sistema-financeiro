@@ -193,18 +193,8 @@ const htmlContent = `<!DOCTYPE html>
 html.user-logged-in #authPage { display: none !important; }
 html.user-logged-in #appMain { display: block !important; }
 
-html.is-admin nav.menu button[data-page="dashboard"],
-html.is-admin nav.menu button[data-page="transacoes"],
-html.is-admin nav.menu button[data-page="cartoes"],
-html.is-admin nav.menu button[data-page="orcamentos"],
-html.is-admin nav.menu button[data-page="metas"],
-html.is-admin nav.menu button[data-page="relatorios"],
-html.is-admin nav.mobile-drawer-nav button[data-page="dashboard"],
-html.is-admin nav.mobile-drawer-nav button[data-page="transacoes"],
-html.is-admin nav.mobile-drawer-nav button[data-page="cartoes"],
-html.is-admin nav.mobile-drawer-nav button[data-page="orcamentos"],
-html.is-admin nav.mobile-drawer-nav button[data-page="metas"],
-html.is-admin nav.mobile-drawer-nav button[data-page="relatorios"] {
+html.is-admin nav.menu button:not(#menuUsuariosBtn):not(#menuLogsBtn),
+html.is-admin nav.mobile-drawer-nav button:not(#mobileDrawerUsuariosBtn):not(#mobileDrawerLogsBtn) {
   display: none !important;
 }
 
@@ -4375,7 +4365,14 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
         currentUser = cachedUser;
         if (currentUser.role === 'Administrador') {
           document.documentElement.classList.add('is-admin');
-          currentPage = 'usuarios';
+          const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+          const savedPage = localStorage.getItem('nexus_current_page');
+          const pageTarget = hashPage || savedPage;
+          if (pageTarget === 'logs') {
+            currentPage = 'logs';
+          } else {
+            currentPage = 'usuarios';
+          }
         } else {
           document.documentElement.classList.remove('is-admin');
         }
@@ -4448,7 +4445,12 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
   localStorage.removeItem('nexus_viewing_user');
 
   if (currentUser.role === 'Administrador') {
-    if (currentPage !== 'usuarios' && currentPage !== 'logs') {
+    const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+    const savedPage = localStorage.getItem('nexus_current_page');
+    const pageTarget = hashPage || savedPage || currentPage;
+    if (pageTarget === 'logs') {
+      currentPage = 'logs';
+    } else {
       currentPage = 'usuarios';
     }
   }
