@@ -237,74 +237,17 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
 }
 
 /* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
-/* ==================== Tela de Auth Premium (Glassmorphism & Dourado/Âmbar) ==================== */
 .auth-container{
   --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
   --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
   position:relative; overflow:hidden;
-  display:none; align-items:center; justify-content:center; min-height:100vh; padding:30px 20px;
+  display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
   background:
-    radial-gradient(circle at 10% 20%, rgba(232,176,75,0.14), transparent 45%),
-    radial-gradient(circle at 90% 80%, rgba(201,134,42,0.12), transparent 48%),
-    radial-gradient(circle at 50% 50%, rgba(16,185,129,0.06), transparent 60%),
-    linear-gradient(165deg, #07090d 0%, #0c0f16 45%, #13100b 100%);
+    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
+    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
+    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
 }
 .auth-container.show { display: flex; }
-
-.auth-wrapper {
-  position: relative; z-index: 2;
-  display: flex; gap: 48px; align-items: center; justify-content: center;
-  max-width: 980px; width: 100%; margin: auto;
-}
-
-.auth-hero {
-  flex: 1.1; display: flex; flex-direction: column; gap: 20px;
-  color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.4);
-}
-@media (max-width: 860px) {
-  .auth-hero { display: none; }
-  .auth-wrapper { justify-content: center; }
-}
-
-.auth-hero-badge {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 6px 14px; border-radius: 30px;
-  background: rgba(232,176,75,0.12); border: 1px solid rgba(232,176,75,0.3);
-  color: var(--auth-accent); font-size: 11.5px; font-weight: 700; letter-spacing: 0.5px;
-  text-transform: uppercase; width: fit-content;
-}
-
-.auth-hero h1 {
-  font-size: 32px; font-weight: 800; line-height: 1.25; letter-spacing: -0.5px;
-  background: linear-gradient(135deg, #ffffff 30%, var(--auth-accent-3) 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-}
-
-.auth-hero p.desc {
-  font-size: 14.5px; color: #a1a9b8; line-height: 1.6; max-width: 440px;
-}
-
-.auth-hero-features {
-  display: flex; flex-direction: column; gap: 12px; margin-top: 6px;
-}
-
-.auth-feat-item {
-  display: flex; align-items: center; gap: 12px;
-  padding: 12px 16px; border-radius: 12px;
-  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-  backdrop-filter: blur(10px); transition: transform 0.2s, border-color 0.2s;
-}
-.auth-feat-item:hover {
-  transform: translateX(4px); border-color: rgba(232,176,75,0.3); background: rgba(232,176,75,0.05);
-}
-.auth-feat-icon {
-  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
-  background: rgba(232,176,75,0.15); color: var(--auth-accent);
-  display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700;
-}
-.auth-feat-text strong { display: block; font-size: 13.5px; color: #f0f3f8; font-weight: 700; }
-.auth-feat-text small { font-size: 11.5px; color: #8c95a6; }
-
 .auth-grid{
   position:absolute; inset:0; z-index:0; pointer-events:none;
   background-image:
@@ -351,12 +294,10 @@ body.light .auth-blob{opacity:.16;}
 }
 .auth-box{
   position:relative; z-index:1;
-  background: rgba(14, 18, 27, 0.78);
-  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
-  border: 1px solid rgba(232,176,75,0.22); border-radius: 24px;
-  padding: 40px 36px; width: 100%; max-width: 420px;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.6), 0 0 35px rgba(232,176,75,0.08);
-  animation: authIn .55s cubic-bezier(.16,1,.3,1);
+  background:var(--card); border:1px solid rgba(232,176,75,.3); border-radius:24px;
+  padding:36px; width:100%; max-width:420px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.85), 0 0 35px rgba(232,176,75,0.18);
+  animation:authIn .55s cubic-bezier(.16,1,.3,1);
 }
 .auth-box .brand{display:flex; justify-content:center; margin-bottom:24px; padding:0;}
 .auth-box .brand .logo{
@@ -367,56 +308,34 @@ body.light .auth-blob{opacity:.16;}
   0%,100%{box-shadow:0 0 0 0 rgba(232,176,75,.45);}
   50%{box-shadow:0 0 0 9px rgba(232,176,75,0);}
 }
-.auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; text-align:center; color:#fff;}
-.auth-box p.sub{font-size:13px; color:#8c95a6; text-align:center; margin-bottom:24px; transition:color .2s;}
-.auth-box .field{margin-bottom:18px; animation:fieldIn .45s ease backwards;}
+.auth-box h2{font-size:20px; font-weight:700; margin-bottom:6px; text-align:center;}
+.auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
+.auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
 .auth-box .field:nth-of-type(1){animation-delay:.05s;}
 .auth-box .field:nth-of-type(2){animation-delay:.1s;}
-
-.auth-box .field label { display:block; font-size:12px; font-weight:600; color:#a1a9b8; margin-bottom:6px; }
-
-.auth-box .field input {
-  width:100%; background:rgba(10, 14, 22, 0.65) !important;
-  border:1px solid rgba(255, 255, 255, 0.12) !important;
-  color:#fff !important; border-radius:12px !important;
-  padding:12px 14px 12px 42px !important; font-size:14px !important; outline:none;
-  transition:border-color .2s, box-shadow .2s, background .2s, transform .15s !important;
+.auth-box .field input:focus, .auth-box .field select:focus{
+  border-color:var(--auth-accent); box-shadow:0 0 0 3px var(--auth-accent-soft); transform:translateY(-1px);
 }
-
-.auth-box .field input:focus {
-  border-color:var(--auth-accent) !important;
-  box-shadow:0 0 0 4px rgba(232,176,75,0.18) !important;
-  background:rgba(14, 19, 30, 0.9) !important; transform:translateY(-1px);
-}
-
-.field-icon-wrap {
-  position: relative; width: 100%;
-}
-.field-icon-wrap .input-ic {
-  position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
-  font-size: 15px; pointer-events: none; opacity: 0.65; transition: opacity 0.2s; z-index: 2;
-}
-
-.auth-forgot{display:block; text-align:right; font-size:12px; color:#8c95a6; margin-top:8px; cursor:pointer; transition:color .15s;}
+.auth-box .field input{transition:border-color .2s, box-shadow .2s, transform .15s;}
+.auth-forgot{display:block; text-align:right; font-size:12px; color:var(--text-dim); margin-top:8px; cursor:pointer; transition:color .15s;}
 .auth-forgot:hover{color:var(--auth-accent); text-decoration:underline;}
 .auth-box .btn-auth{
-  position:relative; overflow:hidden; height:48px;
+  position:relative; overflow:hidden;
   width:100%; padding:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); border:none;
-  border-radius:12px; font-weight:800; font-size:14.5px; cursor:pointer; margin-top:8px;
-  box-shadow:0 8px 24px rgba(232,176,75,0.25);
-  transition:filter .2s, transform .15s, box-shadow .2s;
+  border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;
+  transition:filter .2s, transform .15s;
 }
 .auth-box .btn-auth::after{
   content:''; position:absolute; top:0; left:-75%; width:45%; height:100%;
   background:linear-gradient(120deg, transparent, rgba(255,255,255,.45), transparent);
   transform:skewX(-20deg);
 }
-.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-2px); box-shadow:0 12px 30px rgba(232,176,75,0.38);}
+.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-1px);}
 .auth-box .btn-auth:hover::after{animation:shimmer .9s ease;}
 .auth-box .btn-auth:active{transform:translateY(0) scale(.98);}
 @keyframes shimmer{from{left:-75%;} to{left:130%;}}
-.auth-toggle{text-align:center; font-size:13px; color:#8c95a6; margin-top:22px; padding-top:18px; border-top:1px solid rgba(255,255,255,0.08);}
-.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:700; cursor:pointer;}
+.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:22px; padding-top:18px; border-top:1px solid var(--card-border);}
+.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:600; cursor:pointer;}
 .auth-toggle a:hover{text-decoration:underline;}
 
 /* ==================== App principal Centralizado ==================== */
@@ -530,8 +449,8 @@ nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:1
 
 /* ==================== Logo / Crédito de Desenvolvimento ==================== */
 .auth-dev-credit{
-  position:absolute; left:0; right:0; bottom:18px; z-index:10;
-  display:flex; justify-content:center; pointer-events:none;
+  margin-top:24px; z-index:10;
+  display:flex; justify-content:center; pointer-events:auto;
 }
 .app-dev-credit{
   position:fixed; left:0; right:0; bottom:0; z-index:100;
@@ -540,23 +459,30 @@ nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:1
 }
 .dev-chip{
   position:relative;
-  pointer-events:auto; display:inline-flex; align-items:center; gap:8px;
-  background:linear-gradient(135deg, rgba(24,20,12,0.9), rgba(12,11,8,0.92));
-  border:1px solid rgba(232,176,75,.35);
+  pointer-events:auto; display:inline-flex; align-items:center; gap:10px;
+  background:linear-gradient(135deg, rgba(38,26,10,0.95), rgba(16,13,8,0.96));
+  border:1.5px solid rgba(232,176,75,.6);
   border-radius:999px;
-  padding:5px 16px 5px 5px; box-shadow:0 2px 10px rgba(0,0,0,.25);
+  padding:7px 22px 7px 8px;
+  box-shadow:0 0 25px rgba(232,176,75,.3), inset 0 1px 1px rgba(255,255,255,.2);
+  transition: transform .25s ease, box-shadow .25s ease;
 }
-.app-dev-credit .dev-chip{background:linear-gradient(135deg, rgba(24,20,12,0.92), rgba(12,11,8,0.94));}
+.dev-chip:hover{
+  transform:scale(1.05);
+  box-shadow:0 0 35px rgba(232,176,75,.5);
+}
 .dev-chip .dev-avatar{
-  width:24px; height:24px; border-radius:50%; flex-shrink:0;
+  width:28px; height:28px; border-radius:50%; flex-shrink:0;
   background:linear-gradient(135deg, #f6d999, #e8b04b, #c9862a);
   display:flex; align-items:center; justify-content:center;
-  font-size:9.5px; font-weight:800; color:#08130c; letter-spacing:0;
+  font-size:11px; font-weight:800; color:#08130c; letter-spacing:0;
+  box-shadow:0 0 10px rgba(232,176,75,.5);
 }
-.dev-chip .dev-text{display:flex; align-items:baseline; gap:5px; line-height:1;}
-.dev-chip .dev-text small{font-size:9.5px; color:var(--text-faint); letter-spacing:.05em; font-weight:600;}
+.dev-chip .dev-text{display:flex; align-items:baseline; gap:6px; line-height:1;}
+.dev-chip .dev-text small{font-size:11px; color:#f6d999; letter-spacing:.08em; font-weight:700; text-transform:uppercase;}
 .dev-chip .dev-text strong{
-  font-size:12.5px; font-weight:700; letter-spacing:.01em; color:var(--green);
+  font-size:14px; font-weight:800; letter-spacing:.04em; color:#fff;
+  text-shadow:0 0 12px rgba(232,176,75,.9);
 }
 
 .cfg-divider{display:flex; align-items:center; gap:10px; margin:22px 0 14px;}
@@ -576,9 +502,32 @@ nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:1
 .icon-btn .dot{position:absolute; top:8px; right:8px; width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 2px var(--sidebar);}
 .user{display:flex; align-items:center; gap:10px; cursor:pointer; min-width:0;}
 .avatar{width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,#f0a63a,#d85bb0); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:#1b1200; flex-shrink:0;}
-.user .uname{font-size:15.5px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:170px;}
+.user .uname{font-size:15.5px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px;}
 .user .urole{font-size:12px; color:var(--text-faint); white-space:nowrap;}
 .topheader-row .btn-ghost{padding:10px 18px; font-size:13px; flex-shrink:0;}
+
+/* Suporte de Tema Claro para Cards de Resumo */
+.cards-summary-panel, .tx-footer-summary {
+  background: var(--card);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(232,176,75,0.3);
+}
+body.light .cards-summary-panel, body.light .tx-footer-summary {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 4px 15px rgba(20,30,60,0.06) !important;
+  color: #1e293b !important;
+}
+body.light .cards-summary-panel h3, body.light .cards-summary-panel div, body.light .tx-footer-summary div {
+  color: #1e293b !important;
+}
+body.light .cards-summary-panel .kpi, body.light .tx-footer-summary .kpi {
+  background: #f8fafc !important;
+  border-color: #e2e8f0 !important;
+}
+body.light .cards-summary-panel .kpi .row1, body.light .cards-summary-panel .kpi .sub {
+  color: #64748b !important;
+}
 
 .page-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:14px;}
 .page-head h1{font-size:23px; font-weight:700;}
@@ -1028,139 +977,87 @@ tr.trow:hover td{background:var(--hover);}
   <div class="auth-blob b1"></div>
   <div class="auth-blob b2"></div>
 
-  <div class="auth-wrapper">
-    <!-- Hero Experience (Left Column on Desktop) -->
-    <div class="auth-hero">
-      <div class="auth-hero-badge">✦ PLATAFORMA FINANCEIRA PREMIUM</div>
-      <h1>Controle suas finanças com inteligência e precisão.</h1>
-      <p class="desc">Gerencie contas bancárias, acompanhe faturas e limites disponíveis de cartões em tempo real com relatórios automatizados.</p>
-      <div class="auth-hero-features">
-        <div class="auth-feat-item">
-          <div class="auth-feat-icon">💳</div>
-          <div class="auth-feat-text">
-            <strong>Gestão Avançada de Cartões</strong>
-            <small>Cálculo em tempo real de faturas do Nubank, Digio e demais cartões</small>
-          </div>
-        </div>
-        <div class="auth-feat-item">
-          <div class="auth-feat-icon">📊</div>
-          <div class="auth-feat-text">
-            <strong>Relatórios & Auditoria de Logs</strong>
-            <small>Histórico visual detalhado de todas as alterações efetuadas</small>
-          </div>
-        </div>
-        <div class="auth-feat-item">
-          <div class="auth-feat-icon">🛡️</div>
-          <div class="auth-feat-text">
-            <strong>Acesso Seguro Multiusuário</strong>
-            <small>Painel isolado para administradores e clientes</small>
-          </div>
-        </div>
-      </div>
+  <!-- Login -->
+  <div class="auth-box" id="loginBox">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
     </div>
-
-    <!-- Forms Container (Right Column) -->
-    <div style="flex:1; max-width:420px; width:100%;">
-      <!-- Login -->
-      <div class="auth-box" id="loginBox">
-        <div class="brand">
-          <div class="logo">N</div>
-          <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
-        </div>
-        <h2>Acessar Conta</h2>
-        <p class="sub">Informe suas credenciais para continuar</p>
-        <form id="loginForm">
-          <div class="field">
-            <label>E-mail</label>
-            <div class="field-icon-wrap">
-              <span class="input-ic">✉️</span>
-              <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
-            </div>
-          </div>
-          <div class="field">
-            <label>Senha</label>
-            <div class="pass-field field-icon-wrap">
-              <span class="input-ic">🔒</span>
-              <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-              <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
-            </div>
-            <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
-          </div>
-          <button type="submit" class="btn-auth">Entrar no Sistema →</button>
-        </form>
-        <div class="auth-toggle">
-          Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
-        </div>
+    <h2>Acessar Conta</h2>
+    <p class="sub">Informe suas credenciais para continuar</p>
+    <form id="loginForm">
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="loginEmail" placeholder="seu.email@exemplo.com" required autocomplete="username">
       </div>
-
-      <!-- Recuperar Senha -->
-      <div class="auth-box" id="forgotBox" style="display:none;">
-        <div class="brand">
-          <div class="logo">N</div>
-          <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+      <div class="field">
+        <label>Senha</label>
+        <div class="pass-field">
+          <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+          <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
         </div>
-        <h2>Recuperar Senha</h2>
-        <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos sua senha</p>
-
-        <form id="forgotStep1">
-          <div class="field">
-            <label>E-mail</label>
-            <div class="field-icon-wrap">
-              <span class="input-ic">✉️</span>
-              <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
-            </div>
-          </div>
-          <button type="submit" class="btn-auth" id="btnSendPassword">Enviar Senha por E-mail →</button>
-        </form>
-
-        <div class="auth-toggle">
-          Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
-        </div>
+        <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
       </div>
-
-      <!-- Cadastro -->
-      <div class="auth-box" id="registerBox" style="display:none;">
-        <div class="brand">
-          <div class="logo">N</div>
-          <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
-        </div>
-        <h2>Criar Conta</h2>
-        <p class="sub">Preencha seus dados para começar</p>
-        <form id="registerForm">
-          <div class="field">
-            <label>Nome Completo</label>
-            <div class="field-icon-wrap">
-              <span class="input-ic">👤</span>
-              <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
-            </div>
-          </div>
-          <div class="field">
-            <label>E-mail</label>
-            <div class="field-icon-wrap">
-              <span class="input-ic">✉️</span>
-              <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
-            </div>
-          </div>
-          <div class="field">
-            <label>Senha</label>
-            <div class="field-icon-wrap">
-              <span class="input-ic">🔒</span>
-              <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
-            </div>
-          </div>
-          <button type="submit" class="btn-auth">Cadastrar Conta →</button>
-        </form>
-        <div class="auth-toggle">
-          Já tem uma conta? <a id="goLogin">Fazer Login</a>
-        </div>
-      </div>
+      <button type="submit" class="btn-auth">Entrar no Sistema</button>
+    </form>
+    <div class="auth-toggle">
+      Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
     </div>
   </div>
 
+  <!-- Recuperar Senha -->
+  <div class="auth-box" id="forgotBox" style="display:none;">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+    </div>
+    <h2>Recuperar Senha</h2>
+    <p class="sub" id="forgotSub">Informe seu e-mail para enviarmos sua senha</p>
+
+    <form id="forgotStep1">
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="forgotEmail" placeholder="seu.email@exemplo.com" required>
+      </div>
+      <button type="submit" class="btn-auth" id="btnSendPassword">Enviar Senha por E-mail</button>
+    </form>
+
+    <div class="auth-toggle">
+      Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
+    </div>
+  </div>
+
+  <!-- Cadastro -->
+  <div class="auth-box" id="registerBox" style="display:none;">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+    </div>
+    <h2>Criar Conta</h2>
+    <p class="sub">Preencha seus dados para começar</p>
+    <form id="registerForm">
+      <div class="field">
+        <label>Nome Completo</label>
+        <input type="text" id="regName" placeholder="Ex: Maria Silva" required>
+      </div>
+      <div class="field">
+        <label>E-mail</label>
+        <input type="email" id="regEmail" placeholder="seu.email@exemplo.com" required>
+      </div>
+      <div class="field">
+        <label>Senha</label>
+        <input type="password" id="regPassword" placeholder="••••••••" required minlength="6">
+      </div>
+      <button type="submit" class="btn-auth">Cadastrar Conta</button>
+    </form>
+    <div class="auth-toggle">
+      Já tem uma conta? <a id="goLogin">Fazer Login</a>
+    </div>
+  </div>
   <div class="auth-dev-credit">
     <div class="dev-chip">
       <span class="dev-avatar">PL</span>
-      <span class="dev-text"><small>Desenvolvedor</small><strong>Paulo Lima</strong></span>
+      <span class="dev-text"><small>DESENVOLVEDOR</small><strong>PAULO LIMA</strong></span>
     </div>
   </div>
 </div>
@@ -1723,7 +1620,6 @@ document.getElementById('logoutBtn').onclick = async () => {
   currentUser = null;
   isViewingOtherUser = false;
   adminOriginalUser = null;
-  resetUserDataToEmpty();
   localStorage.removeItem('nexus_session');
   localStorage.removeItem('nexus_cached_user');
   localStorage.removeItem('nexus_token');
@@ -1746,26 +1642,6 @@ let attachments = [];
 let notifications = [];
 
 let nextAccId = 1, nextTxId = 1, nextBudgetId = 1, nextGoalId = 1, nextRecId = 1, nextAlertId = 1, nextAttId = 1, nextNotifId = 1;
-
-function resetUserDataToEmpty() {
-  categories = BASE_CATEGORIES.map(c => ({...c, count: 0}));
-  accounts = [];
-  transactions = [];
-  budgets = [];
-  goals = [];
-  recurringList = [];
-  alerts = [];
-  attachments = [];
-  notifications = [];
-  nextAccId = 1;
-  nextTxId = 1;
-  nextBudgetId = 1;
-  nextGoalId = 1;
-  nextRecId = 1;
-  nextAlertId = 1;
-  nextAttId = 1;
-  nextNotifId = 1;
-}
 
 /* ==================== Migração: tipo de categoria ==================== */
 const RECEITA_NAME_HINTS = ['salário','salario','renda','freela','freelance','bônus','bonus','valor extra','extra','13º','decimo terceiro','décimo terceiro','rendimento','dividendo','investimento','reembolso'];
@@ -1890,15 +1766,13 @@ async function loadUserData() {
   if (!currentUser) return;
   const userKey = 'nexus_data_' + currentUser.email;
   
-  // 1. Carrega dados do cache local do usuario específico se disponível
+  // 1. Carrega dados do cache local instantaneamente se disponíveis
   let localData = loadFromStorage(userKey, null);
-  if (localData && typeof localData === 'object' && Object.keys(localData).length > 0) {
+  if (localData) {
     applyDataPayload(localData);
     isDataLoading = false;
     if (typeof render === 'function') render();
   } else {
-    // Se nao houver cache local deste usuário específico, LIMPA A MEMÓRIA IMEDIATAMENTE para prevenir contaminação!
-    resetUserDataToEmpty();
     isDataLoading = true;
   }
 
@@ -1907,22 +1781,35 @@ async function loadUserData() {
     const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(currentUser.email));
     if (res.ok) {
       const serverData = await res.json();
-      if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
+      if (serverData) {
         applyDataPayload(serverData);
         saveToStorage(userKey, serverData);
-      } else {
-        // Novo usuário sem dados no banco: inicializa totalmente limpo
-        resetUserDataToEmpty();
-        await saveUserData();
       }
     } else if (!localData) {
-      resetUserDataToEmpty();
+      categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
+      accounts = [];
+      transactions = [];
+      budgets = [];
+      goals = [];
+      recurringList = [];
+      alerts = [];
+      attachments = [];
+      notifications = [];
+      nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
       await saveUserData();
     }
   } catch(e) {
-    console.error('Erro ao buscar dados do servidor:', e);
     if (!localData) {
-      resetUserDataToEmpty();
+      categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
+      accounts = [];
+      transactions = [];
+      budgets = [];
+      goals = [];
+      recurringList = [];
+      alerts = [];
+      attachments = [];
+      notifications = [];
+      nextAccId = 1; nextTxId = 1; nextBudgetId = 1; nextGoalId = 1; nextRecId = 1; nextAlertId = 1; nextAttId = 1; nextNotifId = 1;
       await saveUserData();
     }
   } finally {
@@ -2474,12 +2361,12 @@ function updateActiveMenu(){
       } catch(e){}
     }
   } else {
-    if (!currentPage || !validPages.includes(currentPage)) {
+    if (!currentPage || !financialPages.includes(currentPage) || ['usuarios', 'logs'].includes(currentPage)) {
       const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
       const savedPage = localStorage.getItem('nexus_current_page');
-      if (hashPage && validPages.includes(hashPage)) {
+      if (hashPage && financialPages.includes(hashPage)) {
         currentPage = hashPage;
-      } else if (savedPage && validPages.includes(savedPage)) {
+      } else if (savedPage && financialPages.includes(savedPage)) {
         currentPage = savedPage;
       } else {
         currentPage = 'dashboard';
@@ -2498,17 +2385,23 @@ function updateAdminMenuVisibility(){
   const isAdmin = currentUser && currentUser.role === 'Administrador';
   const isAdminView = isAdmin && !isViewingOtherUser;
 
+  if (isAdminView) {
+    document.documentElement.classList.add('is-admin');
+  } else {
+    document.documentElement.classList.remove('is-admin');
+  }
+
   const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'config'];
   financialPages.forEach(function(pg) {
     document.querySelectorAll('button[data-page="' + pg + '"]').forEach(function(btn) {
-      btn.style.display = isAdminView ? 'none' : '';
+      btn.style.display = isAdminView ? 'none' : 'flex';
     });
   });
 
   const adminPages = ['usuarios', 'logs'];
   adminPages.forEach(function(pg) {
     document.querySelectorAll('button[data-page="' + pg + '"]').forEach(function(btn) {
-      btn.style.display = isAdminView ? '' : 'none';
+      btn.style.display = isAdminView ? 'flex' : 'none';
     });
   });
 }
@@ -2582,7 +2475,7 @@ function pageDashboard(){
 
   \${cardSummary.creditCards.length > 0 ? \`
   <!-- Resumo de Limite de Cartões de Crédito no Dashboard -->
-  <div class="panel" style="margin-bottom:20px; background: linear-gradient(135deg, rgba(20,24,33,0.95), rgba(15,19,27,0.98)); border:1px solid rgba(232,176,75,0.25);">
+  <div class="panel cards-summary-panel" style="margin-bottom:20px; border:1px solid rgba(232,176,75,0.25);">
     <div class="panel-head" style="margin-bottom:12px;">
       <h3 style="display:flex;align-items:center;gap:8px;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
@@ -2722,7 +2615,7 @@ function transactionsTable(list, showActions){
   </table>
 
   <!-- Aba / Card com Cálculo Consolidado dos Gastos ao final -->
-  <div class="tx-footer-summary" style="margin-top:20px; padding:18px 20px; background:linear-gradient(135deg, rgba(20,24,33,0.95), rgba(14,17,23,0.98)); border:1px solid rgba(232,176,75,0.25); border-radius:14px; box-shadow:0 6px 20px rgba(0,0,0,0.3); display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;">
+  <div class="tx-footer-summary" style="margin-top:20px; padding:18px 20px; border:1px solid rgba(232,176,75,0.25); border-radius:14px; display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;">
     <div style="display:flex; align-items:center; gap:12px; min-width:200px;">
       <div style="width:44px; height:44px; border-radius:12px; background:var(--red-soft); color:var(--red); display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0; box-shadow:0 2px 8px rgba(239,90,90,0.2);">↓</div>
       <div>
@@ -2794,7 +2687,7 @@ function pageContas(){
 
   \${summary.creditCards.length > 0 ? \`
   <!-- Resumo Consolidado de Limite de Cartões -->
-  <div class="panel" style="margin-bottom:20px; background: linear-gradient(135deg, rgba(20,24,33,0.95), rgba(15,19,27,0.98)); border:1px solid rgba(232,176,75,0.25);">
+  <div class="panel cards-summary-panel" style="margin-bottom:20px; border:1px solid rgba(232,176,75,0.25);">
     <div class="panel-head" style="margin-bottom:14px;">
       <h3 style="display:flex;align-items:center;gap:8px;">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--green)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>
