@@ -1819,6 +1819,14 @@ async function exitViewMode(){
   adminOriginalUser = null;
   isViewingOtherUser = false;
   localStorage.removeItem('nexus_viewing_user');
+  localStorage.setItem('nexus_current_page', 'usuarios');
+  try {
+    if (window.history && window.history.replaceState) {
+      window.history.replaceState(null, null, '#usuarios');
+    } else {
+      window.location.hash = 'usuarios';
+    }
+  } catch(e){}
   saveToStorage('nexus_session', { email: currentUser.email });
   saveToStorage('nexus_cached_user', currentUser);
   await loadUserData();
@@ -2216,24 +2224,34 @@ async function render(){
 
 function updateActiveMenu(){
   const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'logs', 'config'];
+  const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'config'];
   const isAdmin = currentUser && currentUser.role === 'Administrador';
   const isAdminView = isAdmin && !isViewingOtherUser;
-  
-  if (!currentPage || !validPages.includes(currentPage)) {
-    const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
-    const savedPage = localStorage.getItem('nexus_current_page');
-    if (hashPage && validPages.includes(hashPage)) {
-      currentPage = hashPage;
-    } else if (savedPage && validPages.includes(savedPage)) {
-      currentPage = savedPage;
-    } else {
-      currentPage = isAdminView ? 'usuarios' : 'dashboard';
-    }
-  }
 
-  const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'config'];
-  if (isAdminView && financialPages.includes(currentPage)) {
-    currentPage = 'usuarios';
+  if (isAdminView) {
+    if (!currentPage || financialPages.includes(currentPage) || !['usuarios', 'logs'].includes(currentPage)) {
+      currentPage = 'usuarios';
+      try {
+        localStorage.setItem('nexus_current_page', 'usuarios');
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, null, '#usuarios');
+        } else {
+          window.location.hash = 'usuarios';
+        }
+      } catch(e){}
+    }
+  } else {
+    if (!currentPage || !validPages.includes(currentPage)) {
+      const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+      const savedPage = localStorage.getItem('nexus_current_page');
+      if (hashPage && validPages.includes(hashPage)) {
+        currentPage = hashPage;
+      } else if (savedPage && validPages.includes(savedPage)) {
+        currentPage = savedPage;
+      } else {
+        currentPage = 'dashboard';
+      }
+    }
   }
 
   const buttons = document.querySelectorAll('button[data-page]');
