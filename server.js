@@ -2919,50 +2919,9 @@ async function loadSystemLogs() {
 
 function renderLogsTable(list) {
   if (!list || list.length === 0) {
-    return \`<div class="placeholder"><div class="big">📜</div><h3>Nenhum registro de log encontrado</h3><p>As ações e alterações dos usuários serão registradas aqui em tempo real.</p></div>\`;
-  }
-
-  return \`
-  <table id="logsTable">
-    <thead>
-      <tr>
-        <th style="width:160px;">Data e Hora</th>
-        <th style="width:200px;">Usuário (Login)</th>
-        <th style="width:130px;">Ação</th>
-        <th style="width:150px;">Módulo / Entidade</th>
-        <th>Informações Alteradas / Detalhes</th>
-      </tr>
-    </thead>
-    <tbody>
-      \${list.map(l => {
-        const dateStr = l.timestamp ? new Date(l.timestamp).toLocaleString('pt-BR') : '—';
-        let actionBadgeClass = 'var(--purple)';
-        let actionBg = 'rgba(155,107,216,0.15)';
-        const actLower = (l.action || '').toLowerCase();
-        if (actLower.includes('cria') || actLower.includes('novo') || actLower.includes('adiç')) {
-          actionBadgeClass = 'var(--green)';
-          actionBg = 'var(--green-soft)';
-        } else if (actLower.includes('ediç') || actLower.includes('alter')) {
-          actionBadgeClass = 'var(--orange)';
-          actionBg = 'rgba(232,176,75,0.15)';
-        } else if (actLower.includes('excl') || actLower.includes('remov') || actLower.includes('desativ')) {
-          actionBadgeClass = 'var(--red)';
-          actionBg = 'var(--red-soft)';
-        } else if (actLower.includes('login') || actLower.includes('acesso')) {
-          actionBadgeClass = 'var(--blue)';
-          actionBg = 'rgba(74,144,226,0.15)';
-        }
-
-        return \`
-        <tr class="trow">
-          <td style="font-size:12px; color:var(--text-dim); white-space:nowrap;">\${dateStr}</td>
-          <td>
-            <div style="display:flex; flex-direction:column;">
-              <strong style="font-size:12.5px;">\${l.user_name || 'Usuário'}</strong>
-              <span style="font-size:11px; color:var(--text-faint);">\${l.user_email || '—'}</span>
+              <span style="font-size:11px; color:var(--text-faint);">${l.user_email || '—'}</span>
             </div>
           </td>
-          <td><span class="pill" style="background:\${actionBg}; color:\${actionBadgeClass}; font-weight:700;">\${l.action}</span></td>
           <td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-weight:600;">\${l.entity}</span></td>
           <td style="font-size:12.5px; line-height:1.4;">\${l.details}</td>
         </tr>\`;
@@ -3275,13 +3234,32 @@ async function saveTransaction(){
 
   if(editingId){
     const t = transactions.find(x=>x.id===editingId);
+    const oldDesc = t.desc;
+    const oldVal = t.val;
+    const oldCat = t.cat;
+    const oldAcc = t.acc;
+    const oldDate = t.date;
+    const oldStatus = t.status;
+    const oldType = t.type;
+
     if(t.cat !== cat){
       const newCatObj = categories.find(c=>c.name===cat);
       if(newCatObj) newCatObj.count = (newCatObj.count||0)+1;
     }
     Object.assign(t, {desc, val, date, cat, status, type:currentType, acc:accSel, accId});
     showToast('Transação atualizada!');
-    logActivity('Edição', 'Transação', 'Editou transação "' + desc + '" (' + (currentType==='in'?'+':'-') + fmt(val) + ') na conta "' + (accSel || 'Sem conta') + '" [Categoria: ' + cat + ']');
+
+    const changes = [];
+    if (oldDesc !== desc) changes.push('Descrição: "' + oldDesc + '" ➔ "' + desc + '"');
+    if (oldVal !== val) changes.push('Valor: ' + fmt(oldVal) + ' ➔ ' + fmt(val));
+    if (oldCat !== cat) changes.push('Categoria: "' + oldCat + '" ➔ "' + cat + '"');
+    if (oldAcc !== accSel) changes.push('Conta: "' + (oldAcc||'Sem conta') + '" ➔ "' + (accSel||'Sem conta') + '"');
+    if (oldDate !== date) changes.push('Data: ' + oldDate + ' ➔ ' + date);
+    if (oldStatus !== status) changes.push('Status: ' + oldStatus + ' ➔ ' + status);
+    if (oldType !== currentType) changes.push('Tipo: ' + (oldType==='in'?'Receita':'Despesa') + ' ➔ ' + (currentType==='in'?'Receita':'Despesa'));
+
+    const diffText = changes.length > 0 ? changes.join(' | ') : ('Editou transação "' + desc + '" (' + fmt(val) + ')');
+    logActivity('Edição', 'Transação', diffText);
   } else {
     transactions.push({id: nextTxId++, desc, val, date, cat, status, type: currentType, acc:accSel, accId});
     const catObj = categories.find(c=>c.name===cat);
