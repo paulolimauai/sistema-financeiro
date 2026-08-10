@@ -2021,47 +2021,46 @@ const inPeriod = t => { const d=new Date(t.date+'T00:00'); return (d.getMonth()+
 function isAccountCreditCard(account) {
   if (!account) return false;
   const accTypeLower = (account.type || '').toLowerCase().trim();
-  const accNameLower = (account.name || '').toLowerCase().trim();
 
-  // Se for explicitamente débito, poupança ou investimento sem menção a crédito, não é cartão de crédito
-  if ((accTypeLower.includes('débito') || accTypeLower.includes('debito') || accTypeLower.includes('poupança') || accTypeLower.includes('poupanca')) && !accTypeLower.includes('crédito') && !accTypeLower.includes('credito')) {
+  // 1. Se o tipo for explicitamente Conta Corrente, Poupança, Investimentos, Débito, Dinheiro, etc., NUNCA é cartão de crédito
+  if (
+    accTypeLower.includes('corrente') || 
+    accTypeLower.includes('poupança') || 
+    accTypeLower.includes('poupanca') || 
+    accTypeLower.includes('investimento') || 
+    accTypeLower.includes('dinheiro') || 
+    accTypeLower.includes('caixa') || 
+    accTypeLower.includes('carteira') || 
+    accTypeLower.includes('débito') || 
+    accTypeLower.includes('debito')
+  ) {
     return false;
   }
 
-  return (
-    accTypeLower.includes('cartão de crédito') ||
-    accTypeLower.includes('cartao de credito') ||
-    accTypeLower.includes('crédito') ||
-    accTypeLower.includes('credito') ||
+  // 2. Se o tipo for Cartão de Crédito ou Crédito ou Fatura
+  if (
     accTypeLower.includes('cartão') ||
     accTypeLower.includes('cartao') ||
-    accTypeLower.includes('fatura') ||
-    accNameLower.includes('digio') ||
-    accNameLower.includes('nubank') ||
-    accNameLower.includes('roxinho') ||
-    accNameLower.includes('inter') ||
-    accNameLower.includes('c6') ||
-    accNameLower.includes('picpay') ||
-    accNameLower.includes('will') ||
-    accNameLower.includes('credicard') ||
-    accNameLower.includes('trigg') ||
-    accNameLower.includes('neon') ||
-    accNameLower.includes('santander') ||
-    accNameLower.includes('bradesco') ||
-    accNameLower.includes('itaú') ||
-    accNameLower.includes('itau') ||
-    accNameLower.includes('amex') ||
-    accNameLower.includes('elo') ||
-    accNameLower.includes('mastercard') ||
-    accNameLower.includes('visa') ||
-    accNameLower.includes('hipercard') ||
-    accNameLower.includes('btg') ||
-    accNameLower.includes('banrisul') ||
-    accNameLower.includes('safra') ||
+    accTypeLower.includes('crédito') ||
+    accTypeLower.includes('credito') ||
+    accTypeLower.includes('fatura')
+  ) {
+    return true;
+  }
+
+  // 3. Verificação por nome da conta para contas com tipo genérico ("Outros", "", etc.)
+  const accNameLower = (account.name || '').toLowerCase().trim();
+  return (
+    accNameLower.includes('cartão de crédito') ||
+    accNameLower.includes('cartao de credito') ||
     accNameLower.includes('cartão') ||
     accNameLower.includes('cartao') ||
-    accNameLower.includes('credito') ||
-    accNameLower.includes('crédito')
+    accNameLower.includes('fatura') ||
+    accNameLower.includes('credicard') ||
+    accNameLower.includes('amex') ||
+    accNameLower.includes('hipercard') ||
+    accNameLower.includes('mastercard') ||
+    accNameLower.includes('visa')
   );
 }
 
@@ -2140,11 +2139,11 @@ function getCardStats(account) {
   const initialBalance = parseFloat(account.balance) || 0;
 
   if (isCreditCard) {
-    // Para Cartões de Crédito: balance representa o Limite Total Aprovado
-    const totalLimit = initialBalance;
+    // Para Cartões de Crédito: initialBalance (account.balance) representa o Limite Total Aprovado
+    const totalLimit = Math.max(0, initialBalance);
     const spentTotal = Math.max(0, totalDespesas - totalPagamentos);
     const spentPeriod = Math.max(0, periodDespesas - periodPagamentos);
-    const availableLimit = totalLimit - (totalDespesas - totalPagamentos);
+    const availableLimit = Math.max(0, totalLimit - spentTotal);
     const usagePct = totalLimit > 0 ? Math.min(100, Math.max(0, Math.round((spentTotal / totalLimit) * 100))) : 0;
     const currentBalance = availableLimit;
 
