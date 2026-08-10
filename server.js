@@ -3445,10 +3445,12 @@ async function saveCategory(){
       recurringList.forEach(r=>{ if(r.cat===oldName) r.cat = name; });
     }
     showToast('Categoria atualizada!');
+    logActivity('Edição', 'Categoria', 'Editou categoria "' + name + '" (' + type + ')');
   } else {
     if(categories.some(x=>x.name===name)){ showToast('Já existe uma categoria com esse nome'); return; }
     categories.push({name, color, type, icon, count:0});
     showToast('Categoria adicionada!');
+    logActivity('Criação', 'Categoria', 'Cadastrou nova categoria "' + name + '" (' + type + ')');
     isNew = true;
   }
   await saveUserData();
@@ -3476,6 +3478,7 @@ async function deleteCategory(name){
   alerts = alerts.filter(a=>a.category!==name);
   await saveUserData();
   showToast('Categoria removida');
+  logActivity('Exclusão', 'Categoria', 'Excluiu categoria "' + name + '"');
   const catManageOverlay = document.getElementById('overlayCatManage');
   if(catManageOverlay && catManageOverlay.classList.contains('show')) renderCatManageList(catManageType);
   render();
@@ -3514,7 +3517,7 @@ function openBudgetModal(id){
   const sel = document.getElementById('orcCategoria');
   const used = budgets.filter(b=>b.id!==id).map(b=>b.category);
   const opts = categories.filter(c=>!used.includes(c.name));
-  sel.innerHTML = (opts.length?opts:categories).map(c=>\`<option>\${c.name}</option>\`).join('');
+  sel.innerHTML = (opts.length?opts:categories).map(c=>'<option>'+c.name+'</option>').join('');
   if(id){
     const b = budgets.find(x=>x.id===id);
     document.getElementById('orcModalTitle').textContent = 'Editar Orçamento';
@@ -3533,9 +3536,11 @@ async function saveBudget(){
   if(editingBudgetId){
     Object.assign(budgets.find(b=>b.id===editingBudgetId), {category, limit});
     showToast('Orçamento atualizado!');
+    logActivity('Edição', 'Orçamento', 'Atualizou orçamento para a categoria "' + category + '" (Limite: ' + fmt(limit) + ')');
   } else {
     budgets.push({id: nextBudgetId++, category, limit});
     showToast('Orçamento criado!');
+    logActivity('Criação', 'Orçamento', 'Criou orçamento para a categoria "' + category + '" (Limite: ' + fmt(limit) + ')');
   }
   await saveUserData();
   closeBudgetModal();
@@ -3543,6 +3548,10 @@ async function saveBudget(){
 }
 async function deleteBudget(id){
   if(!confirm('Excluir este orçamento?')) return;
+  const targetBudget = budgets.find(b=>b.id===id);
+  if(targetBudget){
+    logActivity('Exclusão', 'Orçamento', 'Excluiu orçamento da categoria "' + targetBudget.category + '"');
+  }
   budgets = budgets.filter(b=>b.id!==id);
   await saveUserData();
   showToast('Orçamento removido');
@@ -3577,9 +3586,11 @@ async function saveGoal(){
   if(editingGoalId){
     Object.assign(goals.find(g=>g.id===editingGoalId), {name,target,current,deadline});
     showToast('Meta atualizada!');
+    logActivity('Edição', 'Meta', 'Atualizou meta "' + name + '" (Objetivo: ' + fmt(target) + ')');
   } else {
     goals.push({id: nextGoalId++, name,target,current,deadline});
     showToast('Meta criada!');
+    logActivity('Criação', 'Meta', 'Criou nova meta "' + name + '" (Objetivo: ' + fmt(target) + ')');
   }
   await saveUserData();
   closeGoalModal();
@@ -3587,6 +3598,10 @@ async function saveGoal(){
 }
 async function deleteGoal(id){
   if(!confirm('Excluir esta meta?')) return;
+  const targetGoal = goals.find(g=>g.id===id);
+  if(targetGoal){
+    logActivity('Exclusão', 'Meta', 'Excluiu meta "' + targetGoal.name + '"');
+  }
   goals = goals.filter(g=>g.id!==id);
   await saveUserData();
   showToast('Meta removida');
@@ -3594,13 +3609,14 @@ async function deleteGoal(id){
 }
 async function addContribution(id){
   const g = goals.find(x=>x.id===id);
-  const v = prompt(\`Adicionar quanto à meta "\${g.name}"? (R$)\`);
+  const v = prompt('Adicionar quanto à meta "' + g.name + '"? (R$)');
   if(v===null) return;
   const val = parseFloat(v.replace(',','.'));
   if(isNaN(val) || val<=0){ showToast('Valor inválido'); return; }
   g.current += val;
   await saveUserData();
   showToast('Valor adicionado à meta!');
+  logActivity('Edição', 'Meta', 'Adicionou contribuição de ' + fmt(val) + ' à meta "' + g.name + '" (Atual: ' + fmt(g.current) + ')');
   render();
 }
 
@@ -3697,9 +3713,11 @@ async function saveRecurring(){
   if(editingRecId){
     Object.assign(recurringList.find(r=>r.id===editingRecId), {desc,val,day,cat,acc:accSel,freq,type:currentRecType});
     showToast('Recorrente atualizado!');
+    logActivity('Edição', 'Recorrente', 'Editou lançamento recorrente "' + desc + '" (' + fmt(val) + ')');
   } else {
     recurringList.push({id: nextRecId++, desc,val,day,cat,acc:accSel,freq,type:currentRecType});
     showToast('Recorrente criado!');
+    logActivity('Criação', 'Recorrente', 'Cadastrou lançamento recorrente "' + desc + '" (' + fmt(val) + ')');
   }
   await saveUserData();
   closeRecurringModal();
