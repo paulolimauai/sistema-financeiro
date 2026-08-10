@@ -1990,30 +1990,30 @@ function isTxForAccount(t, account) {
   const accNameLower = (account.name || '').toLowerCase().trim();
   if (!accNameLower) return false;
 
+  const tAccLower = (t.acc || '').toLowerCase().trim();
+  const tCardLower = (t.card || '').toLowerCase().trim();
+
   // 2. Verificação por correspondência exata do nome da conta ou do cartão
-  if (t.acc) {
-    const tAccLower = t.acc.toLowerCase().trim();
-    if (tAccLower === accNameLower) return true;
-  }
-  if (t.card) {
-    const tCardLower = t.card.toLowerCase().trim();
-    if (tCardLower === accNameLower) return true;
+  if (tAccLower === accNameLower || tCardLower === accNameLower) return true;
+
+  // Se t.acc corresponde exatamente ao nome de OUTRA conta cadastrada, NÃO vincular a esta por substring
+  if (tAccLower && accounts.some(a => String(a.id) !== String(account.id) && (a.name || '').toLowerCase().trim() === tAccLower)) {
+    return false;
   }
 
-  // 3. Verificação por inclusão quando os nomes possuem ao menos 3 caracteres
-  if (t.acc) {
-    const tAccLower = t.acc.toLowerCase().trim();
-    if (tAccLower.length >= 3 && accNameLower.length >= 3) {
-      if (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower)) return true;
-    }
+  // 3. Verificação por inclusão apenas se t.acc não pertencer a outra conta
+  if (tAccLower && tAccLower.length >= 4 && accNameLower.length >= 4) {
+    if (tAccLower === accNameLower) return true;
   }
 
   // 4. Verificação de palavras-chave na descrição caso t.acc seja genérico/não especificado
-  if (!t.acc || t.acc === 'Sem conta' || t.acc === 'Boleto / Outros' || t.acc === 'Dinheiro') {
+  if (!tAccLower || tAccLower === 'sem conta' || tAccLower === 'boleto / outros' || tAccLower === 'dinheiro') {
     const descLower = (t.desc || '').toLowerCase().trim();
-    if (accNameLower.length >= 3 && descLower.includes(accNameLower)) return true;
-    if (accNameLower.includes('nubank') && (descLower.includes('nubank') || descLower.includes('nu '))) return true;
-    if (accNameLower.includes('digio') && descLower.includes('digio')) return true;
+    if (descLower) {
+      if (accNameLower.length >= 4 && descLower.includes(accNameLower)) return true;
+      if (accNameLower.includes('nubank') && (descLower.includes('nubank') || descLower.includes('nu '))) return true;
+      if (accNameLower.includes('digio') && descLower.includes('digio')) return true;
+    }
   }
 
   return false;
