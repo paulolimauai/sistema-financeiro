@@ -2196,7 +2196,7 @@ function refreshTxTable(){
 }
 
 /* ==================== Render Suave sem Flickering ==================== */
-async function render(){
+function render(){
   const el = document.getElementById('pageContent');
   if (!el) return;
 
@@ -2208,12 +2208,24 @@ async function render(){
 
   let newHTML = '';
   if(currentPage==='usuarios') {
-    await syncUsersWithServer();
     newHTML = pageUsuarios();
+    syncUsersWithServer().then(() => {
+      const uEl = document.getElementById('pageContent');
+      if (uEl && currentPage === 'usuarios') {
+        const freshHTML = pageUsuarios();
+        if (uEl.innerHTML !== freshHTML) uEl.innerHTML = freshHTML;
+      }
+    }).catch(() => {});
   }
   else if(currentPage==='logs') {
-    await loadSystemLogs();
     newHTML = pageLogs();
+    loadSystemLogs().then(() => {
+      const lEl = document.getElementById('pageContent');
+      if (lEl && currentPage === 'logs') {
+        const freshHTML = pageLogs();
+        if (lEl.innerHTML !== freshHTML) lEl.innerHTML = freshHTML;
+      }
+    }).catch(() => {});
   }
   else if(currentPage==='dashboard') newHTML = pageDashboard();
   else if(currentPage==='transacoes') newHTML = pageTransacoes();
@@ -2227,16 +2239,14 @@ async function render(){
   else if(currentPage==='alertas') newHTML = pageAlertas();
   else if(currentPage==='config') newHTML = pageConfig();
 
-  requestAnimationFrame(() => {
-    el.innerHTML = newHTML;
-    attachPageEvents();
-    updateHeaderUser();
-    renderNotifications();
-    updateViewModeBanner();
-    updateAdminMenuVisibility();
-    updateActiveMenu();
-    if(currentPage==='dashboard') drawDashboardCharts();
-  });
+  el.innerHTML = newHTML;
+  attachPageEvents();
+  updateHeaderUser();
+  renderNotifications();
+  updateViewModeBanner();
+  updateAdminMenuVisibility();
+  updateActiveMenu();
+  if(currentPage==='dashboard') drawDashboardCharts();
 }
 
 function updateActiveMenu(){
@@ -2954,16 +2964,16 @@ async function loadSystemLogs() {
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
-        systemLogs = data;
+        systemLogs = data.filter(l => !l.details || !l.details.includes('salvou e sincronizou suas alterações'));
         saveToStorage('nexus_system_logs', systemLogs.slice(0, 500));
-        return data;
+        return systemLogs;
       }
     }
   } catch(e) {}
 
   const cached = loadFromStorage('nexus_system_logs', null);
   if (Array.isArray(cached) && cached.length > 0) {
-    systemLogs = cached;
+    systemLogs = cached.filter(l => !l.details || !l.details.includes('salvou e sincronizou suas alterações'));
   }
   return systemLogs;
 }
@@ -4823,26 +4833,6 @@ const server = http.createServer((req, res) => {
         [payload.email, payload.data]
       )
         .then(() => {
-          pool.query('SELECT name FROM usuarios WHERE LOWER(email) = LOWER($1)', [payload.email])
-            .then(uRes => {
-              const uName = (uRes.rows[0] && uRes.rows[0].name) ? uRes.rows[0].name : payload.email.split('@')[0];
-              const changeLog = {
-                id: Date.now(),
-                timestamp: new Date().toISOString(),
-                user_name: uName,
-                user_email: payload.email,
-                action: 'Edição',
-                entity: 'Dados Financeiros',
-                details: 'Usuário salvou e sincronizou suas alterações de dados no sistema'
-              };
-              saveFileLogEntry(changeLog);
-              pool.query(
-                `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
-                 VALUES (now(), $1, $2, 'Edição', 'Dados Financeiros', 'Usuário salvou e sincronizou suas alterações de dados no sistema')`,
-                [uName, payload.email]
-              ).catch(() => {});
-            }).catch(() => {});
-
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true }));
         })
