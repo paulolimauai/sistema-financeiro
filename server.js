@@ -238,50 +238,47 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
 
 /* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
 .auth-container{
-  --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
+  --auth-accent:#e8b04b; --auth-accent-2:#4a90e2; --auth-accent-3:#f6d999;
   --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
   background:
-    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
-    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
-    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
+    radial-gradient(circle at 25% 50%, rgba(232, 176, 75, 0.22) 0%, transparent 45%),
+    radial-gradient(circle at 75% 50%, rgba(74, 144, 226, 0.22) 0%, transparent 45%),
+    radial-gradient(circle at 50% 50%, rgba(155, 107, 216, 0.10) 0%, transparent 50%),
+    linear-gradient(145deg, #050811 0%, #0d1222 50%, #060914 100%);
 }
 .auth-container.show { display: flex; }
 .auth-grid{
   position:absolute; inset:0; z-index:0; pointer-events:none;
   background-image:
-    linear-gradient(rgba(232,176,75,.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(232,176,75,.07) 1px, transparent 1px);
-  background-size:54px 54px;
-  -webkit-mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
-  mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+    radial-gradient(rgba(232,176,75,.06) 1px, transparent 1px);
+  background-size:36px 36px;
+  opacity:0.4;
 }
 .auth-chart{
-  position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:.38;
-  -webkit-mask-image:linear-gradient(to bottom, transparent, #000 22%, #000 92%, transparent);
-  mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
+  position:absolute; inset:0; width:100%; height:100%; z-index:0; pointer-events:none; opacity:.6;
 }
-.auth-chart .chart-area{animation:chartBreathe 7s ease-in-out infinite;}
-.auth-chart .chart-line{
-  stroke-dasharray:2600; stroke-dashoffset:2600;
-  animation:chartDraw 3.2s ease-out forwards, chartGlow 4s ease-in-out 3.2s infinite;
+.auth-blob{position:absolute; border-radius:50%; pointer-events:none; will-change:transform;}
+.auth-blob.b1{
+  width:500px; height:500px;
+  background:radial-gradient(circle, rgba(232,176,75,0.22) 0%, rgba(232,176,75,0) 70%);
+  top:50%; left:20%; transform:translate(-50%, -50%);
+  filter:blur(60px); opacity:0.85; animation:blobPulseGold 12s ease-in-out infinite alternate;
 }
-.auth-chart .chart-candles{animation:candlesFade 1.4s ease-out .6s backwards;}
-@keyframes chartDraw{to{stroke-dashoffset:0;}}
-@keyframes chartBreathe{0%,100%{opacity:1;} 50%{opacity:.65;}}
-@keyframes chartGlow{0%,100%{filter:drop-shadow(0 0 0px var(--auth-accent));} 50%{filter:drop-shadow(0 0 6px var(--auth-accent));}}
-@keyframes candlesFade{from{opacity:0;} to{opacity:.8;}}
-body.light .auth-grid{opacity:.5;}
-body.light .auth-chart{opacity:.3;}
-.auth-blob{position:absolute; border-radius:50%; filter:blur(70px); opacity:.28; pointer-events:none; will-change:transform;}
-.auth-blob.b1{width:360px; height:360px; background:var(--auth-accent); top:-110px; left:-100px; animation:blobFloat 24s ease-in-out infinite;}
-.auth-blob.b2{width:320px; height:320px; background:var(--auth-accent-2); bottom:-130px; right:-90px; animation:blobFloat 28s ease-in-out infinite; animation-delay:-8s;}
-body.light .auth-blob{opacity:.16;}
-@keyframes blobFloat{
-  0%,100%{transform:translate(0,0) scale(1);}
-  33%{transform:translate(35px,-40px) scale(1.1);}
-  66%{transform:translate(-30px,28px) scale(.92);}
+.auth-blob.b2{
+  width:500px; height:500px;
+  background:radial-gradient(circle, rgba(74,144,226,0.24) 0%, rgba(74,144,226,0) 70%);
+  top:50%; right:20%; transform:translate(50%, -50%);
+  filter:blur(60px); opacity:0.85; animation:blobPulseBlue 14s ease-in-out infinite alternate;
+}
+@keyframes blobPulseGold {
+  0%{transform:translate(-50%, -50%) scale(1);}
+  100%{transform:translate(-45%, -55%) scale(1.15);}
+}
+@keyframes blobPulseBlue {
+  0%{transform:translate(50%, -50%) scale(1);}
+  100%{transform:translate(45%, -45%) scale(1.15);}
 }
 
 @keyframes authIn{
@@ -1063,15 +1060,33 @@ tr.trow:hover td{background:var(--hover);}
 <!-- TELA DE LOGIN / CADASTRO -->
 <div class="auth-container show" id="authPage">
   <div class="auth-grid" aria-hidden="true"></div>
-  <svg class="auth-chart" viewBox="0 0 1600 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+  <svg class="auth-chart" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
     <defs>
-      <linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="var(--auth-accent)" stop-opacity="0.35"/>
-        <stop offset="100%" stop-color="var(--auth-accent)" stop-opacity="0"/>
+      <linearGradient id="spiroGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+        <stop offset="0%" stop-color="#e8b04b" stop-opacity="0.6"/>
+        <stop offset="50%" stop-color="#9b6bd8" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#4a90e2" stop-opacity="0.6"/>
       </linearGradient>
     </defs>
-    <path class="chart-area" d="M 0.0,380 L 27.1,385.0 L 54.2,400.1 L 81.4,386.1 L 108.5,405.7 L 135.6,398.4 L 162.7,401.0 L 189.8,421.5 L 216.9,415.8 L 244.1,437.5 L 271.2,436.1 L 298.3,455.8 L 325.4,474.4 L 352.5,473.6 L 379.7,449.4 L 406.8,466.0 L 433.9,476.9 L 461.0,464.3 L 488.1,433.1 L 515.3,423.4 L 542.4,424.2 L 569.5,391.4 L 596.6,412.5 L 623.7,386.5 L 650.8,393.5 L 678.0,409.0 L 705.1,425.9 L 732.2,431.8 L 759.3,408.3 L 786.4,421.6 L 813.6,411.7 L 840.7,398.4 L 867.8,400.6 L 894.9,392.7 L 922.0,412.8 L 949.2,433.2 L 976.3,445.0 L 1003.4,429.4 L 1030.5,428.4 L 1057.6,433.9 L 1084.7,423.8 L 1111.9,421.3 L 1139.0,427.7 L 1166.1,405.4 L 1193.2,388.7 L 1220.3,398.3 L 1247.5,388.8 L 1274.6,382.1 L 1301.7,355.2 L 1328.8,336.7 L 1355.9,343.8 L 1383.1,310.7 L 1410.2,327.7 L 1437.3,327.2 L 1464.4,307.1 L 1491.5,322.1 L 1518.6,317.5 L 1545.8,339.1 L 1572.9,324.1 L 1600.0,303.6 L 1600.0,800 L 0.0,800 Z" fill="url(#chartFill)" stroke="none"/>
-    <path class="chart-line" d="M 0.0,380 L 27.1,385.0 L 54.2,400.1 L 81.4,386.1 L 108.5,405.7 L 135.6,398.4 L 162.7,401.0 L 189.8,421.5 L 216.9,415.8 L 244.1,437.5 L 271.2,436.1 L 298.3,455.8 L 325.4,474.4 L 352.5,473.6 L 379.7,449.4 L 406.8,466.0 L 433.9,476.9 L 461.0,464.3 L 488.1,433.1 L 515.3,423.4 L 542.4,424.2 L 569.5,391.4 L 596.6,412.5 L 623.7,386.5 L 650.8,393.5 L 678.0,409.0 L 705.1,425.9 L 732.2,431.8 L 759.3,408.3 L 786.4,421.6 L 813.6,411.7 L 840.7,398.4 L 867.8,400.6 L 894.9,392.7 L 922.0,412.8 L 949.2,433.2 L 976.3,445.0 L 1003.4,429.4 L 1030.5,428.4 L 1057.6,433.9 L 1084.7,423.8 L 1111.9,421.3 L 1139.0,427.7 L 1166.1,405.4 L 1193.2,388.7 L 1220.3,398.3 L 1247.5,388.8 L 1274.6,382.1 L 1301.7,355.2 L 1328.8,336.7 L 1355.9,343.8 L 1383.1,310.7 L 1410.2,327.7 L 1437.3,327.2 L 1464.4,307.1 L 1491.5,322.1 L 1518.6,317.5 L 1545.8,339.1 L 1572.9,324.1 L 1600.0,303.6" fill="none" stroke="var(--auth-accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <g stroke="url(#spiroGrad)" fill="none" stroke-width="0.75" opacity="0.55">
+      <ellipse cx="600" cy="400" rx="200" ry="320" transform="rotate(10 600 400)"/>
+      <ellipse cx="600" cy="400" rx="215" ry="335" transform="rotate(20 600 400)"/>
+      <ellipse cx="600" cy="400" rx="230" ry="350" transform="rotate(30 600 400)"/>
+      <ellipse cx="600" cy="400" rx="245" ry="365" transform="rotate(40 600 400)"/>
+      <ellipse cx="600" cy="400" rx="260" ry="380" transform="rotate(50 600 400)"/>
+      <ellipse cx="600" cy="400" rx="275" ry="395" transform="rotate(60 600 400)"/>
+      <ellipse cx="600" cy="400" rx="290" ry="410" transform="rotate(70 600 400)"/>
+      <ellipse cx="600" cy="400" rx="305" ry="425" transform="rotate(80 600 400)"/>
+      <ellipse cx="600" cy="400" rx="320" ry="440" transform="rotate(90 600 400)"/>
+      <ellipse cx="600" cy="400" rx="335" ry="455" transform="rotate(100 600 400)"/>
+      <ellipse cx="600" cy="400" rx="350" ry="470" transform="rotate(110 600 400)"/>
+      <ellipse cx="600" cy="400" rx="365" ry="485" transform="rotate(120 600 400)"/>
+      <ellipse cx="600" cy="400" rx="380" ry="500" transform="rotate(130 600 400)"/>
+      <ellipse cx="600" cy="400" rx="395" ry="515" transform="rotate(140 600 400)"/>
+      <ellipse cx="600" cy="400" rx="410" ry="530" transform="rotate(150 600 400)"/>
+      <ellipse cx="600" cy="400" rx="425" ry="545" transform="rotate(160 600 400)"/>
+      <ellipse cx="600" cy="400" rx="440" ry="560" transform="rotate(170 600 400)"/>
+    </g>
   </svg>
 
   <div class="auth-blob b1"></div>
