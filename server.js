@@ -1974,7 +1974,7 @@ function pdCustom(y,m,day){
   const d = String(Math.min(day, lastDay)).padStart(2,'0');
   return y + '-' + String(m).padStart(2,'0') + '-' + d;
 }
-function pd(day){ return pdCustom(currentPeriod.year, currentPeriod.month, day); }
+function pd(day = 30){ return pdCustom(currentPeriod.year, currentPeriod.month, day); }
 
 let editingId=null, editingAccId=null, editingCatName=null, editingBudgetId=null, editingGoalId=null, editingRecId=null, editingAlertId=null, editingUserEmail=null;
 let catManageType = 'despesa';
@@ -3745,11 +3745,9 @@ function openModal(id){
     document.getElementById('fValor').value = '';
     
     const now = new Date();
-    let defaultDate = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + String(now.getDate()).padStart(2,'0');
-    if (currentPeriod.year !== now.getFullYear() || currentPeriod.month !== (now.getMonth() + 1)) {
-      const targetDay = Math.min(now.getDate(), new Date(currentPeriod.year, currentPeriod.month, 0).getDate());
-      defaultDate = pd(targetDay);
-    }
+    const targetYear = (currentPeriod.month === 0 || !currentPeriod.year) ? now.getFullYear() : currentPeriod.year;
+    const targetMonth = (currentPeriod.month === 0 || !currentPeriod.month) ? (now.getMonth() + 1) : currentPeriod.month;
+    const defaultDate = pdCustom(targetYear, targetMonth, 30);
     document.getElementById('fData').value = defaultDate;
     document.getElementById('fStatus').value = 'Pago';
     setType('out');
@@ -4280,7 +4278,7 @@ function openRecurringModal(id){
     document.getElementById('recModalTitle').textContent = 'Novo Lançamento Recorrente';
     document.getElementById('recDesc').value = '';
     document.getElementById('recVal').value = '';
-    document.getElementById('recDay').value = '5';
+    document.getElementById('recDay').value = '30';
     document.getElementById('recFreq').value = 'Mensal';
     setRecType('out');
   }
