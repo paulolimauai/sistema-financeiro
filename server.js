@@ -1962,8 +1962,22 @@ function isAccountCreditCard(account) {
     accTypeLower.includes('credito') ||
     accTypeLower === 'cartão' ||
     accTypeLower === 'cartao' ||
+    accNameLower.includes('digio') ||
     accNameLower.includes('nubank') ||
-    accNameLower.includes('roxinho')
+    accNameLower.includes('roxinho') ||
+    accNameLower.includes('inter') ||
+    accNameLower.includes('c6') ||
+    accNameLower.includes('picpay') ||
+    accNameLower.includes('will') ||
+    accNameLower.includes('credicard') ||
+    accNameLower.includes('trigg') ||
+    accNameLower.includes('neon') ||
+    accNameLower.includes('santander') ||
+    accNameLower.includes('bradesco') ||
+    accNameLower.includes('itaú') ||
+    accNameLower.includes('itau') ||
+    accNameLower.includes('cartão') ||
+    accNameLower.includes('cartao')
   );
 }
 
@@ -1976,10 +1990,14 @@ function isTxForAccount(t, account) {
   const accNameLower = (account.name || '').toLowerCase().trim();
   if (!accNameLower) return false;
 
-  // 2. Verificação por correspondência exata do nome da conta
+  // 2. Verificação por correspondência exata do nome da conta ou do cartão
   if (t.acc) {
     const tAccLower = t.acc.toLowerCase().trim();
     if (tAccLower === accNameLower) return true;
+  }
+  if (t.card) {
+    const tCardLower = t.card.toLowerCase().trim();
+    if (tCardLower === accNameLower) return true;
   }
 
   // 3. Verificação por inclusão quando os nomes possuem ao menos 3 caracteres
@@ -1995,6 +2013,7 @@ function isTxForAccount(t, account) {
     const descLower = (t.desc || '').toLowerCase().trim();
     if (accNameLower.length >= 3 && descLower.includes(accNameLower)) return true;
     if (accNameLower.includes('nubank') && (descLower.includes('nubank') || descLower.includes('nu '))) return true;
+    if (accNameLower.includes('digio') && descLower.includes('digio')) return true;
   }
 
   return false;
@@ -2628,51 +2647,56 @@ function pageContas(){
   </div>
   \` : ''}
 
-  <div class="grid3" style="grid-template-columns:repeat(auto-fill, minmax(310px, 1fr)); gap:16px;">
+  <div class="grid3" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(310px, 1fr)); gap:16px; align-items:stretch;">
     \${list.length ? list.map(a => {
       const stats = getCardStats(a);
       return \`
-      <div class="acc-card" style="position:relative; background:var(--card); border:1px solid var(--card-border); border-radius:14px; padding:18px; display:flex; flex-direction:column; justify-content:space-between;">
-        <div class="top" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:12px;">
-          <div class="id-group" style="display:flex; align-items:center; gap:10px; min-width:0;">
-            <span class="acc-ic" style="background:\${a.color}; width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:13px; flex-shrink:0;">\${a.name.slice(0,2).toUpperCase()}</span>
-            <div style="min-width:0;">
-              <h3 style="font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px;">\${a.name}</h3>
-              <span class="pill" style="font-size:10.5px; padding:2px 8px; border-radius:6px; background:\${stats.isCreditCard ? 'rgba(155,107,216,0.15)' : 'var(--green-soft)'}; color:\${stats.isCreditCard ? 'var(--purple)' : 'var(--green)'}; font-weight:600;">\${a.type}</span>
-            </div>
-          </div>
-          <div class="row-actions"><button data-editacc="\${a.id}" title="Editar">✎</button><button data-delacc="\${a.id}" title="Excluir">🗑</button></div>
-        </div>
-
-        \${stats.isCreditCard ? \`
-          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-top:6px;">
-            <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:2px;">Limite Disponível</div>
-            <div class="val" style="font-size:22px; font-weight:800; color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}">
-              \${fmt(stats.availableLimit)}
-            </div>
-            <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-top:8px; padding-top:8px; border-top:1px dashed var(--card-border);">
-              <span>Fatura: <strong style="color:var(--text);">\${fmt(stats.spentTotal)}</strong></span>
-              <span>Total: <strong style="color:var(--text);">\${fmt(stats.totalLimit)}</strong></span>
-            </div>
-            <div style="margin-top:8px;">
-              <div class="bar-split" style="height:6px; background:var(--card-border); border-radius:4px; overflow:hidden;">
-                <div class="g" style="width:\${stats.usagePct}%; height:100%; background:\${stats.usagePct >= 90 ? 'var(--red)' : stats.usagePct >= 70 ? 'var(--orange)' : 'var(--green)'}; border-radius:4px;"></div>
+      <div class="acc-card" style="position:relative; background:var(--card); border:1px solid var(--card-border); border-radius:14px; padding:18px; display:flex; flex-direction:column; justify-content:space-between; min-height:220px; box-sizing:border-box;">
+        <div>
+          <div class="top" style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:14px;">
+            <div class="id-group" style="display:flex; align-items:center; gap:10px; min-width:0;">
+              <span class="acc-ic" style="background:\${a.color}; width:40px; height:40px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:800; color:#fff; font-size:14px; flex-shrink:0;">\${a.name.slice(0,2).toUpperCase()}</span>
+              <div style="min-width:0;">
+                <h3 style="font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-bottom:2px; color:var(--text);">\${a.name}</h3>
+                <span class="pill" style="font-size:10.5px; padding:2px 8px; border-radius:6px; background:\${stats.isCreditCard ? 'rgba(155,107,216,0.15)' : 'var(--green-soft)'}; color:\${stats.isCreditCard ? 'var(--purple)' : 'var(--green)'}; font-weight:600;">\${a.type}</span>
               </div>
-              <div style="text-align:right; font-size:10.5px; color:var(--text-faint); margin-top:4px;">\${stats.usagePct}% utilizado</div>
             </div>
+            <div class="row-actions" style="display:flex; gap:6px;"><button data-editacc="\${a.id}" title="Editar">✎</button><button data-delacc="\${a.id}" title="Excluir">🗑</button></div>
           </div>
-        \` : \`
-          <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-top:6px;">
-            <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:2px;">Saldo Atual</div>
-            <div class="val" style="font-size:22px; font-weight:800; color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}">
-              \${fmt(stats.currentBalance)}
+
+          \${stats.isCreditCard ? \`
+            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-top:4px;">
+              <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:2px;">Limite Disponível</div>
+              <div class="val" style="font-size:22px; font-weight:800; color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}">
+                \${fmt(stats.availableLimit)}
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-top:8px; padding-top:8px; border-top:1px dashed var(--card-border);">
+                <span>Fatura: <strong style="color:var(--orange);">\${fmt(stats.spentTotal)}</strong></span>
+                <span>Limite Total: <strong style="color:var(--text);">\${fmt(stats.totalLimit)}</strong></span>
+              </div>
+              <div style="margin-top:8px;">
+                <div class="bar-split" style="height:6px; background:var(--card-border); border-radius:4px; overflow:hidden;">
+                  <div class="g" style="width:\${stats.usagePct}%; height:100%; background:\${stats.usagePct >= 90 ? 'var(--red)' : stats.usagePct >= 70 ? 'var(--orange)' : 'var(--green)'}; border-radius:4px;"></div>
+                </div>
+                <div style="text-align:right; font-size:10.5px; color:var(--text-faint); margin-top:4px;">\${stats.usagePct}% utilizado</div>
+              </div>
             </div>
-            <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-top:8px; padding-top:8px; border-top:1px dashed var(--card-border);">
-              <span>Entradas: <strong style="color:var(--green);">\${fmt(stats.periodIn)}</strong></span>
-              <span>Saídas: <strong style="color:var(--red);">\${fmt(stats.spentTotal)}</strong></span>
+          \` : \`
+            <div style="background:rgba(255,255,255,0.02); border:1px solid var(--card-border); border-radius:10px; padding:12px; margin-top:4px;">
+              <div style="font-size:11.5px; color:var(--text-faint); margin-bottom:2px;">Saldo Atual da Conta</div>
+              <div class="val" style="font-size:22px; font-weight:800; color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}">
+                \${fmt(stats.currentBalance)}
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11.5px; color:var(--text-dim); margin-top:8px; padding-top:8px; border-top:1px dashed var(--card-border);">
+                <span>Entradas: <strong style="color:var(--green);">\${fmt(stats.periodIn)}</strong></span>
+                <span>Saídas: <strong style="color:var(--red);">\${fmt(stats.spentTotal)}</strong></span>
+              </div>
+              <div style="margin-top:8px; min-height:22px; display:flex; align-items:center; justify-content:flex-end;">
+                <span style="font-size:10.5px; color:var(--text-faint);">Saldo inicial: \${fmt(stats.initialBalance)}</span>
+              </div>
             </div>
-          </div>
-        \`}
+          \`}
+        </div>
       </div>\`;
     }).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
   </div>\`;
