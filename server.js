@@ -1576,6 +1576,7 @@ document.getElementById('logoutBtn').onclick = async () => {
   localStorage.removeItem('nexus_session');
   localStorage.removeItem('nexus_cached_user');
   localStorage.removeItem('nexus_token');
+  localStorage.removeItem('nexus_viewing_user');
   document.documentElement.classList.remove('user-logged-in');
   document.getElementById('appMain').classList.remove('show');
   document.getElementById('authPage').classList.add('show');
@@ -1796,8 +1797,8 @@ async function saveUserData() {
 async function viewUserData(email){
   await syncUsersWithServer();
   if(!currentUser || currentUser.role !== 'Administrador') return;
-  const target = registeredUsers.find(u => u.email === email);
-  if(!target || target.email === currentUser.email) return;
+  const target = registeredUsers.find(u => u.email.toLowerCase() === (email||'').toLowerCase());
+  if(!target || target.email.toLowerCase() === currentUser.email.toLowerCase()) return;
 
   if(!isViewingOtherUser){
     await saveUserData();
@@ -1805,6 +1806,7 @@ async function viewUserData(email){
   }
   currentUser = target;
   isViewingOtherUser = true;
+  saveToStorage('nexus_viewing_user', target.email);
   await loadUserData();
   currentPage = 'dashboard';
   render();
@@ -1816,10 +1818,13 @@ async function exitViewMode(){
   currentUser = adminOriginalUser;
   adminOriginalUser = null;
   isViewingOtherUser = false;
+  localStorage.removeItem('nexus_viewing_user');
+  saveToStorage('nexus_session', { email: currentUser.email });
+  saveToStorage('nexus_cached_user', currentUser);
   await loadUserData();
   currentPage = 'usuarios';
   render();
-  showToast('Você voltou para sua conta.');
+  showToast('Você voltou para sua conta de Administrador.');
 }
 
 /* ==================== Admin: Ativar/Desativar usuário ==================== */
@@ -4331,6 +4336,7 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 (async function restoreSession(){
   const session = loadFromStorage('nexus_session', null);
   const cachedUser = loadFromStorage('nexus_cached_user', null);
+  const viewingEmail = loadFromStorage('nexus_viewing_user', null);
   const sessionEmail = session ? session.email : (cachedUser ? cachedUser.email : null);
 
   if (!sessionEmail && !cachedUser) {
@@ -4346,12 +4352,13 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
   } catch(e) {}
 
   const serverUser = registeredUsers.find(u => u.email.toLowerCase() === (sessionEmail || '').toLowerCase());
-  currentUser = serverUser || cachedUser || { email: sessionEmail, name: sessionEmail.split('@')[0], role: 'Usuário' };
+  const realUser = serverUser || cachedUser || { email: sessionEmail, name: sessionEmail.split('@')[0], role: 'Usuário' };
 
-  if (currentUser && currentUser.active === false) {
+  if (realUser && realUser.active === false) {
     localStorage.removeItem('nexus_session');
     localStorage.removeItem('nexus_cached_user');
     localStorage.removeItem('nexus_token');
+    localStorage.removeItem('nexus_viewing_user');
     document.documentElement.classList.remove('user-logged-in');
     document.getElementById('appMain').classList.remove('show');
     document.getElementById('authPage').classList.add('show');
@@ -4359,21 +4366,40 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
     return;
   }
 
-  saveToStorage('nexus_session', { email: currentUser.email });
-  saveToStorage('nexus_cached_user', currentUser);
+  // Mantém os dados da conta autenticada real
+  saveToStorage('nexus_session', { email: realUser.email });
+  saveToStorage('nexus_cached_user', realUser);
 
   document.documentElement.classList.add('user-logged-in');
   document.getElementById('authPage').classList.remove('show');
   document.getElementById('appMain').classList.add('show');
 
-  // Garante que o Administrador vá para 'usuarios' antes da primeira renderização
-  if (currentUser.role === 'Administrador' && !isViewingOtherUser) {
+  // Se o Administrador estava inspecionando outro usuário antes do F5
+  if (realUser.role === 'Administrador' && viewingEmail) {
+    const target = registeredUsers.find(u => u.email.toLowerCase() === viewingEmail.toLowerCase());
+    if (target && target.email.toLowerCase() !== realUser.email.toLowerCase()) {
+      adminOriginalUser = realUser;
+      currentUser = target;
+      isViewingOtherUser = true;
+      currentPage = 'dashboard';
+      await loadUserData();
+      if (typeof render === 'function') render();
+      return;
+    }
+  }
+
+  // Restaura a conta real sem alterar para a conta de outro usuário
+  currentUser = realUser;
+  adminOriginalUser = null;
+  isViewingOtherUser = false;
+  localStorage.removeItem('nexus_viewing_user');
+
+  if (currentUser.role === 'Administrador') {
     if (currentPage !== 'usuarios' && currentPage !== 'logs') {
       currentPage = 'usuarios';
     }
   }
 
-  // Carrega os dados do usuário e renderiza uma única vez com o perfil correto
   await loadUserData();
   if (typeof render === 'function') render();
 })();
