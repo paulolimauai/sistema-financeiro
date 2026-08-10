@@ -1052,29 +1052,37 @@ tr.trow:hover td{background:var(--hover);}
 .login-success-box .account-disabled-btn:hover{filter:brightness(1.08);}
 
 /* ==================== Popup de Logout (Sessão Encerrada) ==================== */
+.logout-box {
+  background: rgba(18, 22, 30, 0.88) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(232, 176, 75, 0.38) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.85), 0 0 40px rgba(232, 176, 75, 0.18) !important;
+}
 .logout-success-icon {
   width: 68px; height: 68px; margin: 0 auto 18px; border-radius: 50%;
-  background: rgba(6, 214, 160, 0.15); border: 1px solid rgba(6, 214, 160, 0.35);
+  background: rgba(232, 176, 75, 0.16); border: 1px solid rgba(232, 176, 75, 0.42);
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 25px rgba(6, 214, 160, 0.25);
+  box-shadow: 0 0 28px rgba(232, 176, 75, 0.28);
 }
 .logout-success-icon svg {
-  width: 32px; height: 32px; stroke: #06D6A0;
+  width: 32px; height: 32px; stroke: var(--auth-accent);
 }
 .logout-box h3 {
-  font-size: 19px; font-weight: 800; color: #ffffff; margin-bottom: 8px; tracking-tight;
+  font-size: 20px; font-weight: 800; color: #ffffff; margin-bottom: 8px; letter-spacing: -0.01em;
 }
 .logout-box p {
-  color: #9ca3af; font-size: 13.5px; line-height: 1.5; margin-bottom: 20px;
+  color: var(--text-dim); font-size: 13.5px; line-height: 1.5; margin-bottom: 22px;
 }
 .logout-btn-action {
-  width: 100%; padding: 12px 16px; border-radius: 12px; font-weight: 700; font-size: 13.5px;
-  background: linear-gradient(135deg, #06D6A0, #00E5FF); color: #060B18; border: none;
-  cursor: pointer; box-shadow: 0 4px 14px rgba(6, 214, 160, 0.3);
-  transition: transform 0.2s ease, filter 0.2s ease;
+  width: 100%; padding: 13px 16px; border-radius: 12px; font-weight: 800; font-size: 14.5px;
+  background: linear-gradient(135deg, var(--auth-accent), var(--auth-accent-2)); color: var(--auth-text-on); border: none;
+  cursor: pointer; box-shadow: 0 4px 18px rgba(232, 176, 75, 0.3);
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
 }
 .logout-btn-action:hover {
-  transform: translateY(-1px); filter: brightness(1.08);
+  transform: translateY(-1px); filter: brightness(1.08); box-shadow: 0 6px 24px rgba(232, 176, 75, 0.4);
 }
 
 @media(min-width:1700px){
