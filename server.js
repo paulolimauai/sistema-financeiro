@@ -2875,17 +2875,25 @@ async function logActivity(action, entity, details) {
   } catch(e){}
 
   try {
-    fetch(window.location.origin + '/api/logs', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userName: currentUser.name,
-        userEmail: currentUser.email,
-        action,
-        entity,
-        details
-      })
-    }).catch(() => {});
+    const payload = JSON.stringify({
+      userName: currentUser.name,
+      userEmail: currentUser.email,
+      action: action,
+      entity: entity,
+      details: details
+    });
+
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' });
+      navigator.sendBeacon(window.location.origin + '/api/logs', blob);
+    } else {
+      fetch(window.location.origin + '/api/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+        keepalive: true
+      }).catch(() => {});
+    }
   } catch(e) {}
 }
 
@@ -4367,6 +4375,22 @@ const server = http.createServer((req, res) => {
           return res.end(JSON.stringify({ success: false, error: 'Seu usuário foi desativado pelo administrador.' }));
         }
 
+        const loginLogObj = {
+          id: Date.now(),
+          timestamp: new Date().toISOString(),
+          user_name: user.name,
+          user_email: user.email,
+          action: 'Login',
+          entity: 'Autenticação',
+          details: 'Usuário realizou login com sucesso no sistema'
+        };
+        saveFileLogEntry(loginLogObj);
+        pool.query(
+          `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
+           VALUES (now(), $1, $2, 'Login', 'Autenticação', 'Usuário realizou login com sucesso no sistema')`,
+          [user.name, user.email]
+        ).catch(() => {});
+
         const token = 'token_' + Date.now() + '_' + Math.random().toString(36).substring(2);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({
@@ -4671,6 +4695,26 @@ const server = http.createServer((req, res) => {
         [payload.email, payload.data]
       )
         .then(() => {
+          pool.query('SELECT name FROM usuarios WHERE LOWER(email) = LOWER($1)', [payload.email])
+            .then(uRes => {
+              const uName = (uRes.rows[0] && uRes.rows[0].name) ? uRes.rows[0].name : payload.email.split('@')[0];
+              const changeLog = {
+                id: Date.now(),
+                timestamp: new Date().toISOString(),
+                user_name: uName,
+                user_email: payload.email,
+                action: 'Edição',
+                entity: 'Dados Financeiros',
+                details: 'Usuário salvou e sincronizou suas alterações de dados no sistema'
+              };
+              saveFileLogEntry(changeLog);
+              pool.query(
+                `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
+                 VALUES (now(), $1, $2, 'Edição', 'Dados Financeiros', 'Usuário salvou e sincronizou suas alterações de dados no sistema')`,
+                [uName, payload.email]
+              ).catch(() => {});
+            }).catch(() => {});
+
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ success: true }));
         })
