@@ -4340,45 +4340,42 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
     return;
   }
 
-  // Define sessão inicial a partir do cache
-  currentUser = cachedUser || { email: sessionEmail, name: sessionEmail.split('@')[0], role: 'Usuário' };
+  // Tenta sincronizar a lista de usuários do servidor antes de desenhar a tela
+  try {
+    await syncUsersWithServer();
+  } catch(e) {}
+
+  const serverUser = registeredUsers.find(u => u.email.toLowerCase() === (sessionEmail || '').toLowerCase());
+  currentUser = serverUser || cachedUser || { email: sessionEmail, name: sessionEmail.split('@')[0], role: 'Usuário' };
+
+  if (currentUser && currentUser.active === false) {
+    localStorage.removeItem('nexus_session');
+    localStorage.removeItem('nexus_cached_user');
+    localStorage.removeItem('nexus_token');
+    document.documentElement.classList.remove('user-logged-in');
+    document.getElementById('appMain').classList.remove('show');
+    document.getElementById('authPage').classList.add('show');
+    showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
+    return;
+  }
+
+  saveToStorage('nexus_session', { email: currentUser.email });
+  saveToStorage('nexus_cached_user', currentUser);
+
   document.documentElement.classList.add('user-logged-in');
   document.getElementById('authPage').classList.remove('show');
   document.getElementById('appMain').classList.add('show');
 
-  // Carrega os dados do usuário instantaneamente do cache/banco
+  // Garante que o Administrador vá para 'usuarios' antes da primeira renderização
+  if (currentUser.role === 'Administrador' && !isViewingOtherUser) {
+    if (currentPage !== 'usuarios' && currentPage !== 'logs') {
+      currentPage = 'usuarios';
+    }
+  }
+
+  // Carrega os dados do usuário e renderiza uma única vez com o perfil correto
   await loadUserData();
   if (typeof render === 'function') render();
-
-  // Valida e atualiza a função (role) real do usuário a partir do servidor
-  try {
-    await syncUsersWithServer();
-    const user = registeredUsers.find(u => u.email.toLowerCase() === sessionEmail.toLowerCase());
-    
-    if (user) {
-      if (user.active === false) {
-        localStorage.removeItem('nexus_session');
-        localStorage.removeItem('nexus_cached_user');
-        localStorage.removeItem('nexus_token');
-        document.documentElement.classList.remove('user-logged-in');
-        document.getElementById('appMain').classList.remove('show');
-        document.getElementById('authPage').classList.add('show');
-        showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
-        return;
-      }
-      currentUser = user;
-      saveToStorage('nexus_session', { email: user.email });
-      saveToStorage('nexus_cached_user', user);
-
-      // Redireciona e re-renderiza o menu de acordo com o perfil atualizado
-      if (currentUser.role === 'Administrador' && !isViewingOtherUser) {
-        if (currentPage !== 'usuarios' && currentPage !== 'logs') {
-          currentPage = 'usuarios';
-        }
-      }
-      if (typeof render === 'function') render();
-    }
-  } catch(e) {}
 })();
 </script>
 </body>
