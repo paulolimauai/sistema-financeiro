@@ -208,14 +208,15 @@ html.is-admin #mobileDrawerFuncoesBtn {
 }
 
 :root{
-  --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
-  --text:#e9edf3; --text-dim:#8a93a3; --text-faint:#5b6472;
-  --green:#e8b04b; --green-soft:rgba(232,176,75,.14);
-  --red:#ef5a5a; --red-soft:rgba(239,90,90,.12);
-  --blue:#4a90e2; --purple:#9b6bd8; --orange:#f0a63a; --teal:#3ec7c7; --pink:#d85bb0;
-  --hover:#1a1f29;
-  --radius:14px;
-  --shadow:0 8px 24px rgba(0,0,0,.35);
+  --bg:#070b16; --sidebar:#0a101d; --card:#0f172a; --card-border:rgba(232,176,75,0.22);
+  --text:#f3f4f6; --text-dim:#9ca3af; --text-faint:#6b7280;
+  --green:#fbbf24; --green-soft:rgba(251,191,36,.15);
+  --emerald:#10b981; --emerald-soft:rgba(16,185,129,.15);
+  --red:#f43f5e; --red-soft:rgba(244,63,94,.15);
+  --blue:#38bdf8; --purple:#a855f7; --orange:#f59e0b; --teal:#14b8a6; --pink:#ec4899;
+  --hover:rgba(232,176,75,.09);
+  --radius:16px;
+  --shadow:0 12px 32px rgba(0,0,0,.55), 0 0 20px rgba(232,176,75,0.08);
 }
 body.light, html.light body{
   --bg:#f4f6f9; --sidebar:#ffffff; --card:#ffffff; --card-border:#e6e9ef;
@@ -238,16 +239,17 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
+/* ==================== Tela de Auth (Dourado/Âmbar Executivo 4K) ==================== */
 .auth-container{
-  --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
-  --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
+  --auth-accent:#fbbf24; --auth-accent-2:#d97706; --auth-accent-3:#fef08a;
+  --auth-accent-soft:rgba(251,191,36,.18); --auth-text-on:#0b0f19;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
   background:
-    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
-    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
-    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
+    radial-gradient(circle at 20% 15%, rgba(232,176,75,0.18), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(99,102,241,0.15), transparent 50%),
+    radial-gradient(circle at 50% 50%, rgba(16,185,129,0.08), transparent 65%),
+    linear-gradient(135deg, #040711 0%, #080e21 40%, #0c142e 70%, #060b18 100%);
 }
 .auth-container.show { display: flex; }
 .auth-grid{
