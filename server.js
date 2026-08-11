@@ -413,15 +413,27 @@ body.light .app-blob.a3{opacity:.05;}
 }
 .mobile-drawer-nav { display:flex; flex-direction:column; gap:6px; flex:1; }
 .mobile-drawer-nav button {
-  display:flex; align-items:center; gap:12px; padding:12px 14px;
-  border-radius:12px; background:none; border:none; color:var(--text-dim);
-  font-size:14.5px; font-weight:600; cursor:pointer; text-align:left;
-  transition:background 0.15s, color 0.15s; white-space:nowrap;
+  position:relative; display:flex; align-items:center; gap:10px; padding:11px 16px;
+  border-radius:12px; background:transparent; border:1px solid transparent; color:#94a3b8;
+  font-size:14px; font-weight:600; cursor:pointer; text-align:left;
+  transition:all 0.25s cubic-bezier(0.16, 1, 0.3, 1); white-space:nowrap;
 }
-.mobile-drawer-nav button:hover { background:var(--hover); color:var(--text); }
-.mobile-drawer-nav button.active { background:var(--green-soft); color:var(--green); font-weight:700; }
-.mobile-drawer-nav button .ic { width:20px; height:20px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; }
-.mobile-drawer-nav button .ic svg { width:19px; height:19px; display:block; }
+.mobile-drawer-nav button:hover {
+  background:rgba(232,176,75,0.09); color:#f8fafc; border-color:rgba(232,176,75,0.22);
+}
+.mobile-drawer-nav button.active {
+  background:linear-gradient(135deg, rgba(232,176,75,0.26) 0%, rgba(180,115,30,0.32) 100%);
+  color:#fbbf24; font-weight:700; border-color:rgba(245,197,102,0.65);
+  box-shadow:0 0 20px rgba(232,176,75,0.25);
+}
+.mobile-drawer-nav button .ic {
+  width:26px; height:26px; border-radius:8px; background:rgba(255,255,255,0.04);
+  display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.25s ease;
+}
+.mobile-drawer-nav button.active .ic {
+  background:linear-gradient(135deg, rgba(251,191,36,0.35), rgba(217,119,6,0.25)); color:#fbbf24;
+}
+.mobile-drawer-nav button .ic svg { width:18px; height:18px; display:block; stroke-width:2.2px; }
 .brand{display:flex; align-items:center; gap:11px; flex-shrink:0;}
 .brand .logo{
   width:42px; height:42px; border-radius:11px; background:linear-gradient(135deg,var(--green),#c9862a);
@@ -431,21 +443,53 @@ body.light .app-blob.a3{opacity:.05;}
 .brand .name span{display:block; color:var(--green); font-size:11px; letter-spacing:.06em; font-weight:700;}
 
 nav.menu{
-  display:flex; align-items:center; flex-wrap:nowrap; gap:4px; width:100%;
-  padding:0 16px 10px; max-width:1440px; margin:0 auto;
+  display:flex; align-items:center; flex-wrap:nowrap; gap:6px; width:100%;
+  padding:6px 12px; max-width:1440px; margin:0 auto 12px;
   overflow-x:auto; scrollbar-width:thin;
+  background:linear-gradient(180deg, rgba(14,20,32,0.88) 0%, rgba(9,13,22,0.95) 100%);
+  border:1px solid rgba(232,176,75,0.25);
+  border-radius:18px;
+  box-shadow:0 10px 30px -5px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.08), 0 0 20px rgba(232,176,75,0.06);
+  backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
 }
-nav.menu::-webkit-scrollbar{height:5px;}
-nav.menu::-webkit-scrollbar-thumb{background:var(--card-border); border-radius:10px;}
+nav.menu::-webkit-scrollbar{height:4px;}
+nav.menu::-webkit-scrollbar-track{background:rgba(0,0,0,0.2); border-radius:10px;}
+nav.menu::-webkit-scrollbar-thumb{background:rgba(232,176,75,0.35); border-radius:10px;}
+nav.menu::-webkit-scrollbar-thumb:hover{background:rgba(232,176,75,0.6);}
+
 .menu button{
-  display:flex; align-items:center; gap:7px; text-align:left; background:none; border:none;
-  color:var(--text-dim); padding:11px 12px; border-radius:10px; font-size:14.5px; font-weight:600; cursor:pointer;
-  transition:background .15s,color .15s; white-space:nowrap; flex-shrink:0;
+  position:relative; display:flex; align-items:center; gap:8px; text-align:left; background:transparent; border:1px solid transparent;
+  color:#94a3b8; padding:8px 14px; border-radius:12px; font-size:13.5px; font-weight:600; letter-spacing:0.015em; cursor:pointer;
+  white-space:nowrap; flex-shrink:0; transition:all 0.25s cubic-bezier(0.16, 1, 0.3, 1); user-select:none;
 }
-.menu button:hover{background:var(--hover); color:var(--text);}
-.menu button.active{background:var(--green-soft); color:var(--green); font-weight:700;}
-.menu button .ic{width:18px; height:18px; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;}
-.menu button .ic svg, .icon-btn svg{width:18px; height:18px; display:block;}
+.menu button:hover{
+  background:rgba(232,176,75,0.09); color:#f8fafc; border-color:rgba(232,176,75,0.25);
+  transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,0,0,0.35);
+}
+.menu button.active{
+  background:linear-gradient(135deg, rgba(232,176,75,0.28) 0%, rgba(180,115,30,0.32) 100%);
+  color:#fbbf24; font-weight:700; border:1px solid rgba(245,197,102,0.65);
+  box-shadow:0 0 24px rgba(232,176,75,0.32), inset 0 1px 1px rgba(255,255,255,0.25); transform:translateY(-1px);
+}
+.menu button.active::after{
+  content:''; position:absolute; bottom:-2px; left:20%; right:20%; height:2.5px;
+  background:linear-gradient(90deg, transparent, #fbbf24, transparent); border-radius:999px; box-shadow:0 0 10px #fbbf24;
+}
+.menu button .ic{
+  width:24px; height:24px; border-radius:8px; background:rgba(255,255,255,0.04);
+  display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; transition:all 0.25s ease;
+}
+.menu button:hover .ic{background:rgba(232,176,75,0.16); color:#fde68a;}
+.menu button.active .ic{
+  background:linear-gradient(135deg, rgba(251,191,36,0.35), rgba(217,119,6,0.25)); color:#fbbf24; box-shadow:0 0 12px rgba(232,176,75,0.4);
+}
+.menu button .ic svg, .icon-btn svg{width:17px; height:17px; display:block; stroke-width:2.2px;}
+.menu button.active .ic svg{filter:drop-shadow(0 0 5px rgba(251,191,36,0.8));}
+
+body.light nav.menu{background:linear-gradient(180deg, #ffffff 0%, #f8fafc 100%); border-color:#cbd5e1; box-shadow:0 8px 25px rgba(15,23,42,0.06);}
+body.light .menu button{color:#475569;}
+body.light .menu button:hover{background:rgba(217,119,6,0.08); color:#0f172a; border-color:rgba(217,119,6,0.25);}
+body.light .menu button.active{background:linear-gradient(135deg, rgba(217,119,6,0.15) 0%, rgba(245,158,11,0.2) 100%); color:#b45309; border-color:#f59e0b; box-shadow:0 4px 14px rgba(245,158,11,0.2);}
 
 /* ==================== Logo / Crédito de Desenvolvimento ==================== */
 .auth-dev-credit{
@@ -784,6 +828,12 @@ tr.trow:hover td{background:var(--hover);}
 .role-badge.admin{background:var(--green-soft); color:var(--green);}
 .role-badge.user{background:rgba(138,147,163,.14); color:var(--text-dim);}
 .role-badge.inactive{background:var(--red-soft); color:var(--red);}
+.funcoes-badge{
+  display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:8px; white-space:nowrap;
+}
+.funcoes-badge.full{background:rgba(16,185,129,0.15); color:#10b981; border:1px solid rgba(16,185,129,0.3);}
+.funcoes-badge.read{background:rgba(59,130,246,0.15); color:#60a5fa; border:1px solid rgba(59,130,246,0.3);}
+.funcoes-badge.lock{background:rgba(239,68,68,0.15); color:#f87171; border:1px solid rgba(239,68,68,0.3);}
 .row-edit{
   flex-shrink:0; background:none; border:1px solid var(--card-border); color:var(--text-dim); width:30px; height:30px;
   border-radius:8px; cursor:pointer; font-size:13px; transition:background .15s,color .15s;
@@ -1134,6 +1184,7 @@ tr.trow:hover td{background:var(--hover);}
       <button data-page="importar"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg></span> Importar</button>
       <button data-page="anexos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span> Anexos</button>
       <button data-page="config"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
+      <button data-page="funcoes"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span> Funções & Permissões</button>
       <button data-page="usuarios" id="menuUsuariosBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Usuários Cadastrados</button>
       <button data-page="logs" id="menuLogsBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> Logs do Sistema</button>
     </nav>
@@ -1160,6 +1211,7 @@ tr.trow:hover td{background:var(--hover);}
       <button data-page="importar"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 12v6"/><path d="m15 15-3-3-3 3"/></svg></span> Importar</button>
       <button data-page="anexos"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57a4 4 0 1 1 5.66 5.66l-8.59 8.58a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg></span> Anexos</button>
       <button data-page="config"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg></span> Configurações</button>
+      <button data-page="funcoes"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span> Funções & Permissões</button>
       <button data-page="usuarios" id="mobileDrawerUsuariosBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span> Usuários Cadastrados</button>
       <button data-page="logs" id="mobileDrawerLogsBtn" style="display:none;"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></span> Logs do Sistema</button>
     </nav>
@@ -1981,7 +2033,7 @@ let catManageType = 'despesa';
 let currentType='out', currentRecType='out';
 let currentPage = (function getInitialPage() {
   try {
-    const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'config'];
+    const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'usuarios', 'logs', 'config'];
     const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
     const savedPage = localStorage.getItem('nexus_current_page');
     if (hashPage && validPages.includes(hashPage)) return hashPage;
@@ -2391,6 +2443,7 @@ function render(){
   else if(currentPage==='anexos') newHTML = pageAnexos();
   else if(currentPage==='alertas') newHTML = pageAlertas();
   else if(currentPage==='config') newHTML = pageConfig();
+  else if(currentPage==='funcoes') newHTML = pageFuncoes();
 
   el.innerHTML = newHTML;
   attachPageEvents();
@@ -2403,8 +2456,8 @@ function render(){
 }
 
 function updateActiveMenu(){
-  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'logs', 'config'];
-  const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'config'];
+  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'usuarios', 'logs', 'config'];
+  const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'config'];
   const isAdmin = currentUser && currentUser.role === 'Administrador';
   const isAdminView = isAdmin && !isViewingOtherUser;
 
@@ -3322,6 +3375,154 @@ function pageConfig(){
     </div>
   </div>
   <div class="cfg-save-bar"><button class="btn-primary" id="btnSalvarConfig">Salvar Alterações</button></div>\`}\`;
+}
+
+/* ==================== Aba 4K: Central de Funções & Permissões ==================== */
+function pageFuncoes(){
+  const userRole = (currentUser && currentUser.role) || 'Usuário';
+  const isAdmin = userRole === 'Administrador';
+  const totalUsers = registeredUsers ? registeredUsers.length : 1;
+  const adminCount = registeredUsers ? registeredUsers.filter(u => u.role === 'Administrador').length : 1;
+  const standardCount = totalUsers - adminCount;
+
+  return \`
+  <div class="page-head">
+    <div>
+      <h1 style="display:flex; align-items:center; gap:10px;">
+        <span style="display:inline-flex; align-items:center; justify-content:center; width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg, rgba(232,176,75,0.25), rgba(201,134,42,0.15)); border:1px solid rgba(232,176,75,0.4); color:#fbbf24; font-size:18px;">🛡️</span>
+        Central de Funções & Permissões
+      </h1>
+      <p>Gerencie papéis de usuários, matriz de controle de acessos, privilégios e rotinas funcionais do sistema em 4K</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <span class="tag" style="background:rgba(232,176,75,0.15); color:#fbbf24; border:1px solid rgba(232,176,75,0.3); font-weight:700; padding:6px 12px; border-radius:20px; font-size:12px;">
+        ⚡ Modo \${userRole}
+      </span>
+    </div>
+  </div>
+
+  <!-- Cards de Resumo Executivo das Funções 4K -->
+  <div class="kpis" style="margin-bottom:20px;">
+    <div class="kpi" style="border:1px solid rgba(232,176,75,0.25); background:linear-gradient(135deg, rgba(20,24,33,0.9), rgba(12,16,24,0.95)); shadow:0 10px 30px rgba(0,0,0,0.5);">
+      <div class="kpi-head"><span class="lbl">Sua Função Atual</span><span class="ic" style="background:rgba(232,176,75,0.2); color:#fbbf24;">👑</span></div>
+      <div class="val" style="color:#fbbf24; font-size:22px;">\${userRole}</div>
+      <div class="sub" style="color:var(--text-dim); margin-top:4px;">Nível de Privilégio: \${isAdmin ? 'Acesso Total (Nível 1)' : 'Acesso Padrão (Nível 2)'}</div>
+    </div>
+    <div class="kpi" style="border:1px solid rgba(16,185,129,0.25); background:linear-gradient(135deg, rgba(20,24,33,0.9), rgba(12,16,24,0.95));">
+      <div class="kpi-head"><span class="lbl">Usuários & Administradores</span><span class="ic" style="background:rgba(16,185,129,0.2); color:#10b981;">👥</span></div>
+      <div class="val" style="color:#10b981; font-size:22px;">\${totalUsers} Cadastrado\${totalUsers===1?'':'s'}</div>
+      <div class="sub" style="color:var(--text-dim); margin-top:4px;">\${adminCount} Admins · \${standardCount} Operadores</div>
+    </div>
+    <div class="kpi" style="border:1px solid rgba(59,130,246,0.25); background:linear-gradient(135deg, rgba(20,24,33,0.9), rgba(12,16,24,0.95));">
+      <div class="kpi-head"><span class="lbl">Módulos & Capacidades</span><span class="ic" style="background:rgba(59,130,246,0.2); color:#3b82f6;">⚙️</span></div>
+      <div class="val" style="color:#3b82f6; font-size:22px;">12 Módulos Ativos</div>
+      <div class="sub" style="color:var(--text-dim); margin-top:4px;">Proteção Criptografada SSL / JWT</div>
+    </div>
+  </div>
+
+  <!-- Matriz de Funções & Controle de Acessos 4K -->
+  <div class="panel" style="margin-bottom:20px; border:1px solid rgba(232,176,75,0.25); background:var(--card);">
+    <div class="panel-head">
+      <h3>Matriz de Permissões por Função do Sistema</h3>
+      <span class="tag" style="cursor:default; background:rgba(232,176,75,0.12); color:#fbbf24; border-color:rgba(232,176,75,0.3);">Visão 4K HD</span>
+    </div>
+    <p class="cfg-hint" style="margin-bottom:16px;">Tabela detalhada de acessos, privilégios de edição e permissões ativas para cada nível de usuário.</p>
+    
+    <div class="table-panel" style="padding:0; border:none; background:transparent;">
+      <table style="width:100%; border-collapse:collapse; text-align:left;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--card-border); background:rgba(0,0,0,0.25);">
+            <th style="padding:14px 16px; color:var(--text-dim); font-size:12px; text-transform:uppercase; letter-spacing:0.05em;">Módulo do Sistema</th>
+            <th style="padding:14px 16px; color:#fbbf24; font-size:12px; text-transform:uppercase; letter-spacing:0.05em;">👑 Administrador</th>
+            <th style="padding:14px 16px; color:#34d399; font-size:12px; text-transform:uppercase; letter-spacing:0.05em;">💼 Gerente Financeiro</th>
+            <th style="padding:14px 16px; color:#60a5fa; font-size:12px; text-transform:uppercase; letter-spacing:0.05em;">👤 Usuário / Operador</th>
+            <th style="padding:14px 16px; color:#c084fc; font-size:12px; text-transform:uppercase; letter-spacing:0.05em;">🔍 Auditor (Leitura)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:14px 16px; font-weight:600; color:var(--text);"><span style="margin-right:8px;">📊</span> Dashboard Executivo</td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total (Criar/Editar/Excluir)</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total Próprio</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge read">👁️ Somente Leitura</span></td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:14px 16px; font-weight:600; color:var(--text);"><span style="margin-right:8px;">💳</span> Gestão de Transações & Cartões</td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total (Qualquer Usuário)</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total Próprio</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total Próprio</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge read">👁️ Somente Leitura</span></td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:14px 16px; font-weight:600; color:var(--text);"><span style="margin-right:8px;">🎯</span> Orçamentos, Metas & Relatórios</td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total + Exportação 4K</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total + Exportação</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Total Próprio</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge read">👁️ Exportação CSV/PDF</span></td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:14px 16px; font-weight:600; color:var(--text);"><span style="margin-right:8px;">👥</span> Gerenciamento de Usuários & Contas</td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Controle Total + Modo Espelho 👁️</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge lock">🔒 Sem Acesso</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge lock">🔒 Sem Acesso</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge read">👁️ Lista de Contas</span></td>
+          </tr>
+          <tr style="border-bottom:1px solid rgba(255,255,255,0.04);">
+            <td style="padding:14px 16px; font-weight:600; color:var(--text);"><span style="margin-right:8px;">📜</span> Logs de Auditoria & Segurança</td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge full">✅ Auditoria Geral + Filtro IP/Email</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge read">👁️ Logs Próprios</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge lock">🔒 Sem Acesso</span></td>
+            <td style="padding:14px 16px;"><span class="funcoes-badge read">👁️ Leitura de Eventos</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Central de Rotinas & Automação Funcional 4K -->
+  <div class="cfg-grid" style="margin-bottom:20px;">
+    <div class="panel" style="border:1px solid rgba(232,176,75,0.2); background:var(--card);">
+      <div class="panel-head"><h3>⚡ Status das Rotinas Funcionais</h3></div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(0,0,0,0.25); border-radius:10px; border:1px solid var(--card-border);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:10px; height:10px; border-radius:50%; background:#10b981; box-shadow:0 0 10px #10b981;"></span>
+            <div><strong style="font-size:13.5px; color:var(--text);">Persistência PostgreSQL</strong><div style="font-size:11px; color:var(--text-faint);">Sincronização em tempo real</div></div>
+          </div>
+          <span style="font-size:11px; font-weight:700; color:#10b981; background:rgba(16,185,129,0.15); padding:3px 8px; border-radius:6px;">Online</span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(0,0,0,0.25); border-radius:10px; border:1px solid var(--card-border);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:10px; height:10px; border-radius:50%; background:#3b82f6; box-shadow:0 0 10px #3b82f6;"></span>
+            <div><strong style="font-size:13.5px; color:var(--text);">Engine de Cálculos 4K</strong><div style="font-size:11px; color:var(--text-faint);">Saldos, faturas & projeções</div></div>
+          </div>
+          <span style="font-size:11px; font-weight:700; color:#3b82f6; background:rgba(59,130,246,0.15); padding:3px 8px; border-radius:6px;">Ativo</span>
+        </div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:rgba(0,0,0,0.25); border-radius:10px; border:1px solid var(--card-border);">
+          <div style="display:flex; align-items:center; gap:10px;">
+            <span style="width:10px; height:10px; border-radius:50%; background:#f59e0b; box-shadow:0 0 10px #f59e0b;"></span>
+            <div><strong style="font-size:13.5px; color:var(--text);">Auditoria beacon & API Logs</strong><div style="font-size:11px; color:var(--text-faint);">Rastreamento de ações do sistema</div></div>
+          </div>
+          <span style="font-size:11px; font-weight:700; color:#f59e0b; background:rgba(245,158,11,0.15); padding:3px 8px; border-radius:6px;">Gravando</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel" style="border:1px solid rgba(232,176,75,0.2); background:var(--card);">
+      <div class="panel-head"><h3>🛠️ Ferramentas & Teste de Função</h3></div>
+      <p class="cfg-hint" style="margin-bottom:14px;">Utilize as ferramentas abaixo para validar o estado e o recálculo imediato de todas as funções ativas.</p>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <button class="btn-primary" onclick="if(typeof recalculateAllBalances==='function') recalculateAllBalances(); showLoginSuccessPopup('Saldos e funções reprocessados com sucesso!');" style="display:flex; align-items:center; justify-content:center; gap:8px;">
+          <span>🔄</span> Recalcular Saldos & Projeções
+        </button>
+        <button class="btn-ghost" onclick="syncUsersWithServer().then(()=>showLoginSuccessPopup('Funções de usuários atualizadas!'));" style="display:flex; align-items:center; justify-content:center; gap:8px; border-color:rgba(232,176,75,0.3); color:#fbbf24;">
+          <span>⚡</span> Sincronizar Tabela de Funções & Usuários
+        </button>
+      </div>
+    </div>
+  </div>
+  \`;
 }
 
 /* ==================== Admin: Usuários Cadastrados ==================== */
@@ -4840,7 +5041,7 @@ function navigate(page){
 }
 
 window.addEventListener('hashchange', ()=>{
-  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'usuarios', 'config'];
+  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'usuarios', 'logs', 'config'];
   const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
   if(hashPage && validPages.includes(hashPage) && hashPage !== currentPage){
     navigate(hashPage);

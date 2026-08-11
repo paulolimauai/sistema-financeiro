@@ -65,16 +65,19 @@
             position: relative;
             background: transparent;
             border: 1px solid transparent;
+            user-select: none;
         }
         .auth-tab:hover {
             color: #f3f4f6;
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(232, 176, 75, 0.08);
+            border-color: rgba(232, 176, 75, 0.2);
         }
         .auth-tab.active {
-            color: #06D6A0;
-            background: rgba(6, 214, 160, 0.12);
-            border-color: rgba(6, 214, 160, 0.3);
-            box-shadow: 0 0 20px rgba(6, 214, 160, 0.2);
+            color: #fbbf24;
+            background: linear-gradient(135deg, rgba(232, 176, 75, 0.22) 0%, rgba(201, 134, 42, 0.18) 100%);
+            border-color: rgba(232, 176, 75, 0.5);
+            box-shadow: 0 0 22px rgba(232, 176, 75, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+            font-weight: 700;
         }
         .glass-card-3d {
             background: rgba(16, 24, 45, 0.8);
