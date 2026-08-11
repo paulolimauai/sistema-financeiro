@@ -6007,19 +6007,28 @@ Seja direto, encorajador e prático. Limite a resposta a 3 parágrafos curtos em
   res.end(htmlContent);
 });
 
-initDatabase()
-  .then(() => {
-    console.log(`[BANCO] Conectado com sucesso ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
-  })
-  .catch(err => {
-    console.warn(`[BANCO AVISO] PostgreSQL indisponível. O sistema funcionará com alta resiliência e fallback JSON local: ${err.message}`);
-  })
-  .finally(() => {
-    server.listen(PORT, () => {
-      console.log(`==================================================`);
-      console.log(`🚀 Servidor Nexus Financeiro Hub rodando na porta ${PORT}`);
-      console.log(`📋 Logs do banco disponíveis em tempo real no VS Code: system_logs.json`);
-      console.log(`==================================================`);
+// Tratamento global contra quedas do processo em produção
+process.on('uncaughtException', (err) => {
+  console.error('[PRODUÇÃO AVISO] Exceção capturada:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('[PRODUÇÃO AVISO] Rejeição capturada:', reason);
+});
+
+// Inicialização imediata do servidor escutando em todas as interfaces (0.0.0.0) para compatibilidade com Render/Railway/Heroku
+server.listen(PORT, '0.0.0.0', () => {
+  console.log(`==================================================`);
+  console.log(`🚀 Servidor Nexus Financeiro Hub rodando na porta ${PORT} (0.0.0.0)`);
+  console.log(`📋 Logs do banco disponíveis em tempo real: system_logs.json`);
+  console.log(`==================================================`);
+
+  // Conexão e inicialização assíncrona do banco em segundo plano
+  initDatabase()
+    .then(() => {
+      console.log(`[BANCO] Conectado com sucesso ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
+    })
+    .catch(err => {
+      console.warn(`[BANCO AVISO] PostgreSQL indisponível. O sistema funcionará com alta resiliência e fallback JSON local: ${err.message}`);
     });
-  });
+});
 
