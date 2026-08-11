@@ -235,14 +235,14 @@ html.is-admin #mobileDrawerLogsBtn {
 }
 
 :root{
-  --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
-  --text:#e9edf3; --text-dim:#8a93a3; --text-faint:#5b6472;
+  --bg:#070c18; --sidebar:#0a1120; --card:#0e1628; --card-border:rgba(232, 176, 75, 0.22);
+  --text:#f8fafc; --text-dim:#94a3b8; --text-faint:#64748b;
   --green:#e8b04b; --green-soft:rgba(232,176,75,.14);
   --red:#ef5a5a; --red-soft:rgba(239,90,90,.12);
-  --blue:#4a90e2; --purple:#9b6bd8; --orange:#f0a63a; --teal:#3ec7c7; --pink:#d85bb0;
-  --hover:#1a1f29;
-  --radius:14px;
-  --shadow:0 8px 24px rgba(0,0,0,.35);
+  --blue:#3b82f6; --purple:#9b6bd8; --orange:#f59e0b; --teal:#38bdf8; --pink:#d85bb0;
+  --hover:#131d33;
+  --radius:16px;
+  --shadow:0 20px 50px rgba(0,0,0,.6);
 }
 body.light, html.light body{
   --bg:#f4f6f9; --sidebar:#ffffff; --card:#ffffff; --card-border:#e6e9ef;
@@ -253,7 +253,7 @@ body.light, html.light body{
 *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
 html, body{overflow-x:hidden; width:100%;}
 body{
-  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
+  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
   background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
 }
 button, input, select{font-family:inherit; color:inherit;}
@@ -265,16 +265,50 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
+/* ==================== Aplicação Principal ==================== */
+.app{
+  position:relative; min-height:100vh; display:none; flex-direction:column;
+  background:
+    radial-gradient(circle at 15% 15%, rgba(232,176,75,0.12), transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(59,130,246,0.12), transparent 50%),
+    linear-gradient(165deg, #070c18 0%, #090e1c 50%, #060a14 100%);
+}
+.app.show { display:flex; }
+
+/* ==================== Tela de Auth ==================== */
 .auth-container{
   --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
   --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
   background:
-    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
-    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
-    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
+    radial-gradient(circle at 15% 50%, rgba(232,176,75,0.14), transparent 50%),
+    radial-gradient(circle at 85% 50%, rgba(59,130,246,0.14), transparent 50%),
+    linear-gradient(165deg, #070c18 0%, #090e1c 50%, #060a14 100%);
+}
+
+/* ==================== Navegação por Abas Profissionais ==================== */
+nav.menu{
+  display:flex; align-items:center; flex-wrap:nowrap; gap:6px; width:100%;
+  padding:6px; max-width:1440px; margin:4px auto 14px;
+  background:rgba(14, 22, 40, 0.75); border:1px solid rgba(232, 176, 75, 0.25);
+  border-radius:16px; backdrop-filter:blur(16px);
+  overflow-x:auto; scrollbar-width:none;
+}
+nav.menu::-webkit-scrollbar{display:none;}
+.menu button{
+  display:flex; align-items:center; gap:8px; text-align:left; background:transparent; border:1px solid transparent;
+  color:#94a3b8; padding:10px 16px; border-radius:12px; font-size:13.5px; font-weight:600; cursor:pointer;
+  transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space:nowrap; flex-shrink:0;
+}
+.menu button:hover{
+  background:rgba(255, 255, 255, 0.05); color:#f8fafc;
+}
+.menu button.active{
+  background:linear-gradient(135deg, rgba(232, 176, 75, 0.22), rgba(217, 119, 6, 0.12));
+  border-color:rgba(232, 176, 75, 0.45);
+  color:#e8b04b; font-weight:700;
+  box-shadow:0 4px 20px rgba(232, 176, 75, 0.18);
 }
 .auth-container.show { display: flex; }
 .auth-grid{
