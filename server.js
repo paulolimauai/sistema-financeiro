@@ -1,11 +1,9 @@
-try { require('dotenv').config(); } catch(e){}
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const url = require('url');
 const net = require('net');
 const tls = require('tls');
-const crypto = require('crypto');
 const { Pool } = require('pg');
 
 const PORT = process.env.PORT || 3000;
@@ -33,33 +31,6 @@ const DEFAULT_ADMIN = {
   role: 'Administrador',
   active: true
 };
-
-function verifyPassword(inputPassword, storedPassword) {
-  if (!storedPassword || !inputPassword) return false;
-  const cleanInput = String(inputPassword).trim();
-  const cleanStored = String(storedPassword).trim();
-
-  if (cleanStored === cleanInput) return true;
-
-  if (cleanStored.includes(':')) {
-    const parts = cleanStored.split(':');
-    if (parts.length === 2) {
-      const [saltHex, hashHex] = parts;
-      try {
-        const derivedSha512 = crypto.pbkdf2Sync(cleanInput, saltHex, 1000, hashHex.length / 2, 'sha512').toString('hex');
-        if (derivedSha512.toLowerCase() === hashHex.toLowerCase()) return true;
-
-        const derivedSha256 = crypto.pbkdf2Sync(cleanInput, saltHex, 1000, hashHex.length / 2, 'sha256').toString('hex');
-        if (derivedSha256.toLowerCase() === hashHex.toLowerCase()) return true;
-
-        const simpleSha512 = crypto.createHash('sha512').update(cleanInput + saltHex).digest('hex');
-        if (simpleSha512.toLowerCase() === hashHex.toLowerCase()) return true;
-      } catch (e) {}
-    }
-  }
-
-  return false;
-}
 
 // Disparo real de e-mail via Socket SMTP Nativo (compatível com Gmail sem pacotes externos)
 function sendPasswordEmail(toEmail, userName, userPassword) {
@@ -187,24 +158,6 @@ async function initDatabase() {
      ON CONFLICT (email) DO NOTHING;`,
     [DEFAULT_ADMIN.name, DEFAULT_ADMIN.email, DEFAULT_ADMIN.password, DEFAULT_ADMIN.role, DEFAULT_ADMIN.active]
   );
-
-  // Sincroniza usuários do arquivo local (backup) no banco de dados na inicialização
-  try {
-    const localUsers = getLocalUsers();
-    for (const u of localUsers) {
-      if (!u || !u.email) continue;
-      await pool.query(
-        `INSERT INTO usuarios (name, email, password, role, active)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (email) DO UPDATE
-         SET name = EXCLUDED.name,
-             password = EXCLUDED.password,
-             role = EXCLUDED.role,
-             active = EXCLUDED.active;`,
-        [u.name, u.email.toLowerCase().trim(), u.password, u.role || 'Usuário', u.active !== false]
-      ).catch(() => {});
-    }
-  } catch(e) {}
 }
 
 // Conteúdo HTML/JS/CSS da aplicação centralizada com isolamento por usuário
@@ -217,7 +170,6 @@ const htmlContent = `<!DOCTYPE html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b0e12" id="metaThemeColor">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
 (function() {
   try {
@@ -254,14 +206,14 @@ html.is-admin #mobileDrawerLogsBtn {
 }
 
 :root{
-  --bg:#050914; --sidebar:rgba(10, 17, 32, 0.85); --card:rgba(12, 19, 36, 0.78); --card-border:rgba(16, 185, 129, 0.28);
-  --text:#f8fafc; --text-dim:#94a3b8; --text-faint:#64748b;
-  --green:#10b981; --green-soft:rgba(16,185,129,.16);
-  --red:#f43f5e; --red-soft:rgba(244,63,94,.14);
-  --blue:#06b6d4; --purple:#a855f7; --gold:#e8b04b; --gold-soft:rgba(232,176,75,.16); --orange:#f59e0b; --pink:#ec4899;
-  --hover:rgba(16, 185, 129, 0.12);
-  --radius:16px;
-  --shadow:0 20px 50px rgba(0,0,0,.7);
+  --bg:#0b0e12; --sidebar:#0e1116; --card:#141821; --card-border:#1f2530;
+  --text:#e9edf3; --text-dim:#8a93a3; --text-faint:#5b6472;
+  --green:#e8b04b; --green-soft:rgba(232,176,75,.14);
+  --red:#ef5a5a; --red-soft:rgba(239,90,90,.12);
+  --blue:#4a90e2; --purple:#9b6bd8; --orange:#f0a63a; --teal:#3ec7c7; --pink:#d85bb0;
+  --hover:#1a1f29;
+  --radius:14px;
+  --shadow:0 8px 24px rgba(0,0,0,.35);
 }
 body.light, html.light body{
   --bg:#f4f6f9; --sidebar:#ffffff; --card:#ffffff; --card-border:#e6e9ef;
@@ -272,7 +224,7 @@ body.light, html.light body{
 *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
 html, body{overflow-x:hidden; width:100%;}
 body{
-  font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
+  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
   background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
 }
 button, input, select{font-family:inherit; color:inherit;}
@@ -284,52 +236,16 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Aplicação Principal ==================== */
-.app{
-  position:relative; min-height:100vh; display:none; flex-direction:column;
-  background:
-    radial-gradient(circle at 15% 15%, rgba(16,185,129,0.12), transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(6,182,212,0.12), transparent 50%),
-    linear-gradient(165deg, #050914 0%, #070c1a 50%, #040710 100%);
-}
-.app.show { display:flex; }
-
-/* ==================== Tela de Auth (Apenas Tela de Login) ==================== */
+/* ==================== Tela de Auth (Dourado/Âmbar) ==================== */
 .auth-container{
-  --auth-accent:#10b981; --auth-accent-2:#059669; --auth-accent-3:#6ee7b7;
-  --auth-accent-soft:rgba(16,185,129,.18); --auth-text-on:#022c22;
+  --auth-accent:#e8b04b; --auth-accent-2:#c9862a; --auth-accent-3:#f6d999;
+  --auth-accent-soft:rgba(232,176,75,.16); --auth-text-on:#1f1400;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
   background:
-    radial-gradient(circle at 15% 50%, rgba(16,185,129,0.20), transparent 50%),
-    radial-gradient(circle at 85% 50%, rgba(6,182,212,0.20), transparent 50%),
-    linear-gradient(180deg, rgba(5, 9, 20, 0.70) 0%, rgba(7, 12, 26, 0.80) 100%),
-    url('/images/nexus_bg_4k.jpg') no-repeat center center fixed;
-  background-size: cover;
-}
-
-/* ==================== Navegação por Abas Profissionais ==================== */
-nav.menu{
-  display:flex; align-items:center; flex-wrap:nowrap; gap:6px; width:100%;
-  padding:6px; max-width:1440px; margin:4px auto 14px;
-  background:rgba(14, 22, 40, 0.75); border:1px solid rgba(232, 176, 75, 0.25);
-  border-radius:16px; backdrop-filter:blur(16px);
-  overflow-x:auto; scrollbar-width:none;
-}
-nav.menu::-webkit-scrollbar{display:none;}
-.menu button{
-  display:flex; align-items:center; gap:8px; text-align:left; background:transparent; border:1px solid transparent;
-  color:#94a3b8; padding:10px 16px; border-radius:12px; font-size:13.5px; font-weight:600; cursor:pointer;
-  transition:all 0.2s cubic-bezier(0.4, 0, 0.2, 1); white-space:nowrap; flex-shrink:0;
-}
-.menu button:hover{
-  background:rgba(255, 255, 255, 0.05); color:#f8fafc;
-}
-.menu button.active{
-  background:linear-gradient(135deg, rgba(232, 176, 75, 0.22), rgba(217, 119, 6, 0.12));
-  border-color:rgba(232, 176, 75, 0.45);
-  color:#e8b04b; font-weight:700;
-  box-shadow:0 4px 20px rgba(232, 176, 75, 0.18);
+    radial-gradient(circle at top right, rgba(232,176,75,0.12), transparent 42%),
+    radial-gradient(circle at bottom left, rgba(201,134,42,0.10), transparent 48%),
+    linear-gradient(165deg, #090b10 0%, #0d1016 45%, #14100a 100%);
 }
 .auth-container.show { display: flex; }
 .auth-grid{
@@ -378,20 +294,19 @@ body.light .auth-blob{opacity:.16;}
 }
 .auth-box{
   position:relative; z-index:1;
-  background:rgba(10, 17, 32, 0.85); border:1px solid rgba(16, 185, 129, 0.35); border-radius:24px;
+  background:var(--card); border:1px solid rgba(232,176,75,.3); border-radius:24px;
   padding:36px; width:100%; max-width:420px;
-  backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
-  box-shadow:0 25px 60px rgba(0,0,0,0.85), 0 0 35px rgba(16, 185, 129, 0.18);
+  box-shadow:0 20px 60px rgba(0,0,0,0.85), 0 0 35px rgba(232,176,75,0.18);
   animation:authIn .55s cubic-bezier(.16,1,.3,1);
 }
 .auth-box .brand{display:flex; justify-content:center; margin-bottom:24px; padding:0;}
 .auth-box .brand .logo{
-  background:linear-gradient(135deg,#10b981,#e8b04b) !important; color:#022c22 !important;
+  background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)) !important; color:var(--auth-text-on) !important;
   animation:logoPulse 3s ease-in-out infinite;
 }
 @keyframes logoPulse{
-  0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.45);}
-  50%{box-shadow:0 0 0 9px rgba(16,185,129,0);}
+  0%,100%{box-shadow:0 0 0 0 rgba(232,176,75,.45);}
+  50%{box-shadow:0 0 0 9px rgba(232,176,75,0);}
 }
 .auth-box h2{font-size:20px; font-weight:700; margin-bottom:6px; text-align:center;}
 .auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
@@ -406,9 +321,8 @@ body.light .auth-blob{opacity:.16;}
 .auth-forgot:hover{color:var(--auth-accent); text-decoration:underline;}
 .auth-box .btn-auth{
   position:relative; overflow:hidden;
-  width:100%; padding:12px; background:linear-gradient(135deg,#10b981,#059669); color:#ffffff; border:none;
+  width:100%; padding:12px; background:linear-gradient(135deg,var(--auth-accent),var(--auth-accent-2)); color:var(--auth-text-on); border:none;
   border-radius:10px; font-weight:700; font-size:14px; cursor:pointer; margin-top:8px;
-  box-shadow: 0 4px 15px rgba(16,185,129,0.3);
   transition:filter .2s, transform .15s;
 }
 .auth-box .btn-auth::after{
@@ -1601,34 +1515,23 @@ document.getElementById('forgotStep1').onsubmit = async (e) => {
 // Login
 document.getElementById('loginForm').onsubmit = async (e) => {
   e.preventDefault();
+  await syncUsersWithServer();
   const email = document.getElementById('loginEmail').value.trim();
   const password = document.getElementById('loginPassword').value.trim();
 
-  if (!email || !password) {
-    alert('Por favor, preencha o e-mail e a senha.');
-    return;
-  }
-
-  try {
-    const res = await fetch(window.location.origin + '/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      alert(data.error || 'E-mail ou senha incorretos!');
+  const user = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
+  if (user) {
+    if (user.active === false) {
+      showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
       return;
     }
-
-    currentUser = data.user;
-    saveToStorage('nexus_session', { email: data.user.email });
-    saveToStorage('nexus_cached_user', data.user);
-    saveToStorage('nexus_token', data.token || ('token_' + Date.now()));
+    currentUser = user;
+    saveToStorage('nexus_session', { email: user.email });
+    saveToStorage('nexus_cached_user', user);
+    saveToStorage('nexus_token', 'token_' + Date.now());
     document.documentElement.classList.add('user-logged-in');
     await loadUserData();
-    if (currentUser.role === 'Administrador' && !isViewingOtherUser) {
+    if (user.role === 'Administrador' && !isViewingOtherUser) {
       currentPage = 'usuarios';
     } else {
       currentPage = 'dashboard';
@@ -1636,33 +1539,9 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
     render();
-    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + (currentUser.name ? currentUser.name.split(' ')[0] : 'Usuário') + '!');
-  } catch (err) {
-    await syncUsersWithServer();
-    const user = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && (u.password === password || password === '86266049'));
-    if (user) {
-      if (user.active === false) {
-        showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
-        return;
-      }
-      currentUser = user;
-      saveToStorage('nexus_session', { email: user.email });
-      saveToStorage('nexus_cached_user', user);
-      saveToStorage('nexus_token', 'token_' + Date.now());
-      document.documentElement.classList.add('user-logged-in');
-      await loadUserData();
-      if (user.role === 'Administrador' && !isViewingOtherUser) {
-        currentPage = 'usuarios';
-      } else {
-        currentPage = 'dashboard';
-      }
-      document.getElementById('authPage').classList.remove('show');
-      document.getElementById('appMain').classList.add('show');
-      render();
-      showLoginSuccessPopup('Bem-vindo(a) de volta, ' + user.name.split(' ')[0] + '!');
-    } else {
-      alert('E-mail ou senha incorretos!');
-    }
+    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + user.name.split(' ')[0] + '!');
+  } else {
+    alert('E-mail ou senha incorretos!');
   }
 };
 
@@ -2123,37 +2002,20 @@ function catOptionsHTML(type, selected){
 }
 const periodLabel = () => currentPeriod.month === 0 ? 'Todas as Datas (Geral)' : ((MONTHS[currentPeriod.month-1] || 'Mês ' + currentPeriod.month) + ' / ' + currentPeriod.year);
 
-function normalizeDateToISO(dateVal) {
-  if (!dateVal) return new Date().toISOString().split('T')[0];
-  const str = String(dateVal).trim();
-  if (str.includes('T')) return str.split('T')[0];
-  if (str.includes('/')) {
-    const parts = str.split('/');
-    if (parts.length === 3) {
-      const day = parts[0].padStart(2, '0');
-      const month = parts[1].padStart(2, '0');
-      const year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
-      return year + '-' + month + '-' + day;
-    }
-  }
-  if (str.includes('-')) {
-    const parts = str.split('-');
-    if (parts.length === 3) {
-      if (parts[0].length === 4) return str;
-      if (parts[2].length === 4) return parts[2] + '-' + parts[1].padStart(2,'0') + '-' + parts[0].padStart(2,'0');
-    }
-  }
-  const d = new Date(dateVal);
-  if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
-  return new Date().toISOString().split('T')[0];
-}
-
 function formatDateBR(dateVal) {
   if (!dateVal) return '—';
   try {
-    const iso = normalizeDateToISO(dateVal);
-    const parts = iso.split('-');
-    if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+    const str = String(dateVal).trim();
+    if (str.includes('T')) {
+      const parts = str.split('T')[0].split('-');
+      if (parts.length === 3) return parts[2] + '/' + parts[1] + '/' + parts[0];
+    }
+    const parts = str.split('-');
+    if (parts.length === 3) {
+      return parts[2].padStart(2,'0') + '/' + parts[1].padStart(2,'0') + '/' + parts[0];
+    }
+    const d = new Date(dateVal);
+    if (!isNaN(d.getTime())) return d.toLocaleDateString('pt-BR');
   } catch(e){}
   return String(dateVal);
 }
@@ -2161,14 +2023,15 @@ function formatDateBR(dateVal) {
 const inPeriod = t => {
   if (!t || !t.date) return false;
   if (currentPeriod.month === 0) return true;
-  const iso = normalizeDateToISO(t.date);
-  const dParts = iso.split('-');
+  
+  const dParts = String(t.date).split('T')[0].split('-');
   if (dParts.length === 3) {
-    const y = parseInt(dParts[0], 10);
-    const m = parseInt(dParts[1], 10);
+    const y = parseInt(dParts[0]);
+    const m = parseInt(dParts[1]);
     return m === currentPeriod.month && y === currentPeriod.year;
   }
-  return true;
+  const d = new Date(t.date);
+  return (d.getMonth() + 1) === currentPeriod.month && d.getFullYear() === currentPeriod.year;
 };
 
 
@@ -2748,22 +2611,6 @@ function pageDashboard(){
     <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
   </div>
 
-  <!-- Assistente Financeiro IA & Insights -->
-  <div class="panel ai-insights-panel" style="margin-bottom:20px; border:1px solid rgba(62,199,199,0.3); background:rgba(62,199,199,0.04); border-radius:16px; padding:16px 20px;">
-    <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:8px;">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:18px;">✨</span>
-        <h3 style="margin:0; font-size:13.5px; font-weight:800; color:var(--blue); text-transform:uppercase; letter-spacing:0.04em;">Assistente Financeiro IA & Insights</h3>
-      </div>
-      <button class="btn-ghost" id="btnGerarIAInsights" style="font-size:11.5px; font-weight:700; padding:5px 14px; border-radius:8px; border:1px solid var(--blue); color:var(--blue); background:rgba(62,199,199,0.1); cursor:pointer;">
-        🔄 Gerar Nova Análise com IA
-      </button>
-    </div>
-    <div id="aiInsightsBox" style="font-size:12.5px; line-height:1.6; color:var(--text-dim);">
-      Clique em <strong>Gerar Nova Análise com IA</strong> para obter diagnósticos em tempo real das suas contas, hábitos de consumo e sugestões para otimizar seus orçamentos.
-    </div>
-  </div>
-
   \${cardSummary.creditCards.length > 0 ? \`
   <!-- Resumo de Limite de Cartões de Crédito no Dashboard -->
   <div class="panel cards-summary-panel" style="margin-bottom:20px; border:1px solid rgba(232,176,75,0.25);">
@@ -2943,7 +2790,7 @@ function transactionsTable(list, showActions){
           <td><span class="pill" style="background:rgba(255,255,255,0.05); color:var(--text-dim); font-weight:600;">\${t.acc || '—'}</span></td>
           <td><span class="type-ic \${t.type}">\${t.type==='in'?'↑':'↓'}</span></td>
           <td class="\${t.type==='in'?'val-in':'val-out'}">\${t.type==='in'?'+':'-'}\${fmt(t.val)}</td>
-          <td><span class="pill status-\${t.status.toLowerCase()}" data-togglestatus="\${t.id}" title="Clique para alternar o status (Pago ↔ Pendente)" style="cursor:pointer;">\${t.status}</span></td>
+          <td><span class="pill status-\${t.status.toLowerCase()}">\${t.status}</span></td>
           \${showActions?\`<td><div class="row-actions"><button data-edit="\${t.id}">✎</button><button data-del="\${t.id}">🗑</button></div></td>\`:''}
         </tr>\`).join('')}
     </tbody>
@@ -2995,7 +2842,6 @@ function pageTransacoes(){
     <div><h1>Transações — \${periodLabel()}</h1><p>Gerencie suas receitas e despesas do mês selecionado</p></div>
     <div class="head-actions">
       \${periodPickerHTML()}
-      <button class="btn-ghost" id="btnExportarCSV" title="Exportar transações filtradas para arquivo CSV">📥 Exportar CSV</button>
       <button class="btn-ghost" id="btnGerenciarCategorias">🏷️ Categorias</button>
       <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
     </div>
@@ -3198,7 +3044,6 @@ function pageRelatorios(){
     </div>
     <div class="head-actions">
       \${periodPickerHTML()}
-      <button class="btn-ghost" id="btnExportarCSV" title="Exportar dados do relatório para CSV">📥 Exportar Relatório CSV</button>
     </div>
   </div>
 
@@ -3279,11 +3124,7 @@ function pageRecorrentes(){
   return \`
   <div class="page-head">
     <div><h1>Lançamentos Recorrentes</h1><p>Transações que se repetem automaticamente</p></div>
-    <div class="head-actions">
-      \${periodPickerHTML()}
-      <button class="btn-ghost" id="btnLancarTodosRecorrentes" title="Lançar todos os recorrentes pendentes para o mês selecionado">⚡ Lançar Todos do Mês</button>
-      <button class="btn-primary" id="btnNovoRecorrente">+ Novo Recorrente</button>
-    </div>
+    <div class="head-actions"><button class="btn-primary" id="btnNovoRecorrente">+ Novo Recorrente</button></div>
   </div>
   <div class="table-panel">
     \${recurringList.length? \`<table><thead><tr><th>Descrição</th><th>Categoria</th><th>Conta</th><th>Frequência</th><th>Dia</th><th>Tipo</th><th>Valor</th><th></th></tr></thead>
@@ -3754,27 +3595,22 @@ function pageLogs(){
 
 /* ==================== Charts ==================== */
 function drawDashboardCharts(){
-  if (typeof Chart === 'undefined') return;
-  try {
-    const periodTx = transactions.filter(inPeriod);
-    const {receitas,despesas} = computeTotals(periodTx);
-    Object.values(charts).forEach(c=>c && c.destroy && c.destroy());
-    const ctx1 = document.getElementById('chartResumo');
-    if(ctx1) charts.resumo = new Chart(ctx1, {
-      type:'doughnut',
-      data:{ datasets:[{data:[receitas||0.0001,despesas||0.0001], backgroundColor:['#3ec7c7','#ef5a5a'], borderWidth:0}] },
-      options:{cutout:'72%', plugins:{legend:{display:false}}, responsive:true, maintainAspectRatio:false}
-    });
-    const cats = despesasPorCategoria(periodTx);
-    const ctx2 = document.getElementById('chartCategorias');
-    if(ctx2) charts.categorias = new Chart(ctx2, {
-      type:'doughnut',
-      data:{ labels:cats.map(c=>c.name), datasets:[{data: cats.length?cats.map(c=>c.val):[1], backgroundColor: cats.length?cats.map(c=>c.color):['#2a2f3a'], borderWidth:0}] },
-      options:{cutout:'62%', plugins:{legend:{display:false}}, responsive:true, maintainAspectRatio:false}
-    });
-  } catch(e) {
-    console.warn('Aviso ao renderizar gráficos do dashboard:', e);
-  }
+  const periodTx = transactions.filter(inPeriod);
+  const {receitas,despesas} = computeTotals(periodTx);
+  Object.values(charts).forEach(c=>c && c.destroy && c.destroy());
+  const ctx1 = document.getElementById('chartResumo');
+  if(ctx1) charts.resumo = new Chart(ctx1, {
+    type:'doughnut',
+    data:{ datasets:[{data:[receitas||0.0001,despesas||0.0001], backgroundColor:['#e8b04b','#ef5a5a'], borderWidth:0}] },
+    options:{cutout:'72%', plugins:{legend:{display:false}}}
+  });
+  const cats = despesasPorCategoria(periodTx);
+  const ctx2 = document.getElementById('chartCategorias');
+  if(ctx2) charts.categorias = new Chart(ctx2, {
+    type:'doughnut',
+    data:{ labels:cats.map(c=>c.name), datasets:[{data: cats.length?cats.map(c=>c.val):[1], backgroundColor: cats.length?cats.map(c=>c.color):['#2a2f3a'], borderWidth:0}] },
+    options:{cutout:'62%', plugins:{legend:{display:false}}}
+  });
 }
 
 function populateAccountOptions(selectedAcc) {
@@ -4801,160 +4637,15 @@ async function deleteAttachment(id){
   render();
 }
 
-/* ==================== Assistente IA, Exportação e Ações Rápidas ==================== */
-function safeClick(id, fn) {
-  const el = document.getElementById(id);
-  if (el) el.onclick = fn;
-}
-
-function safeBind(id, event, fn) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.removeEventListener(event, fn);
-    el.addEventListener(event, fn);
-  }
-}
-
-async function generateAIAnalysis() {
-  const box = document.getElementById('aiInsightsBox');
-  const btn = document.getElementById('btnGerarIAInsights');
-  if (!box) return;
-  box.innerHTML = '⏳ <em>Analisando seus hábitos de consumo, extratos e metas com Inteligência Artificial...</em>';
-  if (btn) { btn.disabled = true; btn.textContent = 'Gerando...'; }
-
-  try {
-    const payloadData = {
-      categories, accounts, transactions, budgets, goals, recurringList, alerts
-    };
-    const res = await fetch(window.location.origin + '/api/ai-insights', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: currentUser ? currentUser.email : '', data: payloadData })
-    });
-    const data = await res.json();
-    if (data && data.success && data.insights) {
-      box.innerHTML = data.insights;
-    } else {
-      box.innerHTML = '⚠️ Não foi possível gerar a análise no momento. Tente novamente em instantes.';
-    }
-  } catch (e) {
-    box.innerHTML = '⚠️ Ocorreu uma falha ao conectar ao serviço de inteligência artificial.';
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '🔄 Gerar Nova Análise com IA'; }
-  }
-}
-
-function exportTransactionsCSV() {
-  let list = transactions.filter(inPeriod);
-  const search = document.getElementById('txSearch');
-  const fTipo = document.getElementById('txFiltroTipo');
-  const fCat = document.getElementById('txFiltroCat');
-  const fStatus = document.getElementById('txFiltroStatus');
-  const fConta = document.getElementById('txFiltroConta');
-  
-  if (search && search.value) {
-    const q = search.value.trim().toLowerCase();
-    list = list.filter(t => t.desc && t.desc.toLowerCase().includes(q));
-  }
-  if (fTipo && fTipo.value) list = list.filter(t => t.type === fTipo.value);
-  if (fCat && fCat.value) list = list.filter(t => t.cat === fCat.value);
-  if (fStatus && fStatus.value) list = list.filter(t => t.status === fStatus.value);
-  if (fConta && fConta.value) {
-    const targetAcc = accounts.find(a => a.name === fConta.value);
-    if (targetAcc) list = list.filter(t => isTxForAccount(t, targetAcc));
-  }
-
-  if (list.length === 0) {
-    showToast('Nenhuma transação encontrada para exportar.');
-    return;
-  }
-
-  let csvContent = '\uFEFFData;Descrição;Categoria;Conta/Cartão;Tipo;Valor;Status\n';
-  list.forEach(t => {
-    const dateFormatted = formatDateBR(t.date);
-    const descSanitized = '"' + (t.desc || '').replace(/"/g, '""') + '"';
-    const catSanitized = '"' + (t.cat || '').replace(/"/g, '""') + '"';
-    const accSanitized = '"' + (t.acc || '').replace(/"/g, '""') + '"';
-    const typeLabel = t.type === 'in' ? 'Receita' : 'Despesa';
-    const valFormatted = (parseFloat(t.val) || 0).toFixed(2).replace('.', ',');
-    const statusLabel = t.status || 'Pago';
-
-    csvContent += dateFormatted + ';' + descSanitized + ';' + catSanitized + ';' + accSanitized + ';' + typeLabel + ';' + valFormatted + ';' + statusLabel + '\n';
-  });
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.setAttribute('href', url);
-  link.setAttribute('download', 'transacoes_nexus_' + currentPeriod.year + '_' + currentPeriod.month + '.csv');
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  showToast('✅ ' + list.length + ' transação(ões) exportada(s) para CSV!');
-}
-
-async function toggleTransactionStatus(id) {
-  const t = transactions.find(x => x.id === id);
-  if (!t) return;
-  const oldStatus = t.status;
-  if (t.type === 'in') {
-    t.status = t.status === 'Recebido' ? 'Pendente' : 'Recebido';
-  } else {
-    t.status = t.status === 'Pago' ? 'Pendente' : 'Pago';
-  }
-  showToast('Status de "' + t.desc + '" alterado para ' + t.status);
-  logActivity('Edição', 'Transação', 'Status alterado: ' + oldStatus + ' ➔ ' + t.status + ' (' + t.desc + ')');
-  await saveUserData();
-  if (currentPage !== 'transacoes' || !refreshTxTable()) render();
-}
-
-async function lancarTodosRecorrentes() {
-  if (recurringList.length === 0) {
-    showToast('Nenhum lançamento recorrente cadastrado.');
-    return;
-  }
-  let launchedCount = 0;
-  recurringList.forEach(r => {
-    const date = pdCustom(currentPeriod.year, currentPeriod.month, r.day);
-    const exists = transactions.some(t => t.desc === r.desc && t.date === date);
-    if (!exists) {
-      transactions.push({
-        id: nextTxId++,
-        desc: r.desc,
-        val: r.val,
-        date: date,
-        cat: r.cat,
-        acc: r.acc,
-        status: r.type === 'in' ? 'Recebido' : 'Pago',
-        type: r.type
-      });
-      launchedCount++;
-    }
-  });
-
-  if (launchedCount > 0) {
-    await saveUserData();
-    showToast('✅ ' + launchedCount + ' lançamento(s) recorrente(s) gerado(s) para ' + periodLabel() + '!');
-    render();
-  } else {
-    showToast('Todos os lançamentos recorrentes deste mês já foram lançados.');
-  }
-}
-
 /* ==================== Eventos de página ==================== */
 function attachPageEvents(){
   document.querySelectorAll('[data-nav]').forEach(el=>el.onclick = ()=>{ navigate(el.getAttribute('data-nav')); });
 
-  safeClick('btnNovaTransacao', ()=>openModal(null));
-  safeClick('btnGerenciarCategorias', openCatManageModal);
-  safeClick('btnExportarCSV', exportTransactionsCSV);
-  safeClick('btnGerarIAInsights', generateAIAnalysis);
-  safeClick('btnLancarTodosRecorrentes', lancarTodosRecorrentes);
-
+  const nova = document.getElementById('btnNovaTransacao'); if(nova) nova.onclick = ()=>openModal(null);
+  const gerCat = document.getElementById('btnGerenciarCategorias'); if(gerCat) gerCat.onclick = openCatManageModal;
   document.querySelectorAll('[data-edit]').forEach(el=>el.onclick = ()=>openModal(parseInt(el.getAttribute('data-edit'))));
   document.querySelectorAll('[data-del]').forEach(el=>el.onclick = ()=>deleteTransaction(parseInt(el.getAttribute('data-del'))));
   document.querySelectorAll('[data-paytx]').forEach(el=>el.onclick = ()=>markTransactionAsPaid(parseInt(el.getAttribute('data-paytx'))));
-  document.querySelectorAll('[data-togglestatus]').forEach(el=>el.onclick = ()=>toggleTransactionStatus(parseInt(el.getAttribute('data-togglestatus'))));
 
   const novaConta = document.getElementById('btnNovaConta'); if(novaConta) novaConta.onclick = ()=>openAccountModal(null);
   document.querySelectorAll('[data-editacc]').forEach(el=>el.onclick = ()=>openAccountModal(parseInt(el.getAttribute('data-editacc'))));
@@ -5174,79 +4865,115 @@ const mobileToggle = document.getElementById('mobileMenuToggle');
 if(mobileToggle) mobileToggle.onclick = ()=> toggleMobileDrawer(true);
 const closeDrawer = document.getElementById('closeMobileDrawer');
 if(closeDrawer) closeDrawer.onclick = ()=> toggleMobileDrawer(false);
-const overlayDrasafeClick('notifBtn', async (e)=>{
+const overlayDrawer = document.getElementById('mobileDrawerOverlay');
+if(overlayDrawer) overlayDrawer.onclick = ()=> toggleMobileDrawer(false);
+
+const mobileDrawerMenu = document.getElementById('mobileDrawerMenu');
+if(mobileDrawerMenu){
+  mobileDrawerMenu.addEventListener('click', e=>{
+    const targetEl = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+    const btn = targetEl ? targetEl.closest('button[data-page]') : null;
+    if(btn && btn.dataset.page){
+      navigate(btn.dataset.page);
+      toggleMobileDrawer(false);
+    }
+  });
+}
+
+document.getElementById('menu').addEventListener('click', e=>{
+  const targetEl = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+  const btn = targetEl ? targetEl.closest('button[data-page]') : null;
+  if(btn && btn.dataset.page) navigate(btn.dataset.page);
+});
+document.addEventListener('click', e=>{
+  const targetEl = e.target.nodeType === 3 ? e.target.parentElement : e.target;
+  const panel = document.getElementById('periodPanel');
+  if(panel && panel.classList.contains('show') && targetEl && !targetEl.closest('.period-wrap')){
+    panel.classList.remove('show');
+    const pBtn = document.getElementById('periodBtn'); if(pBtn) pBtn.classList.remove('open');
+  }
+  const notifPanel = document.getElementById('notifPanel');
+  if(notifPanel && notifPanel.classList.contains('show') && targetEl && !targetEl.closest('.notif-wrap')) notifPanel.classList.remove('show');
+});
+
+document.getElementById('notifBtn').onclick = async (e)=>{
   e.stopPropagation();
   const panel = document.getElementById('notifPanel');
-  if(!panel) return;
   panel.classList.toggle('show');
   if(panel.classList.contains('show') && notifications.some(n=>!n.read)){
     notifications.forEach(n=>n.read=true);
     await saveUserData();
     renderNotifications();
   }
-});
-safeClick('notifMarkAllBtn', async (e)=>{
+};
+document.getElementById('notifMarkAllBtn').onclick = async (e)=>{
   e.stopPropagation();
   notifications.forEach(n=>n.read=true);
   await saveUserData();
   renderNotifications();
-});
+};
 
-safeClick('closeAccModal', closeAccountModal);
-safeClick('accCancelBtn', closeAccountModal);
-safeClick('accSaveBtn', saveAccount);
-safeBind('overlayAccount', 'click', e=>{ if(e.target.id==='overlayAccount') closeAccountModal(); });
+document.getElementById('closeAccModal').onclick = closeAccountModal;
+document.getElementById('accCancelBtn').onclick = closeAccountModal;
+document.getElementById('accSaveBtn').onclick = saveAccount;
+document.getElementById('overlayAccount').addEventListener('click', e=>{ if(e.target.id==='overlayAccount') closeAccountModal(); });
 
 const accNameInput = document.getElementById('accName');
 if (accNameInput) {
   accNameInput.addEventListener('input', (e) => {
     const detected = autoDetectBankColor(e.target.value);
     if (detected) {
-      const colEl = document.getElementById('accColor'); if(colEl) colEl.value = detected.color;
+      document.getElementById('accColor').value = detected.color;
       if (detected.type && !editingAccId) {
-        const typEl = document.getElementById('accType'); if(typEl) typEl.value = detected.type;
+        document.getElementById('accType').value = detected.type;
       }
     }
   });
 }
 
-safeClick('closeModal', closeModal);
-safeClick('cancelBtn', closeModal);
-safeClick('saveBtn', saveTransaction);
-safeBind('overlay', 'click', e=>{ if(e.target.id==='overlay') closeModal(); });
-safeClick('typeInBtn', ()=>setType('in'));
-safeClick('typeOutBtn', ()=>setType('out'));
-safeClick('fCategoriaAddBtn', ()=>openCategoryModal(null, currentType));
+document.getElementById('closeModal').onclick = closeModal;
+document.getElementById('cancelBtn').onclick = closeModal;
+document.getElementById('saveBtn').onclick = saveTransaction;
+document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+document.getElementById('typeInBtn').onclick = ()=>setType('in');
+document.getElementById('typeOutBtn').onclick = ()=>setType('out');
+document.getElementById('fCategoriaAddBtn').onclick = ()=>openCategoryModal(null, currentType);
 
-safeClick('closeCatModal', closeCategoryModal);
-safeClick('catCancelBtn', closeCategoryModal);
-safeClick('catSaveBtn', saveCategory);
-safeBind('overlayCategory', 'click', e=>{ if(e.target.id==='overlayCategory') closeCategoryModal(); });
+document.getElementById('closeAccModal').onclick = closeAccountModal;
+document.getElementById('accCancelBtn').onclick = closeAccountModal;
+document.getElementById('accSaveBtn').onclick = saveAccount;
+document.getElementById('overlayAccount').addEventListener('click', e=>{ if(e.target.id==='overlayAccount') closeAccountModal(); });
 
-safeClick('closeCatManageModal', closeCatManageModal);
-safeClick('catManageCloseBtn', closeCatManageModal);
-safeClick('catManageAddBtn', ()=>openCategoryModal(null, catManageType==='receita' ? 'in' : 'out'));
-safeBind('overlayCatManage', 'click', e=>{ if(e.target.id==='overlayCatManage') closeCatManageModal(); });
+document.getElementById('closeCatModal').onclick = closeCategoryModal;
+document.getElementById('catCancelBtn').onclick = closeCategoryModal;
+document.getElementById('catSaveBtn').onclick = saveCategory;
+document.getElementById('overlayCategory').addEventListener('click', e=>{ if(e.target.id==='overlayCategory') closeCategoryModal(); });
+
+document.getElementById('closeCatManageModal').onclick = closeCatManageModal;
+document.getElementById('catManageCloseBtn').onclick = closeCatManageModal;
+document.getElementById('catManageAddBtn').onclick = ()=>openCategoryModal(null, catManageType==='receita' ? 'in' : 'out');
+document.getElementById('overlayCatManage').addEventListener('click', e=>{ if(e.target.id==='overlayCatManage') closeCatManageModal(); });
 document.querySelectorAll('.cat-manage-tabs .cat-tab').forEach(btn=>{
   btn.onclick = ()=>{ catManageType = btn.getAttribute('data-cattab'); renderCatManageList(catManageType); };
 });
 
-safeClick('closeOrcModal', closeBudgetModal);
-safeClick('orcCancelBtn', closeBudgetModal);
-safeClick('orcSaveBtn', saveBudget);
-safeBind('overlayBudget', 'click', e=>{ if(e.target.id==='overlayBudget') closeBudgetModal(); });
 
-safeClick('closeGoalModal', closeGoalModal);
-safeClick('goalCancelBtn', closeGoalModal);
-safeClick('goalSaveBtn', saveGoal);
-safeBind('overlayGoal', 'click', e=>{ if(e.target.id==='overlayGoal') closeGoalModal(); });
+document.getElementById('closeOrcModal').onclick = closeBudgetModal;
+document.getElementById('orcCancelBtn').onclick = closeBudgetModal;
+document.getElementById('orcSaveBtn').onclick = saveBudget;
+document.getElementById('overlayBudget').addEventListener('click', e=>{ if(e.target.id==='overlayBudget') closeBudgetModal(); });
 
-safeClick('closeRecModal', closeRecurringModal);
-safeClick('recCancelBtn', closeRecurringModal);
-safeClick('recSaveBtn', saveRecurring);
-safeBind('overlayRecurring', 'click', e=>{ if(e.target.id==='overlayRecurring') closeRecurringModal(); });
-safeClick('recTypeInBtn', ()=>setRecType('in'));
-safeClick('recTypeOutBtn', ()=>setRecType('out'));
+document.getElementById('closeGoalModal').onclick = closeGoalModal;
+document.getElementById('goalCancelBtn').onclick = closeGoalModal;
+document.getElementById('goalSaveBtn').onclick = saveGoal;
+document.getElementById('overlayGoal').addEventListener('click', e=>{ if(e.target.id==='overlayGoal') closeGoalModal(); });
+
+document.getElementById('closeRecModal').onclick = closeRecurringModal;
+document.getElementById('recCancelBtn').onclick = closeRecurringModal;
+document.getElementById('recSaveBtn').onclick = saveRecurring;
+document.getElementById('overlayRecurring').addEventListener('click', e=>{ if(e.target.id==='overlayRecurring') closeRecurringModal(); });
+document.getElementById('recTypeInBtn').onclick = ()=>setRecType('in');
+document.getElementById('recTypeOutBtn').onclick = ()=>setRecType('out');
 
 function toggleTheme(){
   const isCurrentlyLight = document.body.classList.contains('light') || document.documentElement.classList.contains('light');
@@ -5262,7 +4989,7 @@ function toggleTheme(){
   if(btn) btn.innerHTML = nextIsLight ? sunSvg : moonSvg;
   if(currentPage==='dashboard') drawDashboardCharts();
 }
-safeClick('miniThemeBtn', toggleTheme);
+document.getElementById('miniThemeBtn').onclick = toggleTheme;
 
 (function initThemeState() {
   try {
@@ -5271,24 +4998,7 @@ safeClick('miniThemeBtn', toggleTheme);
     document.body.classList.toggle('light', isLight);
     document.documentElement.classList.toggle('light', isLight);
     const btn = document.getElementById('miniThemeBtn');
-    const moonSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 0 1 1-9-9Z"/></svg>';
-    const sunSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M22 12h-2"/><path d="m4.93 19.07 1.41-1.41"/><path d="m17.66 6.34 1.41-1.41"/></svg>';
-    if (btn) btn.innerHTML = isLight ? sunSvg : moonSvg;
-  } catch(e){}
-})();
-
-safeClick('closeAlertModal', closeAlertModal);
-safeClick('alertCancelBtn', closeAlertModal);
-safeClick('alertSaveBtn', saveAlert);
-safeBind('overlayAlert', 'click', e=>{ if(e.target.id==='overlayAlert') closeAlertModal(); });
-
-safeClick('closeUserAdminModal', closeUserAdminModal);
-safeClick('userAdminCancelBtn', closeUserAdminModal);
-safeClick('userAdminSaveBtn', saveUserAdmin);
-safeBind('overlayUserAdmin', 'click', e=>{ if(e.target.id==='overlayUserAdmin') closeUserAdminModal(); });
-safeClick('viewModeExitBtn', exitViewMode);
-safeClick('accountDisabledCloseBtn', hideAccountDisabledPopup);
-bindPasswordToggle('loginPassword', 'loginPasswordToggle');0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
+    const moonSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>';
     const sunSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M22 12h-2"/><path d="m4.93 19.07 1.41-1.41"/><path d="m17.66 6.34 1.41-1.41"/></svg>';
     if (btn) btn.innerHTML = isLight ? sunSvg : moonSvg;
   } catch(e){}
@@ -5471,8 +5181,7 @@ function getLocalUsers() {
   try {
     if (fs.existsSync(LOCAL_USERS_PATH)) {
       const content = fs.readFileSync(LOCAL_USERS_PATH, 'utf8');
-      const list = JSON.parse(content) || [];
-      if (Array.isArray(list) && list.length > 0) return list;
+      return JSON.parse(content) || [];
     }
   } catch (e) {}
   return [DEFAULT_ADMIN];
@@ -5480,29 +5189,8 @@ function getLocalUsers() {
 
 function saveLocalUsers(users) {
   try {
-    if (!Array.isArray(users)) return;
-    const existing = getLocalUsers();
-    const userMap = new Map();
-
-    // Preserva todos os cadastros existentes
-    existing.forEach(u => {
-      if (u && u.email) userMap.set(u.email.toLowerCase().trim(), u);
-    });
-
-    // Mescla as atualizações dos usuários recebidos sem excluir cadastros pré-existentes
-    users.forEach(u => {
-      if (u && u.email) {
-        const key = u.email.toLowerCase().trim();
-        const prev = userMap.get(key) || {};
-        userMap.set(key, { ...prev, ...u });
-      }
-    });
-
-    const mergedList = Array.from(userMap.values());
-    fs.writeFileSync(LOCAL_USERS_PATH, JSON.stringify(mergedList, null, 2), 'utf8');
-  } catch (e) {
-    console.error('Erro ao salvar local_users.json:', e);
-  }
+    fs.writeFileSync(LOCAL_USERS_PATH, JSON.stringify(users, null, 2), 'utf8');
+  } catch (e) {}
 }
 
 function getLocalData(email) {
@@ -5568,22 +5256,7 @@ const server = http.createServer((req, res) => {
           user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
         }
 
-        if (!user) {
-          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: false, error: 'E-mail ou senha incorretos!' }));
-        }
-
-        let isPasswordValid = verifyPassword(password, user.password);
-        if (!isPasswordValid && (email.toLowerCase().includes('admin') || email.toLowerCase() === 'paulodelima21@gmail.com') && (password === '86266049' || password === 'admin')) {
-          isPasswordValid = true;
-          user.password = password;
-          pool.query('UPDATE usuarios SET password = $1 WHERE email = $2', [password, user.email]).catch(()=>{});
-          const localUsers = getLocalUsers();
-          const lu = localUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
-          if (lu) { lu.password = password; saveLocalUsers(localUsers); }
-        }
-
-        if (!isPasswordValid) {
+        if (!user || user.password !== password) {
           res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'E-mail ou senha incorretos!' }));
         }
@@ -5760,6 +5433,12 @@ const server = http.createServer((req, res) => {
           const client = await pool.connect();
           try {
             await client.query('BEGIN');
+            const emails = users.map(u => u.email);
+            await client.query(
+              `DELETE FROM usuarios WHERE email <> ALL($1::text[])`,
+              [emails.length ? emails : ['__nunca__']]
+            );
+
             for (const u of users) {
               await client.query(
                 `INSERT INTO usuarios (name, email, password, role, active)
@@ -5904,80 +5583,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Rota POST para Assistente Financeiro IA e Insights Inteligentes
-  if (req.method === 'POST' && parsedUrl.pathname === '/api/ai-insights') {
-    let body = '';
-    req.on('data', chunk => body += chunk.toString());
-    req.on('end', async () => {
-      try {
-        const payload = JSON.parse(body || '{}');
-        const userEmail = (payload.email || '').toLowerCase().trim();
-        const userData = payload.data || getLocalData(userEmail) || {};
-        const txs = userData.transactions || [];
-        const bgs = userData.budgets || [];
-        const accs = userData.accounts || [];
-
-        const totalIn = txs.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
-        const totalOut = txs.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
-        const saldo = totalIn - totalOut;
-        const pctComprometido = totalIn > 0 ? Math.round((totalOut / totalIn) * 100) : 0;
-
-        let promptText = `Atue como um especialista em finanças pessoais e forneça um resumo executivo com 3 dicas estratégicas acionáveis para o usuário.
-Dados do usuário:
-- Transações totais: ${txs.length}
-- Entradas: R$ ${totalIn.toFixed(2)}
-- Saídas: R$ ${totalOut.toFixed(2)}
-- Contas/Cartões: ${accs.map(a => `${a.name} (${a.type}): R$ ${a.balance}`).join(', ') || 'Nenhum'}
-- Orçamentos: ${bgs.map(b => `${b.category}: limite R$ ${b.limit}`).join(', ') || 'Nenhum'}
-
-Seja direto, encorajador e prático. Limite a resposta a 3 parágrafos curtos em Português com emojis.`;
-
-        let aiResponseText = '';
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENAI_API_KEY;
-
-        if (apiKey) {
-          try {
-            const { GoogleGenAI } = require('@google/genai');
-            const ai = new GoogleGenAI({ apiKey });
-            const model = ai.getGenerativeModel ? ai.getGenerativeModel({ model: 'gemini-2.5-flash' }) : null;
-            if (model) {
-              const resGen = await model.generateContent(promptText);
-              aiResponseText = resGen.response.text();
-            }
-          } catch (e) {
-            console.warn('[AVISO IA] Falha na chamada da SDK do GenAI, usando conselho inteligente local:', e.message);
-          }
-        }
-
-        if (!aiResponseText) {
-          // Motor de Conselho Financeiro Inteligente Fallback
-          aiResponseText = `💡 <strong>Diagnóstico da Inteligência Financeira Nexus:</strong><br><br>` +
-            `• <strong>Balanço Geral:</strong> Suas receitas somam R$ ${totalIn.toLocaleString('pt-BR', {minimumFractionDigits: 2})} e suas despesas somam R$ ${totalOut.toLocaleString('pt-BR', {minimumFractionDigits: 2})}, resultando em um saldo de R$ ${saldo.toLocaleString('pt-BR', {minimumFractionDigits: 2})}.<br>` +
-            `• <strong>Taxa de Comprometimento:</strong> Você está utilizando <strong>${pctComprometido}%</strong> da sua renda bruta em despesas. ${pctComprometido > 80 ? '⚠️ Atenção: Recomenda-se manter o comprometimento abaixo de 70% para garantir margem de reserva e investimentos.' : '🎉 Excelente gestão mantendo a taxa de gastos sob controle!'}<br>` +
-            `• <strong>Dica de Ouro:</strong> Crie metas de reserva de emergência para cobrir de 3 a 6 meses de despesas fixas e utilize os alertas de orçamento para evitar surpresas no fim do mês.`;
-        }
-
-        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ success: true, insights: aiResponseText }));
-      } catch (err) {
-        console.error('Erro no endpoint de IA:', err);
-        res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ success: false, error: 'Erro ao gerar análise.' }));
-      }
-    });
-    return;
-  }
-
-  // Suporte a arquivos estáticos (Imagens, Favicon, CSS, JS, HTML)
+  // Suporte a arquivos estáticos (Imagens, Favicon, CSS, JS)
   const pathname = parsedUrl.pathname;
-  if (pathname === '/login.html' || pathname === '/login') {
-    const loginPath = path.join(__dirname, 'login.html');
-    if (fs.existsSync(loginPath)) {
-      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' });
-      return fs.createReadStream(loginPath).pipe(res);
-    }
-  }
-
   if (pathname === '/favicon.ico') {
     const faviconPath = path.join(__dirname, 'favicon.ico');
     if (fs.existsSync(faviconPath)) {
@@ -5988,15 +5595,14 @@ Seja direto, encorajador e prático. Limite a resposta a 3 parágrafos curtos em
     return res.end();
   }
 
-  if (pathname.startsWith('/images/') || pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|json|html)$/i)) {
+  if (pathname.startsWith('/images/') || pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|json)$/i)) {
     const safePath = path.normalize(path.join(__dirname, pathname)).replace(/^(\.\.[\/\\])+/, '');
     if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
       const ext = path.extname(safePath).toLowerCase();
       const mimeTypes = {
         '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
         '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-        '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json',
-        '.html': 'text/html; charset=utf-8'
+        '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json'
       };
       res.writeHead(200, { ...corsHeaders, 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
       return fs.createReadStream(safePath).pipe(res);
@@ -6007,28 +5613,19 @@ Seja direto, encorajador e prático. Limite a resposta a 3 parágrafos curtos em
   res.end(htmlContent);
 });
 
-// Tratamento global contra quedas do processo em produção
-process.on('uncaughtException', (err) => {
-  console.error('[PRODUÇÃO AVISO] Exceção capturada:', err.message);
-});
-process.on('unhandledRejection', (reason) => {
-  console.error('[PRODUÇÃO AVISO] Rejeição capturada:', reason);
-});
-
-// Inicialização imediata do servidor escutando em todas as interfaces (0.0.0.0) para compatibilidade com Render/Railway/Heroku
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`==================================================`);
-  console.log(`🚀 Servidor Nexus Financeiro Hub rodando na porta ${PORT} (0.0.0.0)`);
-  console.log(`📋 Logs do banco disponíveis em tempo real: system_logs.json`);
-  console.log(`==================================================`);
-
-  // Conexão e inicialização assíncrona do banco em segundo plano
-  initDatabase()
-    .then(() => {
-      console.log(`[BANCO] Conectado com sucesso ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
-    })
-    .catch(err => {
-      console.warn(`[BANCO AVISO] PostgreSQL indisponível. O sistema funcionará com alta resiliência e fallback JSON local: ${err.message}`);
+initDatabase()
+  .then(() => {
+    console.log(`[BANCO] Conectado com sucesso ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
+  })
+  .catch(err => {
+    console.warn(`[BANCO AVISO] PostgreSQL indisponível. O sistema funcionará com alta resiliência e fallback JSON local: ${err.message}`);
+  })
+  .finally(() => {
+    server.listen(PORT, () => {
+      console.log(`==================================================`);
+      console.log(`🚀 Servidor Nexus Financeiro Hub rodando na porta ${PORT}`);
+      console.log(`📋 Logs do banco disponíveis em tempo real no VS Code: system_logs.json`);
+      console.log(`==================================================`);
     });
-});
+  });
 
