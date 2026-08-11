@@ -24,13 +24,13 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-            background-color: #060a12;
+            background-color: #070c18;
             color: #e2e8f0;
             overflow-x: hidden;
         }
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #060a12; }
+        ::-webkit-scrollbar-track { background: #070c18; }
         ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 3px; }
         
         .form-fade {
@@ -42,31 +42,43 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-[#060a12]">
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-gradient-to-br from-[#080d19] via-[#0b1222] to-[#070b16]">
 
-    <!-- Ondas Orbitais e Glow de Fundo -->
+    <!-- Ondas Orbitais e Glow de Fundo (Identico ao Screenshot do PC) -->
     <div class="absolute inset-0 pointer-events-none overflow-hidden z-0">
-        <svg class="absolute w-full h-full opacity-20 stroke-amber-500/30" viewBox="0 0 1000 1000" fill="none">
-            <ellipse cx="500" cy="500" rx="450" ry="250" stroke-width="1.5" transform="rotate(-15 500 500)" />
-            <ellipse cx="500" cy="500" rx="550" ry="300" stroke-width="1.2" transform="rotate(-30 500 500)" />
-            <ellipse cx="500" cy="500" rx="650" ry="350" stroke-width="0.8" transform="rotate(-45 500 500)" />
+        <svg class="absolute w-full h-full opacity-35" viewBox="0 0 1600 1000" fill="none">
+            <ellipse cx="300" cy="500" rx="800" ry="400" stroke="url(#goldOrbGrad)" stroke-width="1.2" transform="rotate(-18 300 500)" />
+            <ellipse cx="1300" cy="500" rx="900" ry="450" stroke="url(#blueOrbGrad)" stroke-width="1.2" transform="rotate(22 1300 500)" />
+            <defs>
+                <linearGradient id="goldOrbGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#e8b04b" stop-opacity="0.7"/>
+                    <stop offset="100%" stop-color="#b45309" stop-opacity="0.05"/>
+                </linearGradient>
+                <linearGradient id="blueOrbGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#3b82f6" stop-opacity="0.7"/>
+                    <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0.05"/>
+                </linearGradient>
+            </defs>
         </svg>
-        <div class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-amber-500/10 rounded-full blur-[140px]"></div>
-        <div class="absolute bottom-10 right-10 w-[400px] h-[400px] bg-blue-600/10 rounded-full blur-[140px]"></div>
+        <div class="absolute top-1/2 left-1/4 -translate-y-1/2 w-[550px] h-[550px] bg-amber-500/10 rounded-full blur-[150px]"></div>
+        <div class="absolute top-1/2 right-1/4 -translate-y-1/2 w-[600px] h-[600px] bg-blue-600/10 rounded-full blur-[160px]"></div>
     </div>
 
     <!-- Container Central de Autenticação (Responsivo PC e Mobile) -->
-    <div class="w-full max-w-[420px] z-10 my-auto py-4">
+    <div class="w-full max-w-[430px] z-10 my-auto py-4">
 
-        <!-- Card Principal (Identico a referencia) -->
-        <div class="rounded-3xl border border-amber-500/30 p-7 sm:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.8)] backdrop-blur-2xl bg-[#0e1628]/90 relative overflow-hidden">
+        <!-- Card Principal Glassmorphism -->
+        <div class="rounded-3xl border border-amber-500/30 p-7 sm:p-9 shadow-[0_25px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(232,176,75,0.15)] backdrop-blur-3xl bg-[#0e1628]/90 relative overflow-hidden">
             
-            <!-- Topo: Badge de Logo S e Nome SISTEMA -->
-            <div class="flex items-center justify-center gap-3 mb-4">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-300 via-amber-400 to-sky-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-md shadow-amber-500/20">
+            <!-- Topo: Badge S, SISTEMA e FINANCEIRO PRO -->
+            <div class="flex items-center justify-center gap-3 mb-5">
+                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-300 via-amber-400 to-sky-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-md shadow-amber-500/20 shrink-0">
                     S
                 </div>
-                <span class="text-base font-extrabold tracking-widest text-white uppercase">SISTEMA</span>
+                <div class="flex flex-col text-left">
+                    <span class="text-base font-extrabold tracking-widest text-white uppercase leading-none">SISTEMA</span>
+                    <span class="text-[10px] font-bold tracking-widest text-amber-400 uppercase mt-0.5">FINANCEIRO PRO</span>
+                </div>
             </div>
 
             <!-- Titulo e Subtitulo -->
@@ -87,10 +99,13 @@
 
                     <div>
                         <label class="block text-xs font-semibold text-gray-300 mb-1.5">Senha</label>
-                        <div class="relative">
+                        <div class="relative flex items-center">
                             <input id="loginPassword" name="password" type="password" autocomplete="current-password" required 
-                                class="w-full px-4 py-3 rounded-xl bg-[#131b2e] border border-gray-700/60 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                                class="w-full px-4 py-3 pr-10 rounded-xl bg-[#131b2e] border border-gray-700/60 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
                                 placeholder="••••••••">
+                            <button type="button" onclick="togglePasswordVisibility('loginPassword', this)" class="absolute right-3 text-gray-400 hover:text-gray-200 focus:outline-none">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            </button>
                         </div>
                     </div>
 
@@ -116,16 +131,16 @@
                     <span class="relative px-3 bg-[#0e1628] text-[11px] font-semibold text-gray-400 uppercase tracking-widest">OU ENTRE COM</span>
                 </div>
 
-                <!-- Botoes de Login Social -->
+                <!-- Botoes de Login Social G, Apple, LinkedIn -->
                 <div class="flex justify-center gap-3">
-                    <button type="button" class="w-12 h-12 rounded-xl bg-[#131b2e] border border-gray-800 flex items-center justify-center hover:border-gray-600 transition-colors">
-                        <svg class="w-5 h-5" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                    <button type="button" class="w-12 h-12 rounded-xl bg-[#131b2e] border border-gray-800 flex items-center justify-center text-white font-extrabold text-sm hover:border-amber-500/50 hover:bg-[#18233b] transition-all">
+                        G
                     </button>
-                    <button type="button" class="w-12 h-12 rounded-xl bg-[#131b2e] border border-gray-800 flex items-center justify-center hover:border-gray-600 transition-colors">
-                        <svg class="w-5 h-5 fill-white" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.85c.66-.8 1.12-1.92.99-3.04-.96.04-2.14.65-2.82 1.45-.6.69-1.12 1.83-.98 2.93 1.08.08 2.17-.54 2.81-1.34z"/></svg>
+                    <button type="button" class="w-12 h-12 rounded-xl bg-[#131b2e] border border-gray-800 flex items-center justify-center text-white font-extrabold text-sm hover:border-amber-500/50 hover:bg-[#18233b] transition-all">
+                        
                     </button>
-                    <button type="button" class="w-12 h-12 rounded-xl bg-[#131b2e] border border-gray-800 flex items-center justify-center hover:border-gray-600 transition-colors">
-                        <svg class="w-5 h-5 fill-[#0A66C2]" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.74a1.65 1.65 0 0 0-1.66 1.66 1.66 1.66 0 0 0 1.66 1.65 1.65 1.65 0 0 0 1.65-1.65c0-.92-.74-1.66-1.65-1.66z"/></svg>
+                    <button type="button" class="w-12 h-12 rounded-xl bg-[#131b2e] border border-gray-800 flex items-center justify-center text-sky-400 font-extrabold text-sm hover:border-amber-500/50 hover:bg-[#18233b] transition-all">
+                        in
                     </button>
                 </div>
 
@@ -196,7 +211,7 @@
 
         </div>
 
-        <!-- Badge Footer: DESENVOLVEDOR PAULO LIMA (Idêntico à referência) -->
+        <!-- Badge Footer: DESENVOLVEDOR PAULO LIMA (Idêntico ao Screenshot do PC) -->
         <div class="mt-6 flex justify-center">
             <div class="inline-flex items-center gap-2.5 px-5 py-2.5 rounded-full bg-[#121929] border border-amber-500/40 shadow-[0_0_20px_rgba(232,176,75,0.25)] cursor-default">
                 <span class="w-6 h-6 rounded-full bg-amber-500 text-slate-950 font-black text-xs flex items-center justify-center shadow-md">
@@ -213,6 +228,16 @@
     const targetOrigin = (window.location.origin && window.location.origin.includes('http')) 
         ? window.location.origin 
         : 'http://localhost:3000';
+
+    function togglePasswordVisibility(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (!input) return;
+        if (input.type === 'password') {
+            input.type = 'text';
+        } else {
+            input.type = 'password';
+        }
+    }
 
     function switchAuthTab(tabName) {
         const loginBox = document.getElementById('loginBox');
