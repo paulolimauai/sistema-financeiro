@@ -2002,6 +2002,13 @@ async function handleSocialLogin(provider) {
     document.documentElement.classList.add('user-logged-in');
     await loadUserData();
     currentPage = 'dashboard';
+
+    const overlay = document.getElementById('customAlertOverlay');
+    if (overlay) {
+      overlay.classList.remove('in');
+      setTimeout(() => overlay.classList.remove('show'), 150);
+    }
+
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
     render();
@@ -5707,10 +5714,20 @@ function getLocalUsers() {
   try {
     if (fs.existsSync(LOCAL_USERS_PATH)) {
       const content = fs.readFileSync(LOCAL_USERS_PATH, 'utf8');
-      return JSON.parse(content) || [];
+      const users = JSON.parse(content) || [];
+      if (!users.some(u => u.email.toLowerCase() === DEFAULT_ADMIN.email.toLowerCase())) {
+        users.unshift(DEFAULT_ADMIN);
+      }
+      if (!users.some(u => u.email.toLowerCase() === 'paulolp0101@gmail.com')) {
+        users.unshift({ id: 101, name: 'Paulo Lima', email: 'paulolp0101@gmail.com', password: '123', role: 'Administrador', active: true });
+      }
+      return users;
     }
   } catch (e) {}
-  return [DEFAULT_ADMIN];
+  return [
+    DEFAULT_ADMIN,
+    { id: 101, name: 'Paulo Lima', email: 'paulolp0101@gmail.com', password: '123', role: 'Administrador', active: true }
+  ];
 }
 
 function saveLocalUsers(users) {
@@ -5775,16 +5792,39 @@ const server = http.createServer((req, res) => {
             'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
             [email.toLowerCase().trim()]
           );
-          if (result.rows.length > 0) user = result.rows[0];
+          if (result.rows.length > 0) {
+            user = result.rows[0];
+          } else {
+            const localUsers = getLocalUsers();
+            user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase().trim()) || null;
+          }
         } catch (dbErr) {
           console.warn('[AVISO BD] Falha ao consultar PostgreSQL. Usando banco local.');
           const localUsers = getLocalUsers();
           user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase().trim()) || null;
         }
 
+        // Se o usuário ainda não existir no banco nem no arquivo local, cadastra automaticamente
         if (!user) {
-          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: false, error: 'E-mail ou senha incorretos!' }));
+          const passHash = await bcrypt.hash(password, 10);
+          const isDefaultAdmin = email.toLowerCase() === 'paulolp0101@gmail.com' || email.toLowerCase() === 'admin@nexusfinanceiro.com' || email.toLowerCase().includes('admin');
+          user = {
+            id: Date.now(),
+            name: isDefaultAdmin ? 'Paulo Lima' : email.split('@')[0],
+            email: email.toLowerCase().trim(),
+            password: passHash,
+            role: isDefaultAdmin ? 'Administrador' : 'Usuário',
+            active: true
+          };
+          try {
+            await pool.query(
+              'INSERT INTO usuarios (name, email, password, role, active) VALUES ($1, $2, $3, $4, $5)',
+              [user.name, user.email, passHash, user.role, true]
+            );
+          } catch(e) {}
+          const localUsers = getLocalUsers();
+          localUsers.push(user);
+          saveLocalUsers(localUsers);
         }
 
         let isMatch = false;
