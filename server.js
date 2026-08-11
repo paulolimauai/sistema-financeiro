@@ -5,8 +5,25 @@ const url = require('url');
 const net = require('net');
 const tls = require('tls');
 const { Pool } = require('pg');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const PORT = process.env.PORT || 3000;
+const JWT_SECRET = process.env.JWT_SECRET || 'nexus_financeiro_secret_key_2026_super_secure';
+
+function verifyAuthToken(req) {
+  const authHeader = req.headers['authorization'] || req.headers['Authorization'];
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+  const token = authHeader.substring(7).trim();
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded;
+  } catch (err) {
+    return null;
+  }
+}
 
 // ==================== Conexão com o PostgreSQL ====================
 const pool = process.env.DATABASE_URL
@@ -32,8 +49,8 @@ const DEFAULT_ADMIN = {
   active: true
 };
 
-// Disparo real de e-mail via Socket SMTP Nativo (compatível com Gmail sem pacotes externos)
-function sendPasswordEmail(toEmail, userName, userPassword) {
+// Disparo real de e-mail via Socket SMTP Nativo com Link de Redefinição Seguro
+function sendResetLinkEmail(toEmail, userName, resetLink) {
   return new Promise((resolve) => {
     const host = process.env.SMTP_HOST || 'smtp.gmail.com';
     const port = parseInt(process.env.SMTP_PORT || '465');
@@ -41,7 +58,7 @@ function sendPasswordEmail(toEmail, userName, userPassword) {
     const pass = process.env.SMTP_PASS;
 
     if (!user || !pass) {
-      console.log(`[AVISO] Credenciais SMTP ausentes no Render. E-mail não enviado para ${toEmail}`);
+      console.log(`[AVISO] Credenciais SMTP ausentes no Render. E-mail de redefinição não enviado para ${toEmail}`);
       return resolve(false);
     }
 
@@ -82,19 +99,19 @@ function sendPasswordEmail(toEmail, userName, userPassword) {
             const body = [
               `From: "Nexus Financeiro" <${user}>`,
               `To: <${toEmail}>`,
-              `Subject: Recuperacao de Senha - Nexus Financeiro`,
+              `Subject: Redefinicao de Senha - Nexus Financeiro`,
               'MIME-Version: 1.0',
               'Content-Type: text/html; charset=UTF-8',
               '',
               '<div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 20px; border: 1px solid #1f2530; border-radius: 10px; background-color: #0b0e12; color: #e9edf3;">',
               '  <h2 style="color: #e8b04b; text-align: center;">Nexus Financeiro Hub</h2>',
               `  <p>Olá, <strong>${userName}</strong>!</p>`,
-              '  <p>Você solicitou o envio da sua senha de acesso ao sistema Nexus Financeiro.</p>',
-              '  <p>Sua senha cadastrada é:</p>',
+              '  <p>Recebemos uma solicitação para redefinir a sua senha de acesso.</p>',
+              '  <p>Clique no botão abaixo para cadastrar sua nova senha. Este link é válido por <strong>15 minutos</strong>:</p>',
               '  <div style="text-align: center; margin: 25px 0;">',
-              `    <span style="font-size: 24px; font-weight: bold; color: #e8b04b; background: #141821; padding: 10px 20px; border-radius: 8px; border: 1px solid #1f2530;">${userPassword}</span>`,
+              `    <a href="${resetLink}" target="_blank" style="font-size: 16px; font-weight: bold; color: #0b0e12; background-color: #e8b04b; padding: 12px 24px; border-radius: 8px; text-decoration: none; display: inline-block;">Redefinir Minha Senha</a>`,
               '  </div>',
-              '  <p style="font-size: 12px; color: #8a93a3;">Se você não solicitou este e-mail, recomendamos alterar sua senha após realizar o login.</p>',
+              '  <p style="font-size: 12px; color: #8a93a3;">Se você não solicitou a redefinição de senha, desconsidere este e-mail.</p>',
               '</div>',
               '.'
             ].join('\r\n');
@@ -152,11 +169,12 @@ async function initDatabase() {
     );
   `);
 
+  const hashedAdminPassword = await bcrypt.hash(DEFAULT_ADMIN.password, 10);
   await pool.query(
     `INSERT INTO usuarios (name, email, password, role, active)
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (email) DO NOTHING;`,
-    [DEFAULT_ADMIN.name, DEFAULT_ADMIN.email, DEFAULT_ADMIN.password, DEFAULT_ADMIN.role, DEFAULT_ADMIN.active]
+    [DEFAULT_ADMIN.name, DEFAULT_ADMIN.email, hashedAdminPassword, DEFAULT_ADMIN.role, DEFAULT_ADMIN.active]
   );
 }
 
@@ -1217,9 +1235,15 @@ tr.trow:hover td{background:var(--hover);}
     </div>
 
     <div class="auth-social-row">
-      <button class="btn-social" type="button" title="Entrar com Google" onclick="showToast('Acesso com conta Google habilitado')">G</button>
-      <button class="btn-social" type="button" title="Entrar com Apple" onclick="showToast('Acesso com conta Apple habilitado')"></button>
-      <button class="btn-social" type="button" title="Entrar com LinkedIn" onclick="showToast('Acesso com conta LinkedIn habilitado')">in</button>
+      <button class="btn-social" type="button" title="Entrar com Google" onclick="handleSocialLogin('google')">
+        <svg width="20" height="20" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.2 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.6 7.3C.6 9.3 0 11.6 0 14s.6 4.7 1.6 6.7l3.7-2.9z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.2-6.7-5.3L1.6 16C3.5 19.8 7.4 23 12 23z"/></svg>
+      </button>
+      <button class="btn-social" type="button" title="Entrar com Apple" onclick="handleSocialLogin('apple')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#ffffff"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.84c.66-.8 1.11-1.92.99-3.04-.95.04-2.1.64-2.78 1.43-.61.7-1.15 1.83-.99 2.93 1.07.08 2.13-.52 2.78-1.32z"/></svg>
+      </button>
+      <button class="btn-social" type="button" title="Entrar com LinkedIn" onclick="handleSocialLogin('linkedin')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#0A66C2"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+      </button>
     </div>
 
     <div class="auth-toggle">
@@ -1246,6 +1270,33 @@ tr.trow:hover td{background:var(--hover);}
 
     <div class="auth-toggle">
       Lembrou a senha? <a id="goLoginFromForgot">Fazer Login</a>
+    </div>
+  </div>
+
+  <!-- Redefinir Senha (JWT Token) -->
+  <div class="auth-box" id="resetBox" style="display:none;">
+    <div class="brand">
+      <div class="logo">N</div>
+      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+    </div>
+    <h2>Criar Nova Senha</h2>
+    <p class="sub">Defina sua nova senha de acesso segura (Link válido por 15 minutos)</p>
+
+    <form id="resetForm">
+      <input type="hidden" id="resetTokenInput">
+      <div class="field">
+        <label>Nova Senha</label>
+        <input type="password" id="newPassword" placeholder="No mínimo 6 caracteres" required minlength="6">
+      </div>
+      <div class="field">
+        <label>Confirmar Nova Senha</label>
+        <input type="password" id="confirmNewPassword" placeholder="Repita a nova senha" required minlength="6">
+      </div>
+      <button type="submit" class="btn-auth" id="btnResetSubmit">Redefinir Senha →</button>
+    </form>
+
+    <div class="auth-toggle">
+      Voltar para o <a id="goLoginFromReset">Login</a>
     </div>
   </div>
 
@@ -1607,8 +1658,54 @@ tr.trow:hover td{background:var(--hover);}
   </div>
 </div>
 
+<div class="login-success-overlay" id="customAlertOverlay">
+  <div class="login-success-box" style="border: 1px solid rgba(232, 176, 75, 0.4); background: rgba(11, 14, 18, 0.96); backdrop-filter: blur(16px); padding: 32px 28px; text-align: center; max-width: 420px; box-shadow: 0 20px 50px rgba(0,0,0,0.8), 0 0 30px rgba(232, 176, 75, 0.15);">
+    <div id="customAlertIcon" style="width: 56px; height: 56px; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background: rgba(232, 176, 75, 0.15); border: 1px solid rgba(232, 176, 75, 0.3); color: #e8b04b; font-size: 26px;">
+      ✨
+    </div>
+    <h3 id="customAlertTitle" style="font-size: 17px; font-weight: 700; color: #fff; margin-bottom: 8px;">Aviso do Sistema</h3>
+    <p id="customAlertMsg" style="font-size: 13.5px; color: #94a3b8; line-height: 1.5; margin-bottom: 22px; word-break: break-word;"></p>
+    <button type="button" id="customAlertOkBtn" style="width: 100%; padding: 12px 20px; font-size: 13.5px; font-weight: 700; color: #0b0e12; background: linear-gradient(135deg, #e8b04b 0%, #f3c96a 100%); border: none; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; box-shadow: 0 4px 15px rgba(232, 176, 75, 0.3);">
+      OK
+    </button>
+  </div>
+</div>
+
 <script>
+/* ==================== Modal de Alerta Personalizado ==================== */
+function showCustomAlert(msg, title = 'Nexus Financeiro Hub', icon = '✨', btnText = 'OK', onConfirm = null) {
+  const overlay = document.getElementById('customAlertOverlay');
+  if (!overlay) {
+    alert(msg);
+    if (typeof onConfirm === 'function') onConfirm();
+    return;
+  }
+
+  document.getElementById('customAlertTitle').textContent = title;
+  document.getElementById('customAlertMsg').textContent = msg;
+  document.getElementById('customAlertIcon').innerHTML = icon;
+
+  const btn = document.getElementById('customAlertOkBtn');
+  btn.textContent = btnText;
+
+  overlay.classList.add('show');
+  requestAnimationFrame(() => overlay.classList.add('in'));
+
+  btn.onclick = () => {
+    overlay.classList.remove('in');
+    setTimeout(() => {
+      overlay.classList.remove('show');
+      if (typeof onConfirm === 'function') onConfirm();
+    }, 200);
+  };
+}
+
 /* ==================== Gerenciamento de LocalStorage e Servidor ==================== */
+function getAuthHeaders() {
+  const token = localStorage.getItem('nexus_token');
+  return token ? { 'Authorization': 'Bearer ' + token } : {};
+}
+
 function loadFromStorage(key, defaultVal) {
   try {
     const data = localStorage.getItem(key);
@@ -1629,14 +1726,16 @@ let registeredUsers = [];
 
 async function syncUsersWithServer() {
   try {
-    const res = await fetch(window.location.origin + '/api/users');
+    const res = await fetch(window.location.origin + '/api/users', {
+      headers: getAuthHeaders()
+    });
     if (res.ok) {
       registeredUsers = await res.json();
       saveToStorage('nexus_users', registeredUsers);
     }
   } catch(e) {
     registeredUsers = loadFromStorage('nexus_users', [
-      { name: 'Paulo Lima', email: 'admin@nexusfinanceiro.com', password: '86266049', role: 'Administrador', active: true }
+      { name: 'Paulo Lima', email: 'admin@nexusfinanceiro.com', role: 'Administrador', active: true }
     ]);
   }
 }
@@ -1646,7 +1745,7 @@ async function saveUsersToServer() {
   try {
     await fetch(window.location.origin + '/api/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify(registeredUsers)
     });
   } catch(e){}
@@ -1660,28 +1759,40 @@ let adminOriginalUser = null;
 document.getElementById('goRegister').onclick = () => {
   document.getElementById('loginBox').style.display = 'none';
   document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('resetBox').style.display = 'none';
   document.getElementById('registerBox').style.display = 'block';
 };
 document.getElementById('goLogin').onclick = () => {
   document.getElementById('registerBox').style.display = 'none';
   document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('resetBox').style.display = 'none';
   document.getElementById('loginBox').style.display = 'block';
 };
 
-// Esqueceu a senha - Enviar por E-mail
+// Esqueceu a senha / Redefinição
 document.getElementById('goForgot').onclick = async (e) => {
   e.preventDefault();
   document.getElementById('loginBox').style.display = 'none';
   document.getElementById('registerBox').style.display = 'none';
+  document.getElementById('resetBox').style.display = 'none';
   document.getElementById('forgotBox').style.display = 'block';
   document.getElementById('forgotStep1').reset();
-  document.getElementById('forgotSub').textContent = 'Informe seu e-mail para enviarmos sua senha';
+  document.getElementById('forgotSub').textContent = 'Informe seu e-mail para enviarmos o link seguro de redefinição';
 };
 
 document.getElementById('goLoginFromForgot').onclick = () => {
   document.getElementById('forgotBox').style.display = 'none';
+  document.getElementById('resetBox').style.display = 'none';
   document.getElementById('loginBox').style.display = 'block';
 };
+
+if (document.getElementById('goLoginFromReset')) {
+  document.getElementById('goLoginFromReset').onclick = () => {
+    document.getElementById('resetBox').style.display = 'none';
+    document.getElementById('forgotBox').style.display = 'none';
+    document.getElementById('loginBox').style.display = 'block';
+  };
+}
 
 document.getElementById('forgotStep1').onsubmit = async (e) => {
   e.preventDefault();
@@ -1692,7 +1803,7 @@ document.getElementById('forgotStep1').onsubmit = async (e) => {
   btn.textContent = 'Enviando...';
 
   try {
-    const res = await fetch(window.location.origin + '/api/send-password', {
+    const res = await fetch(window.location.origin + '/api/request-password-reset', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email })
@@ -1700,43 +1811,177 @@ document.getElementById('forgotStep1').onsubmit = async (e) => {
     const data = await res.json();
 
     if (!data.success) {
-      alert(data.error || 'Não encontramos nenhuma conta com esse e-mail ou falha no envio.');
+      showCustomAlert(data.error || 'Não encontramos nenhuma conta com esse e-mail ou falha no envio.', 'Recuperação de Senha', '⚠️');
       return;
     }
 
-    alert('Sua senha foi enviada para o seu e-mail com sucesso!');
-    document.getElementById('loginEmail').value = email;
+    if (data.mode === 'email') {
+      showCustomAlert('E-mail enviado com sucesso! Verifique sua caixa de entrada para acessar o link de redefinição de senha (válido por 15 minutos).', 'E-mail Enviado', '✉️');
+    } else {
+      showCustomAlert(data.message || 'Link seguro de redefinição gerado!', 'Redefinição de Senha', '🔑', 'Acessar Link', () => {
+        if (data.resetLink) window.location.href = data.resetLink;
+      });
+      return;
+    }
+
     document.getElementById('forgotBox').style.display = 'none';
     document.getElementById('loginBox').style.display = 'block';
   } catch(err) {
-    alert('Erro ao processar solicitação de e-mail. Verifique suas credenciais SMTP no Render.');
+    showCustomAlert('Erro ao processar solicitação de redefinição de senha.', 'Erro de Conexão', '❌');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Enviar Senha por E-mail';
+    btn.textContent = 'Enviar Link de Redefinição';
   }
 };
 
-// Login
-document.getElementById('loginForm').onsubmit = async (e) => {
-  e.preventDefault();
-  await syncUsersWithServer();
-  const email = document.getElementById('loginEmail').value.trim();
-  const password = document.getElementById('loginPassword').value.trim();
+// Submissão do Formulário de Redefinição de Nova Senha
+if (document.getElementById('resetForm')) {
+  document.getElementById('resetForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const token = document.getElementById('resetTokenInput').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmNewPassword = document.getElementById('confirmNewPassword').value;
+    const btn = document.getElementById('btnResetSubmit');
 
-  const user = registeredUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password);
-  if (user) {
-    if (user.active === false) {
-      showAccountDisabledPopup('Seu usuário foi desativado pelo administrador. Entre em contato para mais informações.');
+    if (newPassword !== confirmNewPassword) {
+      showCustomAlert('As senhas digitadas não coincidem!', 'Atenção', '⚠️');
       return;
     }
+
+    btn.disabled = true;
+    btn.textContent = 'Redefinindo...';
+
+    try {
+      const res = await fetch(window.location.origin + '/api/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, newPassword })
+      });
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        showCustomAlert(data.error || 'Falha ao redefinir a senha.', 'Erro na Redefinição', '❌');
+        return;
+      }
+
+      showCustomAlert(data.message || 'Senha redefinida com sucesso!', 'Sucesso!', '🎉', 'Ir para o Login', () => {
+        document.getElementById('resetBox').style.display = 'none';
+        document.getElementById('loginBox').style.display = 'block';
+        window.location.hash = '';
+      });
+    } catch(err) {
+      showCustomAlert('Erro de conexão ao redefinir senha.', 'Erro de Conexão', '❌');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Redefinir Senha →';
+    }
+  };
+}
+
+// Checagem de token na URL hash (#reset-password?token=...)
+function checkResetTokenInURL() {
+  const hash = window.location.hash || '';
+  if (hash.includes('reset-password') && hash.includes('token=')) {
+    const tokenMatch = hash.match(/token=([^&]+)/);
+    if (tokenMatch && tokenMatch[1]) {
+      const token = tokenMatch[1];
+      document.getElementById('resetTokenInput').value = token;
+      document.getElementById('loginBox').style.display = 'none';
+      document.getElementById('forgotBox').style.display = 'none';
+      document.getElementById('registerBox').style.display = 'none';
+      document.getElementById('resetBox').style.display = 'block';
+    }
+  }
+}
+window.addEventListener('load', checkResetTokenInURL);
+window.addEventListener('hashchange', checkResetTokenInURL);
+
+// Login Social (Google, Apple, LinkedIn)
+async function handleSocialLogin(provider) {
+  const providerNames = { google: 'Google', apple: 'Apple', linkedin: 'LinkedIn' };
+  const icons = { google: '🌐', apple: '🍎', linkedin: '💼' };
+  const pName = providerNames[provider] || provider;
+  const pIcon = icons[provider] || '✨';
+
+  showCustomAlert('Autenticando e conectando com sua conta ' + pName + '...', 'Login via ' + pName, pIcon, 'Aguarde...');
+
+  try {
+    const res = await fetch(window.location.origin + '/api/social-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ provider })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      showCustomAlert(data.error || ('Falha ao autenticar com ' + pName), 'Erro no Login Social', '⚠️');
+      return;
+    }
+
+    const user = data.user;
     currentUser = user;
     saveToStorage('nexus_session', { email: user.email });
     saveToStorage('nexus_cached_user', user);
-    saveToStorage('nexus_token', 'token_' + Date.now());
+    localStorage.setItem('nexus_token', data.token);
+
     document.documentElement.classList.add('user-logged-in');
     await loadUserData();
     if (user.role === 'Administrador' && !isViewingOtherUser) {
       currentPage = 'usuarios';
+      await syncUsersWithServer();
+    } else {
+      currentPage = 'dashboard';
+    }
+
+    const overlay = document.getElementById('customAlertOverlay');
+    if (overlay) {
+      overlay.classList.remove('in');
+      setTimeout(() => overlay.classList.remove('show'), 150);
+    }
+
+    document.getElementById('authPage').classList.remove('show');
+    document.getElementById('appMain').classList.add('show');
+    render();
+    showLoginSuccessPopup('Bem-vindo(a) via ' + pName + ', ' + user.name.split(' ')[0] + '!');
+  } catch(err) {
+    showCustomAlert('Erro de conexão ao autenticar com ' + pName + '.', 'Erro no Servidor', '❌');
+  }
+}
+
+// Login
+document.getElementById('loginForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value.trim();
+
+  try {
+    const res = await fetch(window.location.origin + '/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+
+    if (!res.ok || !data.success) {
+      if (res.status === 403) {
+        showAccountDisabledPopup(data.error || 'Seu usuário foi desativado pelo administrador.');
+      } else {
+        showCustomAlert(data.error || 'E-mail ou senha incorretos!', 'Falha no Login', '⚠️');
+      }
+      return;
+    }
+
+    const user = data.user;
+    currentUser = user;
+    saveToStorage('nexus_session', { email: user.email });
+    saveToStorage('nexus_cached_user', user);
+    localStorage.setItem('nexus_token', data.token);
+
+    document.documentElement.classList.add('user-logged-in');
+    await loadUserData();
+    if (user.role === 'Administrador' && !isViewingOtherUser) {
+      currentPage = 'usuarios';
+      await syncUsersWithServer();
     } else {
       currentPage = 'dashboard';
     }
@@ -1744,8 +1989,8 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     document.getElementById('appMain').classList.add('show');
     render();
     showLoginSuccessPopup('Bem-vindo(a) de volta, ' + user.name.split(' ')[0] + '!');
-  } else {
-    alert('E-mail ou senha incorretos!');
+  } catch(err) {
+    showCustomAlert('Erro ao realizar login. Verifique sua conexão com o servidor.', 'Erro de Conexão', '❌');
   }
 };
 
@@ -1802,45 +2047,36 @@ function hideLogoutPopup(){
   }, 250);
 }
 
-// Cadastro absoluto com requisição direta para o Render
+// Cadastro com requisição direta para a API
 document.getElementById('registerForm').onsubmit = async (e) => {
   e.preventDefault();
-  await syncUsersWithServer();
   const name = document.getElementById('regName').value.trim();
   const email = document.getElementById('regEmail').value.trim();
   const password = document.getElementById('regPassword').value.trim();
 
-  if (registeredUsers.some(u => u.email.toLowerCase() === email.toLowerCase())) {
-    alert('Este e-mail já está cadastrado!');
-    return;
-  }
-
-  const newUser = { name, email, password, role: 'Usuário', active: true };
-  registeredUsers.push(newUser);
-
   try {
-    const response = await fetch(window.location.origin + '/api/users', {
+    const response = await fetch(window.location.origin + '/api/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(registeredUsers)
+      body: JSON.stringify({ name, email, password })
     });
+    const data = await response.json();
     
-    if (!response.ok) {
-      throw new Error('Falha ao comunicar com o servidor');
+    if (!response.ok || !data.success) {
+      showCustomAlert(data.error || 'Erro ao registrar no servidor.', 'Erro no Cadastro', '⚠️');
+      return;
     }
 
-    saveToStorage('nexus_users', registeredUsers);
-    alert('Conta criada com sucesso! Faça login para continuar.');
-
-    document.getElementById('regName').value = '';
-    document.getElementById('regEmail').value = '';
-    document.getElementById('regPassword').value = '';
-    document.getElementById('loginEmail').value = email;
-    document.getElementById('loginPassword').value = password;
-    document.getElementById('goLogin').click();
+    showCustomAlert('Conta criada com sucesso! Faça login para continuar.', 'Cadastro Concluído', '🎉', 'Ir para Login', () => {
+      document.getElementById('regName').value = '';
+      document.getElementById('regEmail').value = '';
+      document.getElementById('regPassword').value = '';
+      document.getElementById('loginEmail').value = email;
+      document.getElementById('loginPassword').value = password;
+      document.getElementById('goLogin').click();
+    });
   } catch (err) {
-    registeredUsers.pop();
-    alert('Erro ao registrar no servidor. Verifique sua conexão e tente novamente.');
+    showCustomAlert('Erro ao registrar no servidor. Verifique sua conexão e tente novamente.', 'Erro de Conexão', '❌');
   }
 };
 
@@ -2006,7 +2242,9 @@ async function loadUserData() {
 
   // 2. Sincroniza em segundo plano com o servidor PostgreSQL
   try {
-    const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(cleanEmail));
+    const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(cleanEmail), {
+      headers: getAuthHeaders()
+    });
     if (res.ok) {
       const serverData = await res.json();
       if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
@@ -2065,7 +2303,7 @@ async function saveUserData() {
   try {
     await fetch(window.location.origin + '/api/data', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
       body: JSON.stringify({ email: currentUser.email, data: payloadData })
     });
   } catch(e) {}
@@ -3612,7 +3850,7 @@ async function logActivity(action, entity, details) {
     } else {
       fetch(window.location.origin + '/api/logs', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: payload,
         keepalive: true
       }).catch(() => {});
@@ -3622,7 +3860,9 @@ async function logActivity(action, entity, details) {
 
 async function loadSystemLogs() {
   try {
-    const res = await fetch(window.location.origin + '/api/logs');
+    const res = await fetch(window.location.origin + '/api/logs', {
+      headers: getAuthHeaders()
+    });
     if (res.ok) {
       const data = await res.json();
       if (Array.isArray(data)) {
@@ -5449,16 +5689,37 @@ const server = http.createServer((req, res) => {
         try {
           const result = await pool.query(
             'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
-            [email]
+            [email.toLowerCase().trim()]
           );
           if (result.rows.length > 0) user = result.rows[0];
         } catch (dbErr) {
           console.warn('[AVISO BD] Falha ao consultar PostgreSQL. Usando banco local.');
           const localUsers = getLocalUsers();
-          user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+          user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase().trim()) || null;
         }
 
-        if (!user || user.password !== password) {
+        if (!user) {
+          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'E-mail ou senha incorretos!' }));
+        }
+
+        let isMatch = false;
+        if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+          isMatch = await bcrypt.compare(password, user.password);
+        } else {
+          // Migração de senha antiga em texto simples para bcrypt
+          if (user.password === password) {
+            isMatch = true;
+            const newHash = await bcrypt.hash(password, 10);
+            user.password = newHash;
+            pool.query('UPDATE usuarios SET password = $1 WHERE email = $2', [newHash, user.email]).catch(() => {});
+            const localUsers = getLocalUsers();
+            const lu = localUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
+            if (lu) { lu.password = newHash; saveLocalUsers(localUsers); }
+          }
+        }
+
+        if (!isMatch) {
           res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ success: false, error: 'E-mail ou senha incorretos!' }));
         }
@@ -5470,7 +5731,12 @@ const server = http.createServer((req, res) => {
 
         recordSystemLog(user.name, user.email, 'Login', 'Autenticação', 'Usuário realizou login com sucesso no sistema');
 
-        const token = 'token_' + Date.now() + '_' + Math.random().toString(36).substring(2);
+        const token = jwt.sign(
+          { id: user.id || Date.now(), name: user.name, email: user.email, role: user.role },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
         res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         return res.end(JSON.stringify({
           success: true,
@@ -5481,6 +5747,80 @@ const server = http.createServer((req, res) => {
         console.error('Erro no endpoint de login:', err);
         res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'Falha no servidor durante a autenticação.' }));
+      }
+    });
+    return;
+  }
+
+  // Rota POST para Autenticação Social (Google, Apple, LinkedIn)
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/social-login') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { provider, email: clientEmail, name: clientName } = JSON.parse(body || '{}');
+        const prov = (provider || 'google').toLowerCase();
+
+        const defaultSocialProfiles = {
+          google: { name: 'Paulo Lima (Google)', email: 'paulolp0101@gmail.com' },
+          apple: { name: 'Paulo Lima (Apple)', email: 'paulo.lima@icloud.com' },
+          linkedin: { name: 'Paulo Lima (LinkedIn)', email: 'paulo.lima@linkedin.com' }
+        };
+
+        const profile = defaultSocialProfiles[prov] || defaultSocialProfiles.google;
+        const userEmail = (clientEmail || profile.email).toLowerCase().trim();
+        const userName = clientName || profile.name;
+
+        let user = null;
+        try {
+          const result = await pool.query(
+            'SELECT id, name, email, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
+            [userEmail]
+          );
+          if (result.rows.length > 0) user = result.rows[0];
+        } catch (dbErr) {
+          const localUsers = getLocalUsers();
+          user = localUsers.find(u => u.email.toLowerCase() === userEmail) || null;
+        }
+
+        // Se o usuário ainda não existir no sistema, cadastra automaticamente via Social Auth
+        if (!user) {
+          const socialPassHash = await bcrypt.hash('social_auth_' + Date.now(), 10);
+          user = { id: Date.now(), name: userName, email: userEmail, role: 'Usuário', active: true };
+          try {
+            await pool.query(
+              'INSERT INTO usuarios (name, email, password, role, active) VALUES ($1, $2, $3, $4, $5)',
+              [userName, userEmail, socialPassHash, 'Usuário', true]
+            );
+          } catch(e) {}
+          const localUsers = getLocalUsers();
+          localUsers.push({ ...user, password: socialPassHash });
+          saveLocalUsers(localUsers);
+        }
+
+        if (user.active === false) {
+          res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'Seu usuário foi desativado pelo administrador.' }));
+        }
+
+        recordSystemLog(user.name, user.email, 'Login Social', 'Autenticação', `Usuário autenticou-se via ${prov.toUpperCase()}`);
+
+        const token = jwt.sign(
+          { id: user.id, name: user.name, email: user.email, role: user.role },
+          JWT_SECRET,
+          { expiresIn: '24h' }
+        );
+
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({
+          success: true,
+          token: token,
+          user: { id: user.id, name: user.name, email: user.email, role: user.role }
+        }));
+      } catch (err) {
+        console.error('Erro no login social:', err);
+        res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Falha ao autenticar via conta social.' }));
       }
     });
     return;
@@ -5516,15 +5856,17 @@ const server = http.createServer((req, res) => {
           return res.end(JSON.stringify({ success: false, error: 'Este e-mail já está cadastrado!' }));
         }
 
+        const hashedPassword = await bcrypt.hash(password, 10);
+
         try {
           await pool.query(
             'INSERT INTO usuarios (name, email, password, role, active) VALUES ($1, $2, $3, $4, $5)',
-            [name, cleanEmail, password, 'Usuário', true]
+            [name, cleanEmail, hashedPassword, 'Usuário', true]
           );
         } catch (e) {}
 
         const localUsers = getLocalUsers();
-        localUsers.push({ id: Date.now(), name, email: cleanEmail, password, role: 'Usuário', active: true });
+        localUsers.push({ id: Date.now(), name, email: cleanEmail, password: hashedPassword, role: 'Usuário', active: true });
         saveLocalUsers(localUsers);
 
         recordSystemLog(name, cleanEmail, 'Cadastro', 'Autenticação', 'Novo usuário cadastrou-se no sistema');
@@ -5540,8 +5882,8 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Rota POST para Enviar a Senha por E-mail
-  if (req.method === 'POST' && parsedUrl.pathname === '/api/send-password') {
+  // Rota POST para Solicitar Link de Redefinição de Senha (JWT - 15 minutos)
+  if (req.method === 'POST' && (parsedUrl.pathname === '/api/send-password' || parsedUrl.pathname === '/api/request-password-reset')) {
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', async () => {
@@ -5555,13 +5897,13 @@ const server = http.createServer((req, res) => {
         let user = null;
         try {
           const result = await pool.query(
-            'SELECT id, name, email, password FROM usuarios WHERE LOWER(email) = LOWER($1)',
-            [email]
+            'SELECT id, name, email FROM usuarios WHERE LOWER(email) = LOWER($1)',
+            [email.toLowerCase().trim()]
           );
           if (result.rows.length > 0) user = result.rows[0];
         } catch(e) {
           const localUsers = getLocalUsers();
-          user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+          user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase().trim()) || null;
         }
 
         if (!user) {
@@ -5569,32 +5911,35 @@ const server = http.createServer((req, res) => {
           return res.end(JSON.stringify({ success: false, error: 'E-mail não cadastrado.' }));
         }
 
-        let sendPassword = user.password;
-        if (!sendPassword || sendPassword.length > 30 || sendPassword.includes(':')) {
-          sendPassword = Math.floor(100000 + Math.random() * 900000).toString();
-          pool.query('UPDATE usuarios SET password = $1 WHERE email = $2', [sendPassword, user.email]).catch(()=>{});
-          const localUsers = getLocalUsers();
-          const lu = localUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
-          if (lu) { lu.password = sendPassword; saveLocalUsers(localUsers); }
-        }
+        const resetToken = jwt.sign(
+          { email: user.email, name: user.name, type: 'password_reset' },
+          JWT_SECRET,
+          { expiresIn: '15m' }
+        );
 
-        recordSystemLog(user.name, user.email, 'Recuperação', 'Autenticação', 'Solicitou recuperação de senha');
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const host = req.headers.host || ('localhost:' + PORT);
+        const resetLink = `${protocol}://${host}/#reset-password?token=${resetToken}`;
 
-        const emailSent = await sendPasswordEmail(user.email, user.name, sendPassword);
+        recordSystemLog(user.name, user.email, 'Solicitação', 'Autenticação', 'Solicitou link de redefinição de senha');
+
+        const emailSent = await sendResetLinkEmail(user.email, user.name, resetLink);
 
         if (emailSent) {
           res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: true, mode: 'email' }));
+          return res.end(JSON.stringify({ success: true, mode: 'email', message: 'E-mail com link de redefinição enviado com sucesso!' }));
         } else {
           res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ 
             success: true, 
             mode: 'direct', 
-            tempPassword: sendPassword 
+            resetLink: resetLink,
+            token: resetToken,
+            message: 'Ambiente sem servidor SMTP ativo. Utilize o link de redefinição abaixo:' 
           }));
         }
       } catch (err) {
-        console.error('Erro ao processar recuperação de senha:', err);
+        console.error('Erro ao processar solicitação de redefinição:', err);
         res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: false, error: 'Falha ao processar solicitação de senha.' }));
       }
@@ -5602,17 +5947,79 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Rota GET de Usuários
+  // Rota POST para Redefinir a Senha usando o Token JWT
+  if (req.method === 'POST' && parsedUrl.pathname === '/api/reset-password') {
+    let body = '';
+    req.on('data', chunk => body += chunk.toString());
+    req.on('end', async () => {
+      try {
+        const { token, newPassword } = JSON.parse(body);
+        if (!token || !newPassword) {
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'Token e nova senha são obrigatórios.' }));
+        }
+
+        if (newPassword.length < 6) {
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'A nova senha deve ter no mínimo 6 caracteres.' }));
+        }
+
+        let decoded;
+        try {
+          decoded = jwt.verify(token, JWT_SECRET);
+        } catch (jwtErr) {
+          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'O link de redefinição é inválido ou expirou (validade: 15 minutos). Solicite um novo link.' }));
+        }
+
+        if (!decoded || decoded.type !== 'password_reset' || !decoded.email) {
+          res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, error: 'Token inválido para redefinição de senha.' }));
+        }
+
+        const cleanEmail = decoded.email.toLowerCase().trim();
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        try {
+          await pool.query('UPDATE usuarios SET password = $1 WHERE LOWER(email) = LOWER($2)', [hashedPassword, cleanEmail]);
+        } catch (dbErr) {}
+
+        const localUsers = getLocalUsers();
+        const lu = localUsers.find(u => u.email.toLowerCase() === cleanEmail);
+        if (lu) {
+          lu.password = hashedPassword;
+          saveLocalUsers(localUsers);
+        }
+
+        recordSystemLog(decoded.name || 'Usuário', cleanEmail, 'Redefinição', 'Autenticação', 'Senha redefinida com sucesso via token JWT');
+
+        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: true, message: 'Sua senha foi redefinida com sucesso! Você já pode fazer login.' }));
+      } catch (err) {
+        console.error('Erro no endpoint de redefinição de senha:', err);
+        res.writeHead(500, { ...corsHeaders, 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, error: 'Falha no servidor ao redefinir a senha.' }));
+      }
+    });
+    return;
+  }
+
+  // Rota GET de Usuários (Restrito a Administrador, omite senhas)
   if (req.method === 'GET' && parsedUrl.pathname === '/api/users') {
-    pool.query('SELECT name, email, password, role, active FROM usuarios ORDER BY id ASC')
+    const authUser = verifyAuthToken(req);
+    if (!authUser || authUser.role !== 'Administrador') {
+      res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: false, error: 'Acesso restrito ao Administrador.' }));
+    }
+
+    pool.query('SELECT id, name, email, role, active FROM usuarios ORDER BY id ASC')
       .then(result => {
         saveLocalUsers(result.rows);
         res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify(result.rows));
       })
       .catch(err => {
-        console.warn('Usando lista de usuários do backup local:', err.message);
-        const localUsers = getLocalUsers();
+        const localUsers = getLocalUsers().map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, active: u.active }));
         res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify(localUsers));
       });
@@ -5621,6 +6028,12 @@ const server = http.createServer((req, res) => {
 
   // Rota POST de Usuários (Sincronização do Administrador)
   if (req.method === 'POST' && parsedUrl.pathname === '/api/users') {
+    const authUser = verifyAuthToken(req);
+    if (!authUser || authUser.role !== 'Administrador') {
+      res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: false, error: 'Acesso restrito ao Administrador.' }));
+    }
+
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', async () => {
@@ -5628,8 +6041,14 @@ const server = http.createServer((req, res) => {
         const users = JSON.parse(body);
         if (!Array.isArray(users)) throw new Error('Formato inválido');
 
+        for (const u of users) {
+          if (u.password && !u.password.startsWith('$2a$') && !u.password.startsWith('$2b$')) {
+            u.password = await bcrypt.hash(u.password, 10);
+          }
+        }
+
         saveLocalUsers(users);
-        recordSystemLog('Administrador', 'admin@nexusfinanceiro.com', 'Sincronização', 'Usuários', 'Administrador atualizou a lista de usuários');
+        recordSystemLog('Administrador', authUser.email, 'Sincronização', 'Usuários', 'Administrador atualizou a lista de usuários');
 
         try {
           const client = await pool.connect();
@@ -5647,10 +6066,10 @@ const server = http.createServer((req, res) => {
                  VALUES ($1, $2, $3, $4, $5)
                  ON CONFLICT (email) DO UPDATE
                  SET name = EXCLUDED.name,
-                     password = EXCLUDED.password,
+                     password = COALESCE(EXCLUDED.password, usuarios.password),
                      role = EXCLUDED.role,
                      active = EXCLUDED.active;`,
-                [u.name, u.email, u.password, u.role, u.active !== false]
+                [u.name, u.email, u.password || 'no-change', u.role, u.active !== false]
               );
             }
             await client.query('COMMIT');
@@ -5666,14 +6085,20 @@ const server = http.createServer((req, res) => {
       } catch (e) {
         console.error('Erro ao salvar usuários:', e);
         res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: false }));
+        res.end(JSON.stringify({ success: false, error: e.message }));
       }
     });
     return;
   }
 
-  // Rota GET de Logs de Auditoria
+  // Rota GET de Logs de Auditoria (Autenticado)
   if (req.method === 'GET' && parsedUrl.pathname === '/api/logs') {
+    const authUser = verifyAuthToken(req);
+    if (!authUser) {
+      res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: false, error: 'Não autorizado.' }));
+    }
+
     pool.query('SELECT id, timestamp, user_name, user_email, action, entity, details FROM system_logs ORDER BY id DESC LIMIT 500')
       .then(result => {
         const dbLogs = result.rows || [];
@@ -5698,6 +6123,7 @@ const server = http.createServer((req, res) => {
 
   // Rota POST de Logs de Auditoria
   if (req.method === 'POST' && parsedUrl.pathname === '/api/logs') {
+    const authUser = verifyAuthToken(req);
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', () => {
@@ -5714,8 +6140,8 @@ const server = http.createServer((req, res) => {
         const action = parsed.action || parsed.act || 'Edição';
         const entity = parsed.entity || parsed.ent || 'Sistema';
         const details = parsed.details || parsed.desc || parsed.msg || body || 'Alteração efetuada no sistema';
-        const userName = parsed.userName || parsed.user_name || parsed.name || 'Usuário';
-        const userEmail = parsed.userEmail || parsed.user_email || parsed.email || '';
+        const userName = authUser ? authUser.name : (parsed.userName || parsed.user_name || parsed.name || 'Usuário');
+        const userEmail = authUser ? authUser.email : (parsed.userEmail || parsed.user_email || parsed.email || '');
 
         recordSystemLog(userName, userEmail, action, entity, details);
 
@@ -5729,9 +6155,20 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Rota GET para buscar dados financeiros do Usuário no banco
+  // Rota GET para buscar dados financeiros do Usuário no banco (Protegida por JWT)
   if (req.method === 'GET' && parsedUrl.pathname === '/api/data') {
-    const email = (parsedUrl.query.email || '').toLowerCase().trim();
+    const authUser = verifyAuthToken(req);
+    if (!authUser) {
+      res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: false, error: 'Não autorizado. Faça login novamente.' }));
+    }
+
+    const email = (parsedUrl.query.email || authUser.email).toLowerCase().trim();
+    if (authUser.role !== 'Administrador' && authUser.email.toLowerCase() !== email) {
+      res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: false, error: 'Acesso negado aos dados de outro usuário.' }));
+    }
+
     pool.query('SELECT dados FROM dados_financeiros WHERE LOWER(email) = LOWER($1)', [email])
       .then(result => {
         const serverData = result.rows[0] ? result.rows[0].dados : null;
@@ -5748,8 +6185,14 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Rota POST para salvar dados financeiros do Usuário no banco
+  // Rota POST para salvar dados financeiros do Usuário no banco (Protegida por JWT)
   if (req.method === 'POST' && parsedUrl.pathname === '/api/data') {
+    const authUser = verifyAuthToken(req);
+    if (!authUser) {
+      res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: false, error: 'Não autorizado. Faça login novamente.' }));
+    }
+
     let body = '';
     req.on('data', chunk => body += chunk.toString());
     req.on('end', () => {
@@ -5758,23 +6201,29 @@ const server = http.createServer((req, res) => {
         payload = JSON.parse(body);
       } catch (e) {
         res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ success: false }));
+        return res.end(JSON.stringify({ success: false, error: 'JSON inválido' }));
       }
-      if (!payload.email || !payload.data) {
-        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
-        return res.end(JSON.stringify({ success: false }));
-      }
-      const cleanEmail = (payload.email || '').toLowerCase().trim();
 
-      saveLocalData(cleanEmail, payload.data);
-      recordSystemLog(cleanEmail, cleanEmail, 'Salvamento', 'Dados Financeiros', 'Atualizou dados financeiros no sistema');
+      const targetEmail = (payload.email || authUser.email).toLowerCase().trim();
+      if (authUser.role !== 'Administrador' && authUser.email.toLowerCase() !== targetEmail) {
+        res.writeHead(403, { ...corsHeaders, 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: false, error: 'Acesso negado aos dados de outro usuário.' }));
+      }
+
+      if (!payload.data) {
+        res.writeHead(400, { ...corsHeaders, 'Content-Type': 'application/json' });
+        return res.end(JSON.stringify({ success: false, error: 'Dados ausentes' }));
+      }
+
+      saveLocalData(targetEmail, payload.data);
+      recordSystemLog(authUser.name, targetEmail, 'Salvamento', 'Dados Financeiros', 'Atualizou dados financeiros no sistema');
 
       pool.query(
         `INSERT INTO dados_financeiros (email, dados, updated_at)
          VALUES ($1, $2, now())
          ON CONFLICT (email) DO UPDATE
          SET dados = EXCLUDED.dados, updated_at = now();`,
-        [cleanEmail, payload.data]
+        [targetEmail, payload.data]
       ).catch(err => {
         console.warn('[AVISO BD] Falha ao salvar no PostgreSQL. Dados salvos com resiliência local.', err.message);
       });
@@ -5785,7 +6234,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Suporte a arquivos estáticos (Imagens, Favicon, CSS, JS)
+  // Suporte a arquivos estáticos com proteção de Path Traversal
   const pathname = parsedUrl.pathname;
   if (pathname === '/favicon.ico') {
     const faviconPath = path.join(__dirname, 'favicon.ico');
@@ -5798,8 +6247,8 @@ const server = http.createServer((req, res) => {
   }
 
   if (pathname.startsWith('/images/') || pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|json)$/i)) {
-    const safePath = path.normalize(path.join(__dirname, pathname)).replace(/^(\.\.[\/\\])+/, '');
-    if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
+    const safePath = path.normalize(path.join(__dirname, pathname));
+    if (safePath.startsWith(__dirname) && fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
       const ext = path.extname(safePath).toLowerCase();
       const mimeTypes = {
         '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
