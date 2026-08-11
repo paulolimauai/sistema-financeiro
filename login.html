@@ -24,7 +24,8 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-            background-color: #070c18;
+            background: linear-gradient(180deg, rgba(7, 12, 24, 0.78) 0%, rgba(9, 14, 28, 0.85) 100%), url('/images/nexus_bg_4k.jpg') no-repeat center center fixed;
+            background-size: cover;
             color: #e2e8f0;
             overflow-x: hidden;
         }
@@ -33,6 +34,14 @@
         ::-webkit-scrollbar-track { background: #070c18; }
         ::-webkit-scrollbar-thumb { background: #1f293d; border-radius: 3px; }
         
+        .glass-box {
+            background: rgba(14, 22, 40, 0.78) !important;
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(232, 176, 75, 0.28) !important;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6);
+        }
+
         .form-fade {
             animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -42,7 +51,7 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden bg-gradient-to-br from-[#080d19] via-[#0b1222] to-[#070b16]">
+<body class="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
 
     <!-- Ondas Orbitais e Glow de Fundo (Identico ao Screenshot do PC) -->
     <div class="absolute inset-0 pointer-events-none overflow-hidden z-0">
@@ -68,40 +77,47 @@
     <div class="w-full max-w-[430px] z-10 my-auto py-4">
 
         <!-- Card Principal Glassmorphism -->
-        <div class="rounded-3xl border border-amber-500/30 p-7 sm:p-9 shadow-[0_25px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(232,176,75,0.15)] backdrop-blur-3xl bg-[#0e1628]/90 relative overflow-hidden">
+        <div class="rounded-3xl border border-emerald-500/30 p-7 sm:p-9 shadow-[0_25px_60px_rgba(0,0,0,0.85),0_0_30px_rgba(16,185,129,0.15)] backdrop-blur-3xl bg-[#0a1120]/85 relative overflow-hidden">
             
-            <!-- Topo: Badge S, SISTEMA e FINANCEIRO PRO -->
-            <div class="flex items-center justify-center gap-3 mb-5">
-                <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-300 via-amber-400 to-sky-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-md shadow-amber-500/20 shrink-0">
-                    S
+            <!-- Topo: Marca Nexus & Badge de Segurança Executiva -->
+            <div class="flex flex-col items-center justify-center gap-2 mb-6">
+                <div class="flex items-center gap-3">
+                    <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-400 via-teal-500 to-amber-400 flex items-center justify-center text-slate-950 font-black text-xl shadow-lg shadow-emerald-500/25 shrink-0">
+                        N
+                    </div>
+                    <div class="flex flex-col text-left">
+                        <span class="text-lg font-extrabold tracking-widest text-white uppercase leading-none">NEXUS</span>
+                        <span class="text-[10px] font-bold tracking-widest text-amber-400 uppercase mt-0.5">FINANCEIRO HUB</span>
+                    </div>
                 </div>
-                <div class="flex flex-col text-left">
-                    <span class="text-base font-extrabold tracking-widest text-white uppercase leading-none">SISTEMA</span>
-                    <span class="text-[10px] font-bold tracking-widest text-amber-400 uppercase mt-0.5">FINANCEIRO PRO</span>
+
+                <div class="inline-flex items-center gap-1.5 px-3 py-1 mt-1 rounded-full bg-emerald-950/60 border border-emerald-500/40 text-[10.5px] font-bold text-emerald-400 tracking-wider uppercase shadow-inner">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    ACESSO SEGURO SSL 256-BIT
                 </div>
             </div>
 
             <!-- Titulo e Subtitulo -->
             <div class="text-center mb-6">
-                <h2 id="authTitle" class="text-2xl font-extrabold tracking-tight text-white">Bem-vindo de volta</h2>
-                <p id="authSub" class="mt-1 text-xs sm:text-sm text-gray-400">Acesse sua conta para gerenciar suas finanças.</p>
+                <h2 id="authTitle" class="text-2xl font-extrabold tracking-tight text-white">Acesso Executivo</h2>
+                <p id="authSub" class="mt-1 text-xs sm:text-sm text-gray-400">Informe suas credenciais para acessar seu painel financeiro.</p>
             </div>
 
             <!-- Form Box 1: Login -->
             <div id="loginBox" class="form-fade" style="display: block;">
                 <form id="loginForm" class="space-y-4" onsubmit="handleLoginSubmit(event); return false;">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-1.5">E-mail</label>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1.5">Endereço de E-mail</label>
                         <input id="loginEmail" name="email" type="email" autocomplete="username" required 
-                            class="w-full px-4 py-3 rounded-xl bg-[#131b2e] border border-gray-700/60 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
-                            placeholder="seu.email@exemplo.com">
+                            class="w-full px-4 py-3 rounded-xl bg-[#070d19]/80 border border-gray-700/60 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
+                            placeholder="seu.email@empresa.com.br">
                     </div>
 
                     <div>
-                        <label class="block text-xs font-semibold text-gray-300 mb-1.5">Senha</label>
+                        <label class="block text-xs font-semibold text-gray-300 mb-1.5">Senha de Acesso</label>
                         <div class="relative flex items-center">
                             <input id="loginPassword" name="password" type="password" autocomplete="current-password" required 
-                                class="w-full px-4 py-3 pr-10 rounded-xl bg-[#131b2e] border border-gray-700/60 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-amber-500 focus:ring-1 focus:ring-amber-500 transition-all"
+                                class="w-full px-4 py-3 pr-10 rounded-xl bg-[#070d19]/80 border border-gray-700/60 text-white placeholder-gray-500 text-sm focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition-all"
                                 placeholder="••••••••">
                             <button type="button" onclick="togglePasswordVisibility('loginPassword', this)" class="absolute right-3 text-gray-400 hover:text-gray-200 focus:outline-none">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
@@ -225,9 +241,9 @@
     </div>
 
     <script>
-    const targetOrigin = (window.location.origin && window.location.origin.includes('http')) 
+    const targetOrigin = (window.location.origin && window.location.origin !== 'null' && window.location.origin.includes('http')) 
         ? window.location.origin 
-        : 'http://localhost:3000';
+        : '';
 
     function togglePasswordVisibility(inputId, btn) {
         const input = document.getElementById(inputId);
@@ -260,8 +276,8 @@
             if (authSub) authSub.innerText = "Informe seu e-mail cadastrado para enviarmos sua senha.";
         } else {
             if (loginBox) loginBox.style.display = 'block';
-            if (authTitle) authTitle.innerText = "Bem-vindo de volta";
-            if (authSub) authSub.innerText = "Acesse sua conta para gerenciar suas finanças.";
+            if (authTitle) authTitle.innerText = "Acesso Executivo";
+            if (authSub) authSub.innerText = "Informe suas credenciais para acessar seu painel financeiro.";
         }
     }
 
@@ -297,9 +313,9 @@
             localStorage.setItem('nexus_session', JSON.stringify({ email: email }));
             localStorage.setItem('nexus_token', data.token);
             localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
-            window.location.href = targetOrigin;
+            window.location.href = targetOrigin || '/';
         } catch (err) {
-            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
+            alert('Erro ao conectar ao servidor. Verifique sua conexão e tente novamente.');
             btn.disabled = false;
             btn.innerHTML = 'Entrar na Conta →';
         }
