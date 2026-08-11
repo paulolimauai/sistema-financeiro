@@ -80,28 +80,31 @@
             font-weight: 700;
         }
         .glass-card-3d {
-            background: rgba(16, 24, 45, 0.8);
-            backdrop-filter: blur(28px);
-            -webkit-backdrop-filter: blur(28px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+            background: rgba(10, 15, 29, 0.88);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border: 1.5px solid rgba(232, 176, 75, 0.35);
+            box-shadow: 0 30px 70px rgba(0, 0, 0, 0.85), 0 0 40px rgba(232, 176, 75, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.2);
             transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.2s ease;
             transform-style: preserve-3d;
         }
         .input-wrapper {
             position: relative;
-            transition: all 0.25s ease;
+            background: rgba(8, 12, 22, 0.85);
+            border-color: rgba(232, 176, 75, 0.25) !important;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .input-wrapper:focus-within {
-            border-color: #06D6A0 !important;
-            box-shadow: 0 0 0 3.5px rgba(6, 214, 160, 0.25) !important;
+            border-color: rgba(245, 197, 102, 0.9) !important;
+            box-shadow: 0 0 25px rgba(232, 176, 75, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+            transform: translateY(-1px);
         }
         .input-wrapper:focus-within svg {
-            color: #06D6A0 !important;
+            color: #fbbf24 !important;
         }
         /* Custom Checkbox */
         .custom-checkbox {
-            accent-color: #06D6A0;
+            accent-color: #fbbf24;
         }
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
