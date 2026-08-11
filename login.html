@@ -348,30 +348,6 @@
                             </button>
                         </div>
                     </form>
-
-                    <!-- Divisor OU ENTRE COM -->
-                    <div class="my-5 flex items-center justify-center gap-3">
-                        <div class="h-px bg-gray-800 flex-1"></div>
-                        <span class="text-[11px] font-bold uppercase tracking-wider text-gray-400">ou entre com</span>
-                        <div class="h-px bg-gray-800 flex-1"></div>
-                    </div>
-
-                    <!-- Botões Sociais (Google, Apple, LinkedIn) -->
-                    <div class="grid grid-cols-3 gap-3">
-                        <button type="button" onclick="handleSocialLogin('google')" class="flex items-center justify-center py-2.5 rounded-xl border border-gray-800 bg-gray-900/60 hover:bg-gray-800/80 hover:border-gray-700 transition-all text-xs font-bold text-gray-200 gap-2 active:scale-95 shadow-sm" title="Entrar com Google">
-                            <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.2 8.9 5 12 5z"/><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/><path fill="#FBBC05" d="M5.3 14.8c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.6 7.3C.6 9.3 0 11.6 0 14s.6 4.7 1.6 6.7l3.7-2.9z"/><path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.2-6.7-5.3L1.6 16C3.5 19.8 7.4 23 12 23z"/></svg>
-                            <span>Google</span>
-                        </button>
-                        <button type="button" onclick="handleSocialLogin('apple')" class="flex items-center justify-center py-2.5 rounded-xl border border-gray-800 bg-gray-900/60 hover:bg-gray-800/80 hover:border-gray-700 transition-all text-xs font-bold text-gray-200 gap-2 active:scale-95 shadow-sm" title="Entrar com Apple">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#ffffff"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.84c.66-.8 1.11-1.92.99-3.04-.95.04-2.1.64-2.78 1.43-.61.7-1.15 1.83-.99 2.93 1.07.08 2.13-.52 2.78-1.32z"/></svg>
-                            <span>Apple</span>
-                        </button>
-                        <button type="button" onclick="handleSocialLogin('linkedin')" class="flex items-center justify-center py-2.5 rounded-xl border border-gray-800 bg-gray-900/60 hover:bg-gray-800/80 hover:border-gray-700 transition-all text-xs font-bold text-gray-200 gap-2 active:scale-95 shadow-sm" title="Entrar com LinkedIn">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="#0A66C2"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
-                            <span>in</span>
-                        </button>
-                    </div>
-
                     <p class="mt-5 text-center text-xs text-gray-400">
                         Não tem uma conta? <a href="javascript:void(0)" onclick="switchAuthTab('register')" class="text-amber-400 hover:underline font-semibold">Cadastrar-se</a>
                     </p>
@@ -488,147 +464,10 @@
 
     </div>
 
-    <!-- Modal de Alerta Glassmorphism -->
-    <div id="customAlertOverlay" class="fixed inset-0 bg-black/70 backdrop-blur-md hidden items-center justify-center z-50 p-4 opacity-0 transition-opacity duration-300">
-        <div class="bg-slate-950/90 border border-amber-500/40 rounded-2xl p-8 max-w-sm w-full text-center shadow-[0_20px_50px_rgba(0,0,0,0.9),0_0_30px_rgba(232,176,75,0.2)] transform scale-95 transition-transform duration-300">
-            <div id="customAlertIcon" class="w-14 h-14 mx-auto mb-4 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 text-2xl">
-                ✨
-            </div>
-            <h3 id="customAlertTitle" class="text-lg font-bold text-white mb-2">Aviso do Sistema</h3>
-            <p id="customAlertMsg" class="text-xs text-slate-300 leading-relaxed mb-6 break-words"></p>
-            <button type="button" id="customAlertOkBtn" class="w-full py-3 px-5 text-xs font-bold text-slate-950 bg-gradient-to-r from-amber-400 via-amber-500 to-yellow-400 hover:brightness-110 rounded-xl shadow-lg shadow-amber-500/30 transition-all duration-200 uppercase tracking-wider">
-                OK
-            </button>
-        </div>
-    </div>
-
     <script>
-    function showCustomAlert(msg, title = 'Nexus Financeiro Hub', icon = '✨', btnText = 'OK', onConfirm = null) {
-        const overlay = document.getElementById('customAlertOverlay');
-        if (!overlay) {
-            alert(msg);
-            if (typeof onConfirm === 'function') onConfirm();
-            return;
-        }
-
-        document.getElementById('customAlertTitle').textContent = title;
-        document.getElementById('customAlertMsg').textContent = msg;
-        document.getElementById('customAlertIcon').innerHTML = icon;
-
-        const btn = document.getElementById('customAlertOkBtn');
-        btn.textContent = btnText;
-
-        overlay.classList.remove('hidden');
-        overlay.classList.add('flex');
-        requestAnimationFrame(() => {
-            overlay.classList.remove('opacity-0');
-            overlay.children[0].classList.remove('scale-95');
-            overlay.children[0].classList.add('scale-100');
-        });
-
-        btn.onclick = () => {
-            overlay.classList.add('opacity-0');
-            overlay.children[0].classList.remove('scale-100');
-            overlay.children[0].classList.add('scale-95');
-            setTimeout(() => {
-                overlay.classList.remove('flex');
-                overlay.classList.add('hidden');
-                if (typeof onConfirm === 'function') onConfirm();
-            }, 250);
-        };
-    }
-
-    // Conexão Segura e Inteligente com Fallback Multi-Origem
-    async function safeApiFetch(endpointPath, options = {}) {
-        let origins = [];
-        
-        if (window.location.origin && window.location.origin !== 'null' && !window.location.origin.startsWith('file:')) {
-            origins.push(window.location.origin);
-        }
-        
-        if (!origins.includes('http://localhost:3000')) origins.push('http://localhost:3000');
-        if (!origins.includes('http://127.0.0.1:3000')) origins.push('http://127.0.0.1:3000');
-        if (!origins.includes('https://sistema-financeiro-1-ez77.onrender.com')) origins.push('https://sistema-financeiro-1-ez77.onrender.com');
-
-        let lastErr = null;
-        for (let origin of origins) {
-            try {
-                const fullUrl = origin.replace(/\/+$/, '') + endpointPath;
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-                const res = await fetch(fullUrl, {
-                    ...options,
-                    signal: controller.signal,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        ...(options.headers || {})
-                    }
-                });
-                clearTimeout(timeoutId);
-
-                const contentType = res.headers.get('content-type') || '';
-                if (!contentType.includes('application/json')) {
-                    continue;
-                }
-
-                const data = await res.json();
-                return { ok: res.ok, status: res.status, data, originUsed: origin };
-            } catch (err) {
-                lastErr = err;
-            }
-        }
-
-        throw lastErr || new Error('Não foi possível conectar ao servidor backend.');
-    }
-
-    // Autenticação Social (Google, Apple, LinkedIn)
-    async function handleSocialLogin(provider) {
-        const providerNames = { google: 'Google', apple: 'Apple', linkedin: 'LinkedIn' };
-        const icons = { google: '🌐', apple: '🍎', linkedin: '💼' };
-        const pName = providerNames[provider] || provider;
-        const pIcon = icons[provider] || '✨';
-
-        showCustomAlert(`Autenticando e conectando com sua conta ${pName}...`, `Login via ${pName}`, pIcon, 'Aguarde...');
-
-        try {
-            const { ok, data, originUsed } = await safeApiFetch('/api/social-login', {
-                method: 'POST',
-                body: JSON.stringify({ provider })
-            });
-
-            if (!ok || !data.success) {
-                showCustomAlert(data.error || `Falha ao autenticar com ${pName}`, 'Erro no Login Social', '⚠️');
-                return;
-            }
-
-            localStorage.setItem('nexus_session', JSON.stringify({ email: data.user.email }));
-            localStorage.setItem('nexus_token', data.token);
-            localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
-
-            const overlay = document.getElementById('customAlertOverlay');
-            if (overlay) {
-                overlay.classList.add('opacity-0');
-                setTimeout(() => overlay.classList.add('hidden'), 150);
-            }
-
-            window.location.href = originUsed || window.location.origin;
-        } catch (err) {
-            const defaultSocialProfiles = {
-                google: { name: 'Paulo Lima (Google)', email: 'paulolp0101@gmail.com' },
-                apple: { name: 'Paulo Lima (Apple)', email: 'paulo.lima@icloud.com' },
-                linkedin: { name: 'Paulo Lima (LinkedIn)', email: 'paulo.lima@linkedin.com' }
-            };
-            const profile = defaultSocialProfiles[provider] || defaultSocialProfiles.google;
-            const mockUser = { id: Date.now(), name: profile.name, email: profile.email, role: 'Usuário', active: true };
-
-            localStorage.setItem('nexus_session', JSON.stringify({ email: mockUser.email }));
-            localStorage.setItem('nexus_token', 'social_offline_token_' + Date.now());
-            localStorage.setItem('nexus_cached_user', JSON.stringify(mockUser));
-
-            window.location.href = (window.location.origin && !window.location.origin.startsWith('file:')) ? window.location.origin : 'http://localhost:3000';
-        }
-    }
+    const targetOrigin = (window.location.origin && window.location.origin.includes('http')) 
+        ? window.location.origin 
+        : 'http://localhost:3000';
 
     // 1. Submit Login (Normal Credential Submit)
     async function handleLoginSubmit(e) {
@@ -638,7 +477,7 @@
         const btn = document.getElementById('btnLoginSubmit');
 
         if (!email || !password) {
-            showCustomAlert('Por favor, preencha o e-mail e a senha.', 'Atenção', '⚠️');
+            alert('Por favor, preencha o e-mail e a senha.');
             return false;
         }
 
@@ -646,13 +485,15 @@
         btn.innerHTML = `<svg class="w-4 h-4 animate-spin text-finance-dark inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Entrando...`;
 
         try {
-            const { ok, status, data, originUsed } = await safeApiFetch('/api/login', {
+            const res = await fetch(targetOrigin + '/api/login', {
                 method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
+            const data = await res.json();
 
-            if (!ok || !data.success) {
-                showCustomAlert(data.error || 'E-mail ou senha incorretos!', 'Falha no Login', '⚠️');
+            if (!res.ok || !data.success) {
+                alert(data.error || 'E-mail ou senha incorretos!');
                 btn.disabled = false;
                 btn.innerHTML = 'Entrar no Sistema →';
                 return false;
@@ -661,28 +502,9 @@
             localStorage.setItem('nexus_session', JSON.stringify({ email: email }));
             localStorage.setItem('nexus_token', data.token);
             localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
-            window.location.href = originUsed || window.location.origin;
+            window.location.href = targetOrigin;
         } catch (err) {
-            // Fallback para permitir navegação quando o servidor backend está desligado offline
-            if (email.length > 0 && password.length > 0) {
-                const isDefaultUser = email.toLowerCase() === 'paulolp0101@gmail.com' || email.toLowerCase() === 'admin@nexusfinanceiro.com' || email.toLowerCase().includes('admin');
-                const mockUser = {
-                    id: Date.now(),
-                    name: isDefaultUser ? 'Paulo Lima' : email.split('@')[0],
-                    email: email,
-                    role: isDefaultUser ? 'Administrador' : 'Usuário',
-                    active: true
-                };
-
-                localStorage.setItem('nexus_session', JSON.stringify({ email: mockUser.email }));
-                localStorage.setItem('nexus_token', 'local_offline_token_' + Date.now());
-                localStorage.setItem('nexus_cached_user', JSON.stringify(mockUser));
-
-                window.location.href = (window.location.origin && !window.location.origin.startsWith('file:')) ? window.location.origin : 'http://localhost:3000';
-                return false;
-            }
-
-            showCustomAlert('Erro ao conectar ao servidor backend. Certifique-se de executar "node server.js".', 'Erro de Conexão', '❌');
+            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
             btn.disabled = false;
             btn.innerHTML = 'Entrar no Sistema →';
         }
@@ -698,7 +520,7 @@
         const btn = document.getElementById('btnRegisterSubmit');
 
         if (!name || !email || !password) {
-            showCustomAlert('Por favor, preencha todos os campos obrigatórios.', 'Atenção', '⚠️');
+            alert('Por favor, preencha todos os campos obrigatórios.');
             return false;
         }
 
@@ -714,19 +536,19 @@
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                showCustomAlert(data.error || 'Erro ao criar conta.', 'Erro no Cadastro', '⚠️');
+                alert(data.error || 'Erro ao criar conta.');
                 btn.disabled = false;
                 btn.innerHTML = 'Criar Minha Conta Pessoal →';
                 return false;
             }
 
-            showCustomAlert('Conta criada com sucesso! Você pode fazer login agora.', 'Sucesso!', '🎉', 'Ir para Login', () => {
-                document.getElementById('loginEmail').value = email;
-                document.getElementById('loginPassword').value = password;
-                switchAuthTab('login');
-            });
+            alert('Conta criada com sucesso! Você pode fazer login agora.');
+            document.getElementById('loginEmail').value = email;
+            document.getElementById('loginPassword').value = password;
+            switchAuthTab('login');
         } catch (err) {
-            showCustomAlert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".', 'Erro de Conexão', '❌');
+            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
+        } finally {
             btn.disabled = false;
             btn.innerHTML = 'Criar Minha Conta Pessoal →';
         }
@@ -741,7 +563,7 @@
         const forgotAlert = document.getElementById('forgotAlert');
 
         if (!email) {
-            showCustomAlert('Por favor, informe seu e-mail cadastrado.', 'Atenção', '⚠️');
+            alert('Por favor, informe seu e-mail cadastrado.');
             return false;
         }
 
@@ -750,7 +572,7 @@
         forgotAlert.classList.add('hidden');
 
         try {
-            const res = await fetch(targetOrigin + '/api/request-password-reset', {
+            const res = await fetch(targetOrigin + '/api/send-password', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
@@ -762,31 +584,32 @@
                 forgotAlert.innerText = '⚠️ ' + (data.error || 'E-mail não encontrado.');
                 forgotAlert.classList.remove('hidden');
                 btn.disabled = false;
-                btn.innerHTML = 'Enviar Link de Redefinição →';
+                btn.innerHTML = 'Enviar / Gerar Nova Senha →';
                 return false;
             }
 
-            if (data.mode === 'direct' && data.resetLink) {
+            if (data.mode === 'direct' && data.tempPassword) {
                 forgotAlert.className = "mb-4 p-4 rounded-xl text-sm font-medium border bg-emerald-950/60 border-emerald-500/50 text-emerald-300 space-y-2";
                 forgotAlert.innerHTML = `
-                    <div>✅ <strong>Link seguro de redefinição (Válido por 15min):</strong></div>
-                    <p class="text-xs text-gray-300 mt-1">Ambiente de teste/sem SMTP. Clique no botão abaixo para redefinir sua senha:</p>
-                    <a href="${data.resetLink}" class="mt-2 block w-full text-center py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg transition-colors text-xs uppercase tracking-wider">
-                        🔑 Redefinir Minha Senha Agora →
-                    </a>
+                    <div>✅ <strong>Senha temporária gerada:</strong></div>
+                    <div class="text-xl font-bold tracking-widest text-white bg-black/40 p-2.5 rounded-lg text-center font-mono select-all">${data.tempPassword}</div>
+                    <p class="text-xs text-gray-300 mt-1">Sua nova senha temporária para <strong>${email}</strong> é <code>${data.tempPassword}</code>.</p>
+                    <button type="button" onclick="document.getElementById('loginEmail').value='${email}'; document.getElementById('loginPassword').value='${data.tempPassword}'; switchAuthTab('login');" class="mt-2 w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg transition-colors text-xs uppercase tracking-wider">
+                        🔑 Preencher e Entrar Agora →
+                    </button>
                 `;
                 forgotAlert.classList.remove('hidden');
             } else {
                 forgotAlert.className = "mb-4 p-3 rounded-lg text-xs font-medium border bg-emerald-900/30 border-emerald-500/40 text-emerald-300";
-                forgotAlert.innerText = '✅ E-mail com link de redefinição (válido por 15 minutos) enviado com sucesso!';
+                forgotAlert.innerText = '✅ Instruções de redefinição enviadas para o seu e-mail com sucesso!';
                 forgotAlert.classList.remove('hidden');
             }
 
         } catch (err) {
-            showCustomAlert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".', 'Erro de Conexão', '❌');
+            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = 'Enviar Link de Redefinição →';
+            btn.innerHTML = 'Enviar / Gerar Nova Senha →';
         }
         return false;
     }
