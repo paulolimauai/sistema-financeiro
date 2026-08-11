@@ -446,12 +446,25 @@
                                 </div>
                             </div>
 
-                            <!-- Opção Lembrar de Mim -->
+                            <!-- Opção Lembrar de Mim & Acesso Rápido -->
                             <div class="flex items-center justify-between pt-1">
                                 <label class="flex items-center gap-2 cursor-pointer select-none text-xs text-gray-300">
                                     <input type="checkbox" id="rememberMe" class="custom-checkbox rounded border-gray-700 w-4 h-4 bg-gray-900 focus:ring-0 cursor-pointer" checked>
                                     <span>Lembrar de mim por 30 dias</span>
                                 </label>
+                            </div>
+
+                            <!-- Botões de Acesso Rápido de Teste (Demo Credentials) -->
+                            <div class="flex items-center justify-between gap-2 pt-1 pb-1">
+                                <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Acesso Rápido:</span>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" onclick="document.getElementById('loginEmail').value='admin@nexus.com'; document.getElementById('loginPassword').value='123456';" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition-all text-xs font-bold">
+                                        ⚡ Admin
+                                    </button>
+                                    <button type="button" onclick="document.getElementById('loginEmail').value='paulolp0101@gmail.com'; document.getElementById('loginPassword').value='123456';" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-xs font-bold">
+                                        👤 Paulo
+                                    </button>
+                                </div>
                             </div>
 
                             <div class="pt-2">
@@ -797,22 +810,22 @@
 
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = `rgba(6, 214, 160, ${p.alpha})`;
+                ctx.fillStyle = (i % 2 === 0) ? `rgba(251, 191, 36, ${p.alpha})` : `rgba(0, 229, 255, ${p.alpha})`;
                 ctx.fill();
 
-                // Conectar partículas próximas
+                // Conectar partículas próximas com gradiente de ouro 4K
                 for (let j = i + 1; j < particles.length; j++) {
                     const p2 = particles[j];
                     const dx = p.x - p2.x;
                     const dy = p.y - p2.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    if (dist < 130) {
+                    if (dist < 140) {
                         ctx.beginPath();
                         ctx.moveTo(p.x, p.y);
                         ctx.lineTo(p2.x, p2.y);
-                        ctx.strokeStyle = `rgba(6, 214, 160, ${(1 - dist / 130) * 0.18})`;
-                        ctx.lineWidth = 0.6;
+                        ctx.strokeStyle = `rgba(245, 158, 11, ${(1 - dist / 140) * 0.22})`;
+                        ctx.lineWidth = 0.75;
                         ctx.stroke();
                     }
                 }
