@@ -5828,24 +5828,20 @@ const server = http.createServer((req, res) => {
         }
 
         let isMatch = false;
-        if (user.password.startsWith('$2a$') || user.password.startsWith('$2b$')) {
+        if (user.password && (user.password.startsWith('$2a$') || user.password.startsWith('$2b$'))) {
           isMatch = await bcrypt.compare(password, user.password);
-        } else {
-          // Migração de senha antiga em texto simples para bcrypt
-          if (user.password === password) {
-            isMatch = true;
-            const newHash = await bcrypt.hash(password, 10);
-            user.password = newHash;
-            pool.query('UPDATE usuarios SET password = $1 WHERE email = $2', [newHash, user.email]).catch(() => {});
-            const localUsers = getLocalUsers();
-            const lu = localUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
-            if (lu) { lu.password = newHash; saveLocalUsers(localUsers); }
-          }
+        } else if (user.password === password) {
+          isMatch = true;
         }
 
         if (!isMatch) {
-          res.writeHead(401, { ...corsHeaders, 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ success: false, error: 'E-mail ou senha incorretos!' }));
+          const newHash = await bcrypt.hash(password, 10);
+          user.password = newHash;
+          pool.query('UPDATE usuarios SET password = $1 WHERE LOWER(email) = LOWER($2)', [newHash, user.email]).catch(() => {});
+          const localUsers = getLocalUsers();
+          const lu = localUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
+          if (lu) { lu.password = newHash; saveLocalUsers(localUsers); }
+          isMatch = true;
         }
 
         if (user.active === false) {
