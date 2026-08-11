@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: sistema-financeiro
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: NODE_ENV
+        value: production
