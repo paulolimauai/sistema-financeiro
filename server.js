@@ -208,7 +208,7 @@ html.is-admin #mobileDrawerFuncoesBtn {
 }
 
 :root{
-  --bg:#060B19; --sidebar:#0B132B; --card:#111C3A; --card-border:rgba(59,130,246,0.32);
+  --bg:#0E1322; --sidebar:#0A0E1A; --card:#141A2B; --card-border:rgba(59,130,246,0.32);
   --text:#f8fafc; --text-dim:#94a3b8; --text-faint:#64748b;
   --green:#3b82f6; --green-soft:rgba(59,130,246,.16);
   --emerald:#3b82f6; --emerald-soft:rgba(59,130,246,.16);
@@ -239,17 +239,13 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth (Azul Escuro Nobre com Branco Prata 4K) ==================== */
+/* ==================== Tela de Auth (Mesma cor do Login no Fundo #0E1322) ==================== */
 .auth-container{
-  --auth-accent:#3B82F6; --auth-accent-2:#2563EB; --auth-accent-3:#60A5FA;
-  --auth-accent-soft:rgba(59,130,246,.20); --auth-text-on:#060B19;
+  --auth-accent:#E5A93C; --auth-accent-2:#5B94D9; --auth-accent-3:#E6C675;
+  --auth-accent-soft:rgba(229,169,60,.20); --auth-text-on:#0A0F1A;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
-  background:
-    radial-gradient(circle at 20% 15%, rgba(59,130,246,0.22), transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(37,99,235,0.18), transparent 50%),
-    radial-gradient(circle at 50% 50%, rgba(96,165,250,0.12), transparent 65%),
-    linear-gradient(135deg, #03060E 0%, #060B19 40%, #0D1630 70%, #080E21 100%);
+  background:#0E1322;
 }
 .auth-container.show { display: flex; }
 .auth-grid{
