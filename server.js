@@ -5808,14 +5808,23 @@ const server = http.createServer((req, res) => {
     return res.end();
   }
 
-  if (pathname.startsWith('/images/') || pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|json)$/i)) {
+  if (pathname === '/login' || pathname === '/login.html') {
+    const loginPath = path.join(__dirname, 'login.html');
+    if (fs.existsSync(loginPath)) {
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'text/html; charset=utf-8' });
+      return fs.createReadStream(loginPath).pipe(res);
+    }
+  }
+
+  if (pathname.startsWith('/images/') || pathname.match(/\.(png|jpg|jpeg|gif|svg|ico|css|js|json|html)$/i)) {
     const safePath = path.normalize(path.join(__dirname, pathname)).replace(/^(\.\.[\/\\])+/, '');
     if (fs.existsSync(safePath) && fs.statSync(safePath).isFile()) {
       const ext = path.extname(safePath).toLowerCase();
       const mimeTypes = {
         '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
         '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
-        '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json'
+        '.css': 'text/css', '.js': 'application/javascript', '.json': 'application/json',
+        '.html': 'text/html; charset=utf-8'
       };
       res.writeHead(200, { ...corsHeaders, 'Content-Type': mimeTypes[ext] || 'application/octet-stream' });
       return fs.createReadStream(safePath).pipe(res);

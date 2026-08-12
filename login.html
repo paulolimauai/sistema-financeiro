@@ -8,7 +8,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Tailwind CSS CDN para estilização dinâmica e moderna -->
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -19,11 +19,10 @@
                     },
                     colors: {
                         finance: {
-                            dark: '#060B18',
-                            card: '#10182D',
-                            cardHover: '#16203D',
+                            dark: '#040814',
+                            card: '#0A0F1D',
                             accent: '#06D6A0',
-                            accentHover: '#05b385',
+                            gold: '#F59E0B',
                             cyan: '#00E5FF',
                             purple: '#6366F1'
                         }
@@ -31,7 +30,6 @@
                     animation: {
                         'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'float': 'float 6s ease-in-out infinite',
-                        'float-delayed': 'float 6s ease-in-out 3s infinite',
                         'glow-pulse': 'glowPulse 3s infinite alternate',
                     },
                     keyframes: {
@@ -40,8 +38,8 @@
                             '50%': { transform: 'translateY(-10px)' },
                         },
                         glowPulse: {
-                            '0%': { opacity: 0.4, transform: 'scale(1)' },
-                            '100%': { opacity: 0.8, transform: 'scale(1.08)' }
+                            '0%': { opacity: 0.35, transform: 'scale(1)' },
+                            '100%': { opacity: 0.75, transform: 'scale(1.06)' }
                         }
                     }
                 }
@@ -51,77 +49,79 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-            background-color: #030705;
+            background-color: #030611;
             overflow-x: hidden;
         }
         .auth-tab {
-            padding: 11px 18px;
+            padding: 11px 16px;
             border-radius: 12px;
-            color: #a7f3d0;
+            color: #9ca3af;
             cursor: pointer;
             font-weight: 700;
-            font-size: 0.875rem;
+            font-size: 0.85rem;
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
             position: relative;
-            background: rgba(255, 255, 255, 0.04);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
             user-select: none;
         }
         .auth-tab:hover {
-            color: #ffffff;
-            background: rgba(6, 214, 160, 0.15);
-            border-color: rgba(6, 214, 160, 0.4);
+            color: #f3f4f6;
+            background: rgba(245, 158, 11, 0.12);
+            border-color: rgba(245, 158, 11, 0.3);
             transform: translateY(-1px);
         }
         .auth-tab.active {
-            color: #030705;
-            background: linear-gradient(135deg, #06D6A0 0%, #10B981 50%, #059669 100%);
-            border-color: rgba(6, 214, 160, 0.95);
-            box-shadow: 0 0 28px rgba(6, 214, 160, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+            color: #040814;
+            background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+            border-color: rgba(245, 158, 11, 0.9);
+            box-shadow: 0 0 25px rgba(245, 158, 11, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.4);
             font-weight: 800;
             transform: translateY(-1px);
         }
         .glass-card-3d {
-            background: rgba(6, 14, 10, 0.90);
-            backdrop-filter: blur(36px);
-            -webkit-backdrop-filter: blur(36px);
-            border: 1.5px solid rgba(6, 214, 160, 0.45);
-            box-shadow: 0 35px 80px rgba(0, 0, 0, 0.95), 0 0 45px rgba(6, 214, 160, 0.25), 0 0 30px rgba(0, 229, 255, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-            transition: transform 0.2s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.2s ease;
+            background: rgba(10, 15, 29, 0.88);
+            backdrop-filter: blur(32px);
+            -webkit-backdrop-filter: blur(32px);
+            border: 1.5px solid rgba(245, 158, 11, 0.35);
+            box-shadow: 0 35px 80px rgba(0, 0, 0, 0.95), 0 0 40px rgba(245, 158, 11, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+            transition: transform 0.25s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.25s ease;
             transform-style: preserve-3d;
         }
         .input-wrapper {
             position: relative;
-            background: rgba(4, 9, 6, 0.92);
-            border-color: rgba(6, 214, 160, 0.3) !important;
+            background: rgba(3, 7, 18, 0.85);
+            border: 1px solid rgba(245, 158, 11, 0.25);
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .input-wrapper:focus-within {
-            border-color: #06D6A0 !important;
-            box-shadow: 0 0 25px rgba(6, 214, 160, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
+            border-color: #F59E0B !important;
+            box-shadow: 0 0 22px rgba(245, 158, 11, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1) !important;
             transform: translateY(-1px);
         }
         .input-wrapper:focus-within svg {
-            color: #06D6A0 !important;
+            color: #F59E0B !important;
+        }
+        .input-wrapper.field-highlight {
+            border-color: #10B981 !important;
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.5) !important;
         }
         /* Custom Checkbox */
         .custom-checkbox {
-            accent-color: #06D6A0;
+            accent-color: #F59E0B;
         }
         /* Custom Scrollbar */
         ::-webkit-scrollbar {
             width: 6px;
         }
         ::-webkit-scrollbar-track {
-            background: #060B18;
+            background: #040814;
         }
         ::-webkit-scrollbar-thumb {
             background: #1f293d;
             border-radius: 3px;
         }
-        /* Smooth Fade Animation for Forms */
+        /* Fade Animations */
         .form-fade {
             animation: fadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -131,15 +131,54 @@
         }
     </style>
     <script>
+        // Determinar endpoint de API relativo ou fallback
+        const targetOrigin = (window.location.origin && window.location.origin.includes('http')) 
+            ? window.location.origin 
+            : 'http://localhost:3000';
+
+        // Sistema de Alerta Inline (Substitui alert nativo)
+        window.showAlert = function(message, type = 'error') {
+            const alertBox = document.getElementById('authAlert');
+            if (!alertBox) return;
+
+            alertBox.classList.remove('hidden', 'bg-rose-950/90', 'border-rose-500/60', 'text-rose-200',
+                'bg-emerald-950/90', 'border-emerald-500/60', 'text-emerald-200',
+                'bg-amber-950/90', 'border-amber-500/60', 'text-amber-200');
+
+            let icon = '⚠️';
+            if (type === 'success') {
+                icon = '✅';
+                alertBox.className = 'mb-5 p-3.5 rounded-xl text-xs font-medium border bg-emerald-950/90 border-emerald-500/60 text-emerald-200 shadow-lg shadow-emerald-950/50 flex items-center gap-2.5 form-fade';
+            } else if (type === 'info') {
+                icon = '💡';
+                alertBox.className = 'mb-5 p-3.5 rounded-xl text-xs font-medium border bg-amber-950/90 border-amber-500/60 text-amber-200 shadow-lg shadow-amber-950/50 flex items-center gap-2.5 form-fade';
+            } else {
+                icon = '⚠️';
+                alertBox.className = 'mb-5 p-3.5 rounded-xl text-xs font-medium border bg-rose-950/90 border-rose-500/60 text-rose-200 shadow-lg shadow-rose-950/50 flex items-center gap-2.5 form-fade';
+            }
+
+            alertBox.innerHTML = `
+                <span class="text-base shrink-0">${icon}</span>
+                <span class="flex-1 leading-snug">${message}</span>
+                <button type="button" onclick="document.getElementById('authAlert').classList.add('hidden')" class="opacity-70 hover:opacity-100 text-current ml-2 font-bold focus:outline-none">✕</button>
+            `;
+        };
+
+        window.hideAlert = function() {
+            const alertBox = document.getElementById('authAlert');
+            if (alertBox) alertBox.classList.add('hidden');
+        };
+
         // Função Global de Troca de Abas
         window.switchAuthTab = function(tabName) {
+            hideAlert();
             const loginBox = document.getElementById('loginBox');
             const registerBox = document.getElementById('registerBox');
             const forgotBox = document.getElementById('forgotBox');
 
-            const tabLogin = document.getElementById('tabAuthLogin') || document.getElementById('tabLogin');
-            const tabRegister = document.getElementById('tabAuthRegister') || document.getElementById('tabRegister');
-            const tabForgot = document.getElementById('tabAuthForgot') || document.getElementById('tabForgot');
+            const tabLogin = document.getElementById('tabAuthLogin');
+            const tabRegister = document.getElementById('tabAuthRegister');
+            const tabForgot = document.getElementById('tabAuthForgot');
 
             const authTitle = document.getElementById('authTitle');
             const authSub = document.getElementById('authSub');
@@ -158,42 +197,84 @@
                     registerBox.classList.add('form-fade');
                 }
                 if (tabRegister) tabRegister.classList.add('active');
-                if (authTitle) authTitle.innerText = "Criar nova conta";
-                if (authSub) authSub.innerText = "Cadastre-se gratuitamente para gerenciar seu dinheiro com facilidade.";
+                if (authTitle) authTitle.innerText = "Criar Nova Conta";
+                if (authSub) authSub.innerText = "Cadastre-se para ter controle total das suas finanças com segurança.";
             } else if (tabName === 'forgot') {
                 if (forgotBox) {
                     forgotBox.style.display = 'block';
                     forgotBox.classList.add('form-fade');
                 }
                 if (tabForgot) tabForgot.classList.add('active');
-                if (authTitle) authTitle.innerText = "Recuperar sua senha";
-                if (authSub) authSub.innerText = "Informe seu e-mail cadastrado para redefinir sua credencial.";
+                if (authTitle) authTitle.innerText = "Recuperar Senha";
+                if (authSub) authSub.innerText = "Informe seu e-mail cadastrado para gerar uma chave temporária.";
             } else {
                 if (loginBox) {
                     loginBox.style.display = 'block';
                     loginBox.classList.add('form-fade');
                 }
                 if (tabLogin) tabLogin.classList.add('active');
-                if (authTitle) authTitle.innerText = "Acessar sua conta";
-                if (authSub) authSub.innerText = "Gerencie seu patrimônio com segurança, clareza e inteligência.";
+                if (authTitle) authTitle.innerText = "Acessar sua Conta";
+                if (authSub) authSub.innerText = "Informe suas credenciais para gerenciar seu patrimônio com inteligência.";
             }
         };
 
-        // Alternador de Visibilidade de Senha
+        // Alternador de Visibilidade de Senha Padronizado
         window.togglePasswordVisibility = function(inputId, btnId) {
             const input = document.getElementById(inputId);
             const btn = document.getElementById(btnId);
-            if (!input) return;
+            if (!input || !btn) return;
+
+            const eyeOpen = `<svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+            const eyeClosed = `<svg class="w-4 h-4 text-gray-400 hover:text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.05 10.05 0 013.682-.963c4.478 0 8.268 2.943 9.543 7a9.97 9.97 0 01-2.16 3.633m-1.503 1.503A9.956 9.956 0 0112 15c-1.42 0-2.755-.296-3.955-.831M3 3l18 18"/></svg>`;
+
             if (input.type === 'password') {
                 input.type = 'text';
-                btn.innerHTML = `<svg class="w-4 h-4 text-finance-accent" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858-5.908a10.05 10.05 0 013.682-.963c4.478 0 8.268 2.943 9.543 7a9.97 9.97 0 01-2.16 3.633m-1.503 1.503A9.956 9.956 0 0112 15c-1.42 0-2.755-.296-3.955-.831M3 3l18 18"/></svg>`;
+                btn.innerHTML = eyeOpen;
             } else {
                 input.type = 'password';
-                btn.innerHTML = `<svg class="w-4 h-4 text-gray-400 hover:text-gray-200" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+                btn.innerHTML = eyeClosed;
             }
         };
 
-        // Carrossel do Showcase Direito (3 Widgets)
+        // Medidor de Força da Senha para Cadastro
+        window.checkPasswordStrength = function(val) {
+            const bar = document.getElementById('passStrengthBar');
+            const text = document.getElementById('passStrengthText');
+            if (!bar || !text) return;
+
+            if (!val) {
+                bar.style.width = '0%';
+                bar.className = 'h-1 rounded-full transition-all duration-300 bg-gray-700';
+                text.innerText = '';
+                return;
+            }
+
+            let score = 0;
+            if (val.length >= 6) score++;
+            if (val.length >= 10) score++;
+            if (/[A-Z]/.test(val)) score++;
+            if (/[0-9]/.test(val)) score++;
+            if (/[^A-Za-z0-9]/.test(val)) score++;
+
+            if (score <= 1) {
+                bar.style.width = '25%';
+                bar.className = 'h-1 rounded-full transition-all duration-300 bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.6)]';
+                text.innerText = 'Força: Fraca';
+                text.className = 'text-[10px] font-bold text-rose-400';
+            } else if (score === 2 || score === 3) {
+                bar.style.width = '60%';
+                bar.className = 'h-1 rounded-full transition-all duration-300 bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.6)]';
+                text.innerText = 'Força: Média';
+                text.className = 'text-[10px] font-bold text-amber-400';
+            } else {
+                bar.style.width = '100%';
+                bar.className = 'h-1 rounded-full transition-all duration-300 bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.6)]';
+                text.innerText = 'Força: Excelente 🔒';
+                text.className = 'text-[10px] font-bold text-emerald-400';
+            }
+        };
+
+        // Carrossel do Showcase Esquerdo (3 Widgets Totalmente Funcionais)
         let currentWidgetIndex = 1;
         let showcaseTimer = null;
 
@@ -211,19 +292,28 @@
             if (card2) card2.classList.add('hidden');
             if (card3) card3.classList.add('hidden');
 
-            if (dot1) { dot1.classList.remove('bg-finance-accent', 'w-6'); dot1.classList.add('bg-gray-700', 'w-2'); }
-            if (dot2) { dot2.classList.remove('bg-finance-accent', 'w-6'); dot2.classList.add('bg-gray-700', 'w-2'); }
-            if (dot3) { dot3.classList.remove('bg-finance-accent', 'w-6'); dot3.classList.add('bg-gray-700', 'w-2'); }
+            if (dot1) { dot1.classList.remove('bg-amber-400', 'w-7'); dot1.classList.add('bg-gray-700', 'w-2.5'); }
+            if (dot2) { dot2.classList.remove('bg-amber-400', 'w-7'); dot2.classList.add('bg-gray-700', 'w-2.5'); }
+            if (dot3) { dot3.classList.remove('bg-amber-400', 'w-7'); dot3.classList.add('bg-gray-700', 'w-2.5'); }
 
             if (widgetIndex === 2) {
-                if (card2) card2.classList.remove('hidden');
-                if (dot2) { dot2.classList.remove('bg-gray-700', 'w-2'); dot2.classList.add('bg-finance-accent', 'w-6'); }
+                if (card2) {
+                    card2.classList.remove('hidden');
+                    card2.classList.add('form-fade');
+                }
+                if (dot2) { dot2.classList.remove('bg-gray-700', 'w-2.5'); dot2.classList.add('bg-amber-400', 'w-7'); }
             } else if (widgetIndex === 3) {
-                if (card3) card3.classList.remove('hidden');
-                if (dot3) { dot3.classList.remove('bg-gray-700', 'w-2'); dot3.classList.add('bg-finance-accent', 'w-6'); }
+                if (card3) {
+                    card3.classList.remove('hidden');
+                    card3.classList.add('form-fade');
+                }
+                if (dot3) { dot3.classList.remove('bg-gray-700', 'w-2.5'); dot3.classList.add('bg-amber-400', 'w-7'); }
             } else {
-                if (card1) card1.classList.remove('hidden');
-                if (dot1) { dot1.classList.remove('bg-gray-700', 'w-2'); dot1.classList.add('bg-finance-accent', 'w-6'); }
+                if (card1) {
+                    card1.classList.remove('hidden');
+                    card1.classList.add('form-fade');
+                }
+                if (dot1) { dot1.classList.remove('bg-gray-700', 'w-2.5'); dot1.classList.add('bg-amber-400', 'w-7'); }
             }
         };
 
@@ -240,6 +330,29 @@
             if (showcaseTimer) clearInterval(showcaseTimer);
         }
 
+        // Função de Acesso Rápido com Animação Visual
+        window.fillDemoCredentials = function(email, password, roleName) {
+            const emailInput = document.getElementById('loginEmail');
+            const passInput = document.getElementById('loginPassword');
+            if (!emailInput || !passInput) return;
+
+            emailInput.value = email;
+            passInput.value = password;
+
+            const emailWrapper = emailInput.closest('.input-wrapper');
+            const passWrapper = passInput.closest('.input-wrapper');
+
+            if (emailWrapper) emailWrapper.classList.add('field-highlight');
+            if (passWrapper) passWrapper.classList.add('field-highlight');
+
+            setTimeout(() => {
+                if (emailWrapper) emailWrapper.classList.remove('field-highlight');
+                if (passWrapper) passWrapper.classList.remove('field-highlight');
+            }, 1200);
+
+            showAlert(`Credenciais de <strong>${roleName}</strong> preenchidas! Clique em "Entrar no Sistema".`, 'info');
+        };
+
         document.addEventListener('DOMContentLoaded', () => {
             startShowcaseAutoRotate();
             const card = document.getElementById('tiltCard');
@@ -250,12 +363,12 @@
         });
     </script>
 </head>
-<body class="h-full bg-[#060B18] text-gray-100 font-sans antialiased selection:bg-finance-accent selection:text-finance-dark flex flex-col justify-center items-center min-h-screen">
+<body class="h-full bg-[#030611] text-gray-100 font-sans antialiased selection:bg-amber-500 selection:text-slate-950 flex flex-col justify-center items-center min-h-screen">
 
     <div class="flex min-h-screen w-full relative overflow-hidden items-center justify-center p-4 sm:p-6 lg:p-12">
 
         <!-- Canvas de Partículas Interativas de Fundo com física de mouse -->
-        <canvas id="bgParticlesCanvas" class="absolute inset-0 pointer-events-none z-0 opacity-50"></canvas>
+        <canvas id="bgParticlesCanvas" class="absolute inset-0 pointer-events-none z-0 opacity-60"></canvas>
 
         <!-- Esferas de Luz Efeito Glow (4K Ambient Aura) -->
         <div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
@@ -267,7 +380,7 @@
         <!-- Main 4K Dual Panel Grid Container -->
         <div class="w-full max-w-7xl z-10 my-auto grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
             
-            <!-- COLUNA ESQUERDA: Showcase Executivo de Analytics 4K (Visível no Desktop/4K) -->
+            <!-- COLUNA ESQUERDA: Showcase Executivo de Analytics 4K (Visível no Desktop) -->
             <div class="hidden lg:flex lg:col-span-7 flex-col justify-between space-y-8 pr-4">
                 
                 <!-- Cabeçalho de Boas-Vindas 4K -->
@@ -278,7 +391,7 @@
                     </div>
                     <h1 class="text-4xl xl:text-5xl font-black text-white tracking-tight leading-tight">
                         Gestão Inteligente & <br>
-                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-emerald-300 to-cyan-400 drop-shadow-[0_0_25px_rgba(232,176,75,0.3)]">
+                        <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-emerald-300 to-cyan-400 drop-shadow-[0_0_25px_rgba(245,158,11,0.3)]">
                             Patrimônio de Alta Performance
                         </span>
                     </h1>
@@ -287,58 +400,144 @@
                     </p>
                 </div>
 
-                <!-- Card Showcase Analytics 3D 4K com Gráficos Animados -->
+                <!-- Card Showcase Analytics 3D 4K com 3 Widgets Carrossel Interativos -->
                 <div id="showcaseContainer" class="relative group">
-                    <div id="tiltCard" class="glass-card-3d rounded-3xl border border-amber-500/30 p-6 xl:p-8 shadow-[0_25px_70px_rgba(0,0,0,0.9),0_0_40px_rgba(232,176,75,0.15)] backdrop-blur-3xl bg-[#0a0f1d]/90 relative overflow-hidden transition-all duration-300">
+                    <div id="tiltCard" class="glass-card-3d rounded-3xl border border-amber-500/35 p-6 xl:p-8 shadow-[0_25px_70px_rgba(0,0,0,0.9),0_0_40px_rgba(245,158,11,0.15)] backdrop-blur-3xl bg-[#0a0f1d]/90 relative overflow-hidden transition-all duration-300">
                         
                         <!-- Glow Line Superior -->
                         <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-emerald-400 to-cyan-400"></div>
 
-                        <!-- Mini Header do Showcase -->
-                        <div class="flex items-center justify-between mb-6 pb-4 border-b border-gray-800/80">
-                            <div class="flex items-center gap-3">
-                                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-400/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-lg">
-                                    📊
+                        <!-- WIDGET 1: VISÃO GERAL DE DESEMPENHO MENSAL -->
+                        <div id="widgetCard1" class="space-y-6">
+                            <div class="flex items-center justify-between pb-4 border-b border-gray-800/80">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-400/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-bold text-lg">
+                                        📊
+                                    </div>
+                                    <div>
+                                        <h3 class="text-base font-extrabold text-white">Dashboard Analítico Nexus</h3>
+                                        <p class="text-xs text-gray-400">Visão Geral de Desempenho Mensal</p>
+                                    </div>
                                 </div>
+                                <span class="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-extrabold text-xs flex items-center gap-1.5">
+                                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                    +28.4% este mês
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-3.5">
+                                <div class="p-3.5 rounded-2xl bg-gray-950/70 border border-gray-800/80">
+                                    <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Receitas</span>
+                                    <span class="text-lg font-black text-emerald-400">R$ 48.950,00</span>
+                                </div>
+                                <div class="p-3.5 rounded-2xl bg-gray-950/70 border border-gray-800/80">
+                                    <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Despesas</span>
+                                    <span class="text-lg font-black text-rose-400">R$ 12.340,00</span>
+                                </div>
+                                <div class="p-3.5 rounded-2xl bg-gray-950/70 border border-gray-800/80">
+                                    <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Saldo Líquido</span>
+                                    <span class="text-lg font-black text-amber-400">R$ 36.610,00</span>
+                                </div>
+                            </div>
+
+                            <div class="relative h-24 w-full pt-1">
+                                <svg class="w-full h-full" viewBox="0 0 400 100" preserveAspectRatio="none">
+                                    <defs>
+                                        <linearGradient id="glowGrad1" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stop-color="#F59E0B" stop-opacity="0.35"/>
+                                            <stop offset="100%" stop-color="#F59E0B" stop-opacity="0"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <path d="M 0,80 Q 50,20 100,50 T 200,30 T 300,60 T 400,10 L 400,100 L 0,100 Z" fill="url(#glowGrad1)" />
+                                    <path d="M 0,80 Q 50,20 100,50 T 200,30 T 300,60 T 400,10" fill="none" stroke="#F59E0B" stroke-width="3" stroke-linecap="round" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        <!-- WIDGET 2: METAS & ORÇAMENTOS INTELIGENTES -->
+                        <div id="widgetCard2" class="space-y-6 hidden">
+                            <div class="flex items-center justify-between pb-4 border-b border-gray-800/80">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-emerald-400/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold text-lg">
+                                        🎯
+                                    </div>
+                                    <div>
+                                        <h3 class="text-base font-extrabold text-white">Metas & Orçamentos Inteligentes</h3>
+                                        <p class="text-xs text-gray-400">Progresso de Objetivos Financeiros</p>
+                                    </div>
+                                </div>
+                                <span class="px-3 py-1 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 font-extrabold text-xs">
+                                    2 de 3 Atingidas
+                                </span>
+                            </div>
+
+                            <div class="space-y-4">
                                 <div>
-                                    <h3 class="text-base font-extrabold text-white">Dashboard Analítico Nexus</h3>
-                                    <p class="text-xs text-gray-400">Visão Geral de Desempenho Mensal</p>
+                                    <div class="flex justify-between text-xs font-semibold mb-1">
+                                        <span class="text-gray-300">Reserva de Emergência</span>
+                                        <span class="text-emerald-400 font-mono">88% (R$ 44.000 / R$ 50.000)</span>
+                                    </div>
+                                    <div class="w-full h-2 rounded-full bg-gray-900 overflow-hidden border border-gray-800">
+                                        <div class="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-full w-[88%] shadow-[0_0_12px_rgba(16,185,129,0.8)]"></div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div class="flex justify-between text-xs font-semibold mb-1">
+                                        <span class="text-gray-300">Carteira de Investimentos</span>
+                                        <span class="text-cyan-400 font-mono">65% (R$ 130.000 / R$ 200.000)</span>
+                                    </div>
+                                    <div class="w-full h-2 rounded-full bg-gray-900 overflow-hidden border border-gray-800">
+                                        <div class="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full w-[65%] shadow-[0_0_12px_rgba(6,182,212,0.8)]"></div>
+                                    </div>
                                 </div>
                             </div>
-                            <span class="px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-extrabold text-xs flex items-center gap-1.5">
-                                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                                +28.4% este mês
-                            </span>
-                        </div>
 
-                        <!-- KPIs Rápidos 4K -->
-                        <div class="grid grid-cols-3 gap-4 mb-6">
-                            <div class="p-3.5 rounded-2xl bg-gray-950/70 border border-gray-800/80">
-                                <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Receitas</span>
-                                <span class="text-lg font-black text-emerald-400">R$ 48.950,00</span>
-                            </div>
-                            <div class="p-3.5 rounded-2xl bg-gray-950/70 border border-gray-800/80">
-                                <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Despesas</span>
-                                <span class="text-lg font-black text-rose-400">R$ 12.340,00</span>
-                            </div>
-                            <div class="p-3.5 rounded-2xl bg-gray-950/70 border border-gray-800/80">
-                                <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Saldo Líquido</span>
-                                <span class="text-lg font-black text-amber-400">R$ 36.610,00</span>
+                            <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+                                <span>💡</span>
+                                <span><strong>Insight IA:</strong> Previsão de atingimento da meta em 45 dias com base no seu aporte atual.</span>
                             </div>
                         </div>
 
-                        <!-- Mini Gráfico de Área Glow 4K (SVG) -->
-                        <div class="relative h-28 w-full">
-                            <svg class="w-full h-full" viewBox="0 0 400 100" preserveAspectRatio="none">
-                                <defs>
-                                    <linearGradient id="glowGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="0%" stop-color="#fbbf24" stop-opacity="0.35"/>
-                                        <stop offset="100%" stop-color="#fbbf24" stop-opacity="0"/>
-                                    </linearGradient>
-                                </defs>
-                                <path d="M 0,80 Q 50,20 100,50 T 200,30 T 300,60 T 400,10 L 400,100 L 0,100 Z" fill="url(#glowGrad)" />
-                                <path d="M 0,80 Q 50,20 100,50 T 200,30 T 300,60 T 400,10" fill="none" stroke="#fbbf24" stroke-width="3" stroke-linecap="round" />
-                            </svg>
+                        <!-- WIDGET 3: SEGURANÇA & CRIPTOGRAFIA BANCÁRIA -->
+                        <div id="widgetCard3" class="space-y-6 hidden">
+                            <div class="flex items-center justify-between pb-4 border-b border-gray-800/80">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500/20 to-cyan-400/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 font-bold text-lg">
+                                        🛡️
+                                    </div>
+                                    <div>
+                                        <h3 class="text-base font-extrabold text-white">Proteção & Criptografia 256-Bit</h3>
+                                        <p class="text-xs text-gray-400">Segurança de Dados de Nível Bancário</p>
+                                    </div>
+                                </div>
+                                <span class="px-3 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300 font-extrabold text-xs">
+                                    SSL Ativo
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 text-xs">
+                                <div class="p-3 rounded-xl bg-gray-950/80 border border-gray-800/80 space-y-1">
+                                    <strong class="text-white block font-bold">Criptografia PBKDF2</strong>
+                                    <p class="text-gray-400 text-[11px]">Senhas protegidas com hashing e salt nativo.</p>
+                                </div>
+                                <div class="p-3 rounded-xl bg-gray-950/80 border border-gray-800/80 space-y-1">
+                                    <strong class="text-white block font-bold">Logs Auditados</strong>
+                                    <p class="text-gray-400 text-[11px]">Rastreamento em tempo real de acessos.</p>
+                                </div>
+                            </div>
+
+                            <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2">
+                                <span>🔒</span>
+                                <span>Conectividade 100% protegida com isolamento de dados por usuário.</span>
+                            </div>
+                        </div>
+
+                        <!-- Dots de Rotação Manual / Automática -->
+                        <div class="flex items-center justify-center gap-2 pt-4 border-t border-gray-800/60">
+                            <button type="button" id="widgetDot1" onclick="switchShowcaseWidget(1)" class="h-2.5 w-7 rounded-full bg-amber-400 transition-all duration-300 focus:outline-none" aria-label="Widget 1"></button>
+                            <button type="button" id="widgetDot2" onclick="switchShowcaseWidget(2)" class="h-2.5 w-2.5 rounded-full bg-gray-700 hover:bg-gray-500 transition-all duration-300 focus:outline-none" aria-label="Widget 2"></button>
+                            <button type="button" id="widgetDot3" onclick="switchShowcaseWidget(3)" class="h-2.5 w-2.5 rounded-full bg-gray-700 hover:bg-gray-500 transition-all duration-300 focus:outline-none" aria-label="Widget 3"></button>
                         </div>
 
                     </div>
@@ -375,7 +574,7 @@
             <div class="col-span-12 lg:col-span-5 flex flex-col justify-center">
                 
                 <!-- Card de Autenticação Glassmorphism 4K -->
-                <div class="glass-card-3d rounded-3xl border border-amber-500/35 p-7 sm:p-9 shadow-[0_25px_70px_rgba(0,0,0,0.9),0_0_40px_rgba(232,176,75,0.2)] backdrop-blur-3xl bg-[#0a0f1d]/90 relative overflow-hidden">
+                <div class="glass-card-3d rounded-3xl border border-amber-500/35 p-7 sm:p-9 shadow-[0_25px_70px_rgba(0,0,0,0.9),0_0_40px_rgba(245,158,11,0.2)] backdrop-blur-3xl bg-[#0a0f1d]/90 relative overflow-hidden">
                     
                     <!-- Glow Line Superior -->
                     <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-amber-500 via-emerald-400 to-cyan-400"></div>
@@ -383,7 +582,7 @@
                     <!-- Topo: Marca NEXUS FINANCEIRO HUB -->
                     <div class="flex flex-col items-center text-center mb-6">
                         <div class="relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500/25 via-amber-400/20 to-emerald-400/25 border border-amber-500/40 shadow-xl shadow-amber-500/20 mb-3 group hover:scale-105 transition-transform">
-                            <span class="text-2xl font-black text-amber-400 drop-shadow-[0_0_8px_rgba(232,176,75,0.8)]">N</span>
+                            <span class="text-2xl font-black text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]">N</span>
                         </div>
                         <span class="text-xl font-extrabold tracking-tight text-white flex items-center gap-1.5">
                             NEXUS <span class="text-transparent bg-clip-text bg-gradient-to-r from-amber-400 via-emerald-300 to-cyan-400">FINANCEIRO HUB</span>
@@ -396,9 +595,9 @@
 
                     <!-- Cabeçalho Dinâmico -->
                     <div class="text-center mb-5">
-                        <h2 id="authTitle" class="text-2xl font-extrabold tracking-tight text-white">Acessar Conta</h2>
+                        <h2 id="authTitle" class="text-2xl font-extrabold tracking-tight text-white">Acessar sua Conta</h2>
                         <p id="authSub" class="mt-1.5 text-xs sm:text-sm text-gray-400 leading-relaxed">
-                            Informe suas credenciais para continuar
+                            Informe suas credenciais para gerenciar seu patrimônio com inteligência.
                         </p>
                     </div>
 
@@ -415,12 +614,15 @@
                         </button>
                     </div>
 
+                    <!-- Alerta Inline Dinâmico (Reemplaza alert nativos) -->
+                    <div id="authAlert" class="hidden"></div>
+
                     <!-- Box 1: Formulário de Login -->
                     <div id="loginBox" class="mt-6 form-fade" style="display: block;">
                         <form id="loginForm" class="space-y-4" onsubmit="handleLoginSubmit(event); return false;">
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">E-mail</label>
-                                <div class="input-wrapper rounded-xl border border-gray-700/80 bg-gray-950/70 transition-all">
+                                <div class="input-wrapper rounded-xl bg-gray-950/80">
                                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                                         <svg class="w-4 h-4 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
                                     </div>
@@ -437,7 +639,7 @@
                                         <a href="javascript:void(0)" onclick="switchAuthTab('forgot')" class="font-medium text-amber-400 hover:text-amber-300 hover:underline transition-colors">Esqueceu a senha?</a>
                                     </div>
                                 </div>
-                                <div class="input-wrapper rounded-xl border border-gray-700/80 bg-gray-950/70 transition-all">
+                                <div class="input-wrapper rounded-xl bg-gray-950/80">
                                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                                         <svg class="w-4 h-4 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                                     </div>
@@ -450,7 +652,7 @@
                                 </div>
                             </div>
 
-                            <!-- Opção Lembrar de Mim & Acesso Rápido -->
+                            <!-- Opção Lembrar de Mim -->
                             <div class="flex items-center justify-between pt-1">
                                 <label class="flex items-center gap-2 cursor-pointer select-none text-xs text-gray-300">
                                     <input type="checkbox" id="rememberMe" class="custom-checkbox rounded border-gray-700 w-4 h-4 bg-gray-900 focus:ring-0 cursor-pointer" checked>
@@ -462,10 +664,10 @@
                             <div class="flex items-center justify-between gap-2 pt-1 pb-1">
                                 <span class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Acesso Rápido:</span>
                                 <div class="flex items-center gap-2">
-                                    <button type="button" onclick="document.getElementById('loginEmail').value='admin@nexus.com'; document.getElementById('loginPassword').value='123456';" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition-all text-xs font-bold">
+                                    <button type="button" onclick="fillDemoCredentials('admin@nexus.com', '123456', 'Administrador')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/30 transition-all text-xs font-bold">
                                         ⚡ Admin
                                     </button>
-                                    <button type="button" onclick="document.getElementById('loginEmail').value='paulolp0101@gmail.com'; document.getElementById('loginPassword').value='123456';" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-xs font-bold">
+                                    <button type="button" onclick="fillDemoCredentials('paulolp0101@gmail.com', '123456', 'Paulo Lima')" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-xs font-bold">
                                         👤 Paulo
                                     </button>
                                 </div>
@@ -488,7 +690,7 @@
                         <form id="registerForm" class="space-y-4" onsubmit="handleRegisterSubmit(event); return false;">
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">Nome Completo</label>
-                                <div class="input-wrapper rounded-xl border border-gray-700/80 bg-gray-950/70 transition-all">
+                                <div class="input-wrapper rounded-xl bg-gray-950/80">
                                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                                         <svg class="w-4 h-4 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                     </div>
@@ -499,8 +701,8 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">E-mail</label>
-                                <div class="input-wrapper rounded-xl border border-gray-700/80 bg-gray-950/70 transition-all">
+                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">E-mail Cadastrado</label>
+                                <div class="input-wrapper rounded-xl bg-gray-950/80">
                                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                                         <svg class="w-4 h-4 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 12a4 4 0 10-8 0 4 4 0 008 0zm0 0v1.5a2.5 2.5 0 005 0V12a9 9 0 10-9 9m4.5-1.206a8.959 8.959 0 01-4.5 1.207"></path></svg>
                                     </div>
@@ -511,17 +713,23 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">Senha (mínimo 6 caracteres)</label>
-                                <div class="input-wrapper rounded-xl border border-gray-700/80 bg-gray-950/70 transition-all">
+                                <div class="flex justify-between items-center mb-1.5">
+                                    <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300">Senha (mínimo 6 caracteres)</label>
+                                    <span id="passStrengthText" class="text-[10px]"></span>
+                                </div>
+                                <div class="input-wrapper rounded-xl bg-gray-950/80">
                                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                                         <svg class="w-4 h-4 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                                     </div>
-                                    <input id="regPassword" name="regPassword" type="password" minlength="6" required 
+                                    <input id="regPassword" name="regPassword" type="password" minlength="6" required oninput="checkPasswordStrength(this.value)"
                                         class="block w-full rounded-xl bg-transparent pl-10 pr-10 py-3 text-white placeholder-gray-500 text-sm focus:outline-none transition-all"
                                         placeholder="••••••••">
                                     <button type="button" id="btnToggleRegPass" onclick="togglePasswordVisibility('regPassword', 'btnToggleRegPass')" class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-200 transition-colors focus:outline-none">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                     </button>
+                                </div>
+                                <div class="w-full bg-gray-900 rounded-full h-1 mt-2 overflow-hidden">
+                                    <div id="passStrengthBar" class="h-1 rounded-full transition-all duration-300 w-0 bg-gray-700"></div>
                                 </div>
                             </div>
 
@@ -539,12 +747,10 @@
 
                     <!-- Box 3: Formulário de Recuperar Senha -->
                     <div id="forgotBox" class="mt-6 form-fade" style="display: none;">
-                        <div id="forgotAlert" class="hidden mb-4 p-3.5 rounded-xl text-xs font-medium border"></div>
-
                         <form id="forgotForm" class="space-y-4" onsubmit="handleForgotSubmit(event); return false;">
                             <div>
                                 <label class="block text-xs font-semibold uppercase tracking-wider text-gray-300 mb-1.5">E-mail Cadastrado</label>
-                                <div class="input-wrapper rounded-xl border border-gray-700/80 bg-gray-950/70 transition-all">
+                                <div class="input-wrapper rounded-xl bg-gray-950/80">
                                     <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
                                         <svg class="w-4 h-4 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
                                     </div>
@@ -579,13 +785,13 @@
 
                 <!-- CHIP DE DESTAQUE DO DESENVOLVEDOR PAULO LIMA (4K ILLUMINATED BADGE) -->
                 <div class="mt-6 flex justify-center">
-                    <div class="inline-flex items-center gap-3 px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-950/90 via-slate-950/95 to-amber-950/90 border border-amber-500/50 shadow-[0_0_25px_rgba(232,176,75,0.3)] backdrop-blur-2xl hover:scale-105 transition-all duration-300 group cursor-default">
+                    <div class="inline-flex items-center gap-3 px-6 py-2.5 rounded-full bg-gradient-to-r from-amber-950/90 via-slate-950/95 to-amber-950/90 border border-amber-500/50 shadow-[0_0_25px_rgba(245,158,11,0.3)] backdrop-blur-2xl hover:scale-105 transition-all duration-300 group cursor-default">
                         <span class="relative flex items-center justify-center w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-300 text-slate-950 font-black text-xs shadow-md shadow-amber-500/40 ring-2 ring-amber-400/50">
                             PL
                         </span>
                         <div class="flex items-center gap-2">
                             <span class="text-[11px] font-bold uppercase tracking-wider text-amber-200/90">DESENVOLVEDOR</span>
-                            <span class="text-sm font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-400 drop-shadow-[0_0_12px_rgba(232,176,75,0.9)]">PAULO LIMA</span>
+                            <span class="text-sm font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-yellow-100 to-amber-400 drop-shadow-[0_0_12px_rgba(245,158,11,0.9)]">PAULO LIMA</span>
                         </div>
                     </div>
                 </div>
@@ -597,27 +803,29 @@
     </div>
 
     <script>
-    const targetOrigin = (window.location.origin && window.location.origin.includes('http')) 
-        ? window.location.origin 
-        : 'http://localhost:3000';
-
-    // 1. Submit Login (Normal Credential Submit)
+    // 1. Submit Login
     async function handleLoginSubmit(e) {
         if (e) e.preventDefault();
-        const email = document.getElementById('loginEmail').value.trim();
-        const password = document.getElementById('loginPassword').value.trim();
+        hideAlert();
+
+        const emailInput = document.getElementById('loginEmail');
+        const passInput = document.getElementById('loginPassword');
         const btn = document.getElementById('btnLoginSubmit');
 
+        const email = emailInput ? emailInput.value.trim() : '';
+        const password = passInput ? passInput.value.trim() : '';
+
         if (!email || !password) {
-            alert('Por favor, preencha o e-mail e a senha.');
+            showAlert('Por favor, preencha o e-mail e a senha.');
             return false;
         }
 
         btn.disabled = true;
-        btn.innerHTML = `<svg class="w-4 h-4 animate-spin text-finance-dark inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Entrando...`;
+        btn.innerHTML = `<svg class="w-4 h-4 animate-spin text-slate-950 inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Entrando...`;
 
         try {
-            const res = await fetch(targetOrigin + '/api/login', {
+            const apiUrl = targetOrigin.endsWith('/') ? targetOrigin + 'api/login' : targetOrigin + '/api/login';
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
@@ -625,18 +833,23 @@
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                alert(data.error || 'E-mail ou senha incorretos!');
+                showAlert(data.error || 'E-mail ou senha incorretos!', 'error');
                 btn.disabled = false;
                 btn.innerHTML = 'Entrar no Sistema →';
                 return false;
             }
 
+            showAlert('Autenticação bem-sucedida! Redirecionando...', 'success');
             localStorage.setItem('nexus_session', JSON.stringify({ email: email }));
             localStorage.setItem('nexus_token', data.token);
             localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
-            window.location.href = targetOrigin;
+
+            setTimeout(() => {
+                window.location.href = targetOrigin;
+            }, 600);
+
         } catch (err) {
-            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
+            showAlert('Erro ao conectar ao servidor backend (porta 3000). Verifique se o comando "npm start" está rodando.', 'error');
             btn.disabled = false;
             btn.innerHTML = 'Entrar no Sistema →';
         }
@@ -646,21 +859,29 @@
     // 2. Submit Register
     async function handleRegisterSubmit(e) {
         if (e) e.preventDefault();
+        hideAlert();
+
         const name = document.getElementById('regName').value.trim();
         const email = document.getElementById('regEmail').value.trim();
         const password = document.getElementById('regPassword').value.trim();
         const btn = document.getElementById('btnRegisterSubmit');
 
         if (!name || !email || !password) {
-            alert('Por favor, preencha todos os campos obrigatórios.');
+            showAlert('Por favor, preencha todos os campos obrigatórios.');
+            return false;
+        }
+
+        if (password.length < 6) {
+            showAlert('A senha deve ter no mínimo 6 caracteres.');
             return false;
         }
 
         btn.disabled = true;
-        btn.innerHTML = `<svg class="w-4 h-4 animate-spin text-finance-dark inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Criando conta...`;
+        btn.innerHTML = `<svg class="w-4 h-4 animate-spin text-slate-950 inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Criando conta...`;
 
         try {
-            const res = await fetch(targetOrigin + '/api/register', {
+            const apiUrl = targetOrigin.endsWith('/') ? targetOrigin + 'api/register' : targetOrigin + '/api/register';
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, email, password })
@@ -668,18 +889,21 @@
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                alert(data.error || 'Erro ao criar conta.');
+                showAlert(data.error || 'Erro ao criar conta.', 'error');
                 btn.disabled = false;
                 btn.innerHTML = 'Criar Minha Conta Pessoal →';
                 return false;
             }
 
-            alert('Conta criada com sucesso! Você pode fazer login agora.');
+            showAlert('Conta criada com sucesso! Preenchemos suas credenciais para entrar.', 'success');
             document.getElementById('loginEmail').value = email;
             document.getElementById('loginPassword').value = password;
-            switchAuthTab('login');
+            setTimeout(() => {
+                switchAuthTab('login');
+            }, 1000);
+
         } catch (err) {
-            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
+            showAlert('Erro ao conectar ao servidor backend (porta 3000). Verifique se o comando "npm start" está rodando.', 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = 'Criar Minha Conta Pessoal →';
@@ -690,21 +914,22 @@
     // 3. Submit Forgot Password
     async function handleForgotSubmit(e) {
         if (e) e.preventDefault();
+        hideAlert();
+
         const email = document.getElementById('forgotEmail').value.trim();
         const btn = document.getElementById('btnSendPassword');
-        const forgotAlert = document.getElementById('forgotAlert');
 
         if (!email) {
-            alert('Por favor, informe seu e-mail cadastrado.');
+            showAlert('Por favor, informe seu e-mail cadastrado.');
             return false;
         }
 
         btn.disabled = true;
-        btn.innerHTML = `<svg class="w-4 h-4 animate-spin text-finance-dark inline mr-1" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Enviando...`;
-        forgotAlert.classList.add('hidden');
+        btn.innerHTML = `<svg class="w-4 h-4 animate-spin text-slate-950 inline mr-1.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Enviando...`;
 
         try {
-            const res = await fetch(targetOrigin + '/api/send-password', {
+            const apiUrl = targetOrigin.endsWith('/') ? targetOrigin + 'api/send-password' : targetOrigin + '/api/send-password';
+            const res = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email })
@@ -712,33 +937,25 @@
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                forgotAlert.className = "mb-4 p-3 rounded-lg text-xs font-medium border bg-red-900/30 border-red-500/40 text-red-300";
-                forgotAlert.innerText = '⚠️ ' + (data.error || 'E-mail não encontrado.');
-                forgotAlert.classList.remove('hidden');
+                showAlert(data.error || 'E-mail não encontrado no sistema.', 'error');
                 btn.disabled = false;
                 btn.innerHTML = 'Enviar / Gerar Nova Senha →';
                 return false;
             }
 
             if (data.mode === 'direct' && data.tempPassword) {
-                forgotAlert.className = "mb-4 p-4 rounded-xl text-sm font-medium border bg-emerald-950/60 border-emerald-500/50 text-emerald-300 space-y-2";
-                forgotAlert.innerHTML = `
-                    <div>✅ <strong>Senha temporária gerada:</strong></div>
-                    <div class="text-xl font-bold tracking-widest text-white bg-black/40 p-2.5 rounded-lg text-center font-mono select-all">${data.tempPassword}</div>
-                    <p class="text-xs text-gray-300 mt-1">Sua nova senha temporária para <strong>${email}</strong> é <code>${data.tempPassword}</code>.</p>
-                    <button type="button" onclick="document.getElementById('loginEmail').value='${email}'; document.getElementById('loginPassword').value='${data.tempPassword}'; switchAuthTab('login');" class="mt-2 w-full py-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold rounded-lg transition-colors text-xs uppercase tracking-wider">
-                        🔑 Preencher e Entrar Agora →
-                    </button>
-                `;
-                forgotAlert.classList.remove('hidden');
+                showAlert(`<strong>Senha temporária gerada:</strong> <code class="bg-black/50 px-2 py-0.5 rounded text-amber-300 font-mono text-sm">${data.tempPassword}</code>. Preenchemos para você entrar.`, 'success');
+                document.getElementById('loginEmail').value = email;
+                document.getElementById('loginPassword').value = data.tempPassword;
+                setTimeout(() => {
+                    switchAuthTab('login');
+                }, 1800);
             } else {
-                forgotAlert.className = "mb-4 p-3 rounded-lg text-xs font-medium border bg-emerald-900/30 border-emerald-500/40 text-emerald-300";
-                forgotAlert.innerText = '✅ Instruções de redefinição enviadas para o seu e-mail com sucesso!';
-                forgotAlert.classList.remove('hidden');
+                showAlert('Instruções de redefinição enviadas para o seu e-mail com sucesso!', 'success');
             }
 
         } catch (err) {
-            alert('Erro ao conectar ao servidor backend na porta 3000. Certifique-se de executar "npm start".');
+            showAlert('Erro ao conectar ao servidor backend (porta 3000). Verifique se o comando "npm start" está rodando.', 'error');
         } finally {
             btn.disabled = false;
             btn.innerHTML = 'Enviar / Gerar Nova Senha →';
@@ -754,7 +971,7 @@
         let width = canvas.width = window.innerWidth;
         let height = canvas.height = window.innerHeight;
 
-        const mouse = { x: -1000, y: -1000, radius: 160 };
+        const mouse = { x: -1000, y: -1000, radius: 170 };
 
         window.addEventListener('mousemove', (e) => {
             mouse.x = e.clientX;
@@ -772,16 +989,14 @@
         });
 
         const particles = [];
-        const count = Math.min(Math.floor(width / 30), 55);
+        const count = Math.min(Math.floor(width / 26), 60);
 
         for (let i = 0; i < count; i++) {
             particles.push({
                 x: Math.random() * width,
                 y: Math.random() * height,
-                baseVx: (Math.random() - 0.5) * 0.45,
-                baseVy: (Math.random() - 0.5) * 0.45,
-                vx: (Math.random() - 0.5) * 0.45,
-                vy: (Math.random() - 0.5) * 0.45,
+                baseVx: (Math.random() - 0.5) * 0.4,
+                baseVy: (Math.random() - 0.5) * 0.4,
                 radius: Math.random() * 1.8 + 0.8,
                 alpha: Math.random() * 0.5 + 0.25
             });
@@ -793,15 +1008,14 @@
             for (let i = 0; i < particles.length; i++) {
                 const p = particles[i];
 
-                // Atração sutil ao mouse
                 const dxMouse = mouse.x - p.x;
                 const dyMouse = mouse.y - p.y;
                 const distMouse = Math.sqrt(dxMouse * dxMouse + dyMouse * dyMouse);
 
                 if (distMouse < mouse.radius) {
                     const force = (mouse.radius - distMouse) / mouse.radius;
-                    p.x += (dxMouse / distMouse) * force * 1.2;
-                    p.y += (dyMouse / distMouse) * force * 1.2;
+                    p.x += (dxMouse / distMouse) * force * 1.3;
+                    p.y += (dyMouse / distMouse) * force * 1.3;
                 } else {
                     p.x += p.baseVx;
                     p.y += p.baseVy;
@@ -814,22 +1028,21 @@
 
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-                ctx.fillStyle = (i % 2 === 0) ? `rgba(251, 191, 36, ${p.alpha})` : `rgba(0, 229, 255, ${p.alpha})`;
+                ctx.fillStyle = (i % 2 === 0) ? `rgba(245, 158, 11, ${p.alpha})` : `rgba(0, 229, 255, ${p.alpha})`;
                 ctx.fill();
 
-                // Conectar partículas próximas com gradiente de ouro 4K
                 for (let j = i + 1; j < particles.length; j++) {
                     const p2 = particles[j];
                     const dx = p.x - p2.x;
                     const dy = p.y - p2.y;
                     const dist = Math.sqrt(dx * dx + dy * dy);
 
-                    if (dist < 140) {
+                    if (dist < 135) {
                         ctx.beginPath();
                         ctx.moveTo(p.x, p.y);
                         ctx.lineTo(p2.x, p2.y);
-                        ctx.strokeStyle = `rgba(245, 158, 11, ${(1 - dist / 140) * 0.22})`;
-                        ctx.lineWidth = 0.75;
+                        ctx.strokeStyle = `rgba(245, 158, 11, ${(1 - dist / 135) * 0.2})`;
+                        ctx.lineWidth = 0.7;
                         ctx.stroke();
                     }
                 }
@@ -850,8 +1063,8 @@
             const x = e.clientX - rect.left - rect.width / 2;
             const y = e.clientY - rect.top - rect.height / 2;
 
-            const rotateX = (-y / rect.height) * 14;
-            const rotateY = (x / rect.width) * 14;
+            const rotateX = (-y / rect.height) * 12;
+            const rotateY = (x / rect.width) * 12;
 
             card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
         });
