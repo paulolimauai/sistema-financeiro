@@ -1026,8 +1026,8 @@ body.light tr.trow:hover td { background:#f1f5f9 !important; }
 
 /* ==================== Popup de login bem-sucedido (Executive 4K) ==================== */
 .login-success-overlay{
-  position:fixed; inset:0; background:rgba(4,7,17,.75); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
-  display:none; align-items:center; justify-content:center; z-index:300; padding:20px; opacity:0;
+  position:fixed; inset:0; background:rgba(4,7,17,.80); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  display:none; align-items:center; justify-content:center; z-index:99999 !important; padding:20px; opacity:0;
   transition:opacity .3s ease;
 }
 .login-success-overlay.show{display:flex;}
@@ -1759,13 +1759,17 @@ document.getElementById('loginForm').onsubmit = async (e) => {
 function showLoginSuccessPopup(msg){
   const overlay = document.getElementById('loginSuccessOverlay');
   if(!overlay) return;
-  if(msg) document.getElementById('loginSuccessMsg').textContent = msg;
+  if(msg) {
+    const msgEl = document.getElementById('loginSuccessMsg');
+    if(msgEl) msgEl.textContent = msg;
+  }
   overlay.classList.add('show');
-  requestAnimationFrame(()=> overlay.classList.add('in'));
+  void overlay.offsetHeight; // Forçar reflow do browser
+  overlay.classList.add('in');
   setTimeout(()=>{
     overlay.classList.remove('in');
-    setTimeout(()=> overlay.classList.remove('show'), 300);
-  }, 3000);
+    setTimeout(()=> overlay.classList.remove('show'), 350);
+  }, 3200);
 }
 
 function showAccountDisabledPopup(msg){
