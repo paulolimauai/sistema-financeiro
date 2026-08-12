@@ -738,7 +738,9 @@ body.light .due-bill-row {
   background:var(--card); color:var(--text); border:1px solid var(--card-border); padding:10px 16px;
   border-radius:10px; font-size:13px; cursor:pointer;
 }
-.btn-ghost:hove.kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:20px;}
+.btn-ghost:hover{background:var(--hover);}
+
+.kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:20px;}
 .kpi{
   position:relative; overflow:hidden;
   background:linear-gradient(145deg, rgba(17,28,58,0.95) 0%, rgba(11,19,43,0.98) 100%);
