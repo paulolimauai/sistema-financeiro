@@ -1865,9 +1865,11 @@ document.getElementById('registerForm').onsubmit = async (e) => {
 // Logout
 document.getElementById('logoutBtn').onclick = async () => {
   try { await saveUserData(); } catch(e){}
+  resetUserDataState();
   currentUser = null;
   isViewingOtherUser = false;
   adminOriginalUser = null;
+  isDataLoading = false;
   localStorage.removeItem('nexus_session');
   localStorage.removeItem('nexus_cached_user');
   localStorage.removeItem('nexus_token');
@@ -1916,6 +1918,27 @@ const BASE_CATEGORIES = [
   {name:'Bônus / 13º', color:'#d8a34b', type:'receita', icon:'🎉'},
   {name:'Outras Receitas', color:'#8a93a3', type:'receita', icon:'💰'}
 ];
+
+function resetUserDataState() {
+  categories = BASE_CATEGORIES.map(c => ({ ...c, count: 0 }));
+  accounts = [];
+  transactions = [];
+  budgets = [];
+  goals = [];
+  recurringList = [];
+  alerts = [];
+  attachments = [];
+  notifications = [];
+  nextAccId = 1;
+  nextTxId = 1;
+  nextBudgetId = 1;
+  nextGoalId = 1;
+  nextRecId = 1;
+  nextAlertId = 1;
+  nextAttId = 1;
+  nextNotifId = 1;
+}
+
 function migrateCategories(){
   let changed = false;
   categories.forEach(c=>{
@@ -1970,27 +1993,24 @@ function autoMigrateTransactionsAndAccounts() {
 }
 
 function applyDataPayload(data) {
-  if (!data) return;
+  resetUserDataState();
+  if (!data || typeof data !== 'object') return;
   
   if (Array.isArray(data.categories) && data.categories.length > 0) {
     categories = data.categories;
-  } else if (!categories || categories.length === 0) {
-    categories = BASE_CATEGORIES.map(c=>({...c, count:0}));
   }
-
-  // Preserva dados existentes caso o payload recebido venha com arrays vazios por falha de resposta
-  if (Array.isArray(data.accounts) && data.accounts.length > 0) {
+  if (Array.isArray(data.accounts)) {
     accounts = data.accounts;
   }
-  if (Array.isArray(data.transactions) && data.transactions.length > 0) {
+  if (Array.isArray(data.transactions)) {
     transactions = data.transactions;
   }
-  if (Array.isArray(data.budgets) && data.budgets.length > 0) budgets = data.budgets;
-  if (Array.isArray(data.goals) && data.goals.length > 0) goals = data.goals;
-  if (Array.isArray(data.recurringList) && data.recurringList.length > 0) recurringList = data.recurringList;
-  if (Array.isArray(data.alerts) && data.alerts.length > 0) alerts = data.alerts;
-  if (Array.isArray(data.attachments) && data.attachments.length > 0) attachments = data.attachments;
-  if (Array.isArray(data.notifications) && data.notifications.length > 0) notifications = data.notifications;
+  if (Array.isArray(data.budgets)) budgets = data.budgets;
+  if (Array.isArray(data.goals)) goals = data.goals;
+  if (Array.isArray(data.recurringList)) recurringList = data.recurringList;
+  if (Array.isArray(data.alerts)) alerts = data.alerts;
+  if (Array.isArray(data.attachments)) attachments = data.attachments;
+  if (Array.isArray(data.notifications)) notifications = data.notifications;
 
   if (data.nextAccId) nextAccId = Math.max(nextAccId, data.nextAccId);
   if (data.nextTxId) nextTxId = Math.max(nextTxId, data.nextTxId);
@@ -2008,21 +2028,25 @@ function applyDataPayload(data) {
 let isDataLoading = false;
 
 async function loadUserData() {
-  if (!currentUser) return;
+  if (!currentUser) {
+    resetUserDataState();
+    isDataLoading = false;
+    return;
+  }
   const cleanEmail = (currentUser.email || '').toLowerCase().trim();
   const userKey = 'nexus_data_' + cleanEmail;
   
-  // 1. Carrega dados do cache local instantaneamente para garantir exibição imediata
+  // 1. Reset state e carrega dados do cache local se existir
   let localData = loadFromStorage(userKey, null);
   if (localData) {
     applyDataPayload(localData);
     isDataLoading = false;
-    if (typeof render === 'function') render();
   } else {
+    resetUserDataState();
     isDataLoading = true;
   }
 
-  // 2. Sincroniza em segundo plano com o servidor PostgreSQL
+  // 2. Sincroniza em segundo plano com o servidor PostgreSQL / API
   try {
     const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(cleanEmail));
     if (res.ok) {
@@ -2059,19 +2083,10 @@ if (typeof document !== 'undefined') {
 async function saveUserData() {
   if (!currentUser) return;
   if (isViewingOtherUser) return;
+  if (isDataLoading) return;
 
-  // Escudo contra exclusão acidental: impede salvar dados totalmente zerados se já existiam contas/transações no cache local
   const cleanEmail = (currentUser.email || '').toLowerCase().trim();
   const userKey = 'nexus_data_' + cleanEmail;
-
-  if (accounts.length === 0 && transactions.length === 0) {
-    const existingCache = loadFromStorage(userKey, null);
-    if (existingCache && ((existingCache.accounts && existingCache.accounts.length > 0) || (existingCache.transactions && existingCache.transactions.length > 0))) {
-      console.warn('Escudo ativado: impedindo sobrescrita do banco de dados com payload zerado.');
-      applyDataPayload(existingCache);
-      return;
-    }
-  }
 
   const payloadData = {
     categories, accounts, transactions, budgets, goals, recurringList, alerts, attachments, notifications,
