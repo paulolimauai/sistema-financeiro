@@ -1747,10 +1747,12 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     } else {
       currentPage = 'dashboard';
     }
-    document.getElementById('authPage').classList.remove('show');
-    document.getElementById('appMain').classList.add('show');
-    render();
     showLoginSuccessPopup('Login efetuado com sucesso!');
+    setTimeout(() => {
+      document.getElementById('authPage').classList.remove('show');
+      document.getElementById('appMain').classList.add('show');
+      render();
+    }, 1400);
   } else {
     alert('E-mail ou senha incorretos!');
   }
