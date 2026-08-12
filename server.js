@@ -365,14 +365,15 @@ body.light .app{
 }
 
 .app-bg-scene{position:fixed; inset:0; z-index:0; pointer-events:none; overflow:hidden;}
+.app-bg-orbital-canvas{position:absolute; inset:0; width:100%; height:100%; opacity:.75; pointer-events:none;}
 .app-bg-grid{
   position:absolute; inset:0;
   background-image:
-    linear-gradient(rgba(59,130,246,.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59,130,246,.06) 1px, transparent 1px);
+    linear-gradient(rgba(59,130,246,.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,.05) 1px, transparent 1px);
   background-size:54px 54px;
-  -webkit-mask-image:radial-gradient(circle at 20% 0%, #000 0%, transparent 65%);
-  mask-image:radial-gradient(circle at 20% 0%, #000 0%, transparent 65%);
+  -webkit-mask-image:radial-gradient(circle at 50% 50%, #000 0%, transparent 75%);
+  mask-image:radial-gradient(circle at 50% 50%, #000 0%, transparent 75%);
 }
 .app-bg-chart{position:absolute; inset:0; width:100%; height:100%; opacity:.16;}
 .app-blob{position:absolute; border-radius:50%; filter:blur(90px); opacity:.16; will-change:transform;}
@@ -1295,6 +1296,7 @@ body.light tr.trow:hover td { background:#f1f5f9 !important; }
     <button id="viewModeExitBtn">Voltar para minha conta</button>
   </div>
   <div class="app-bg-scene" aria-hidden="true">
+    <canvas id="appBgOrbitalCanvas" class="app-bg-orbital-canvas"></canvas>
     <div class="app-bg-grid"></div>
     <svg class="app-bg-chart" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
       <path d="M 0.0,380 L 32.7,355.4 L 65.3,329.5 L 98.0,306.5 L 130.6,323.9 L 163.3,315.9 L 195.9,316.3 L 228.6,311.4 L 261.2,326.5 L 293.9,338.5 L 326.5,337.9 L 359.2,348.4 L 391.8,347.3 L 424.5,367.6 L 457.1,385.0 L 489.8,371.1 L 522.4,371.6 L 555.1,367.6 L 587.8,352.5 L 620.4,356.1 L 653.1,374.8 L 685.7,357.3 L 718.4,349.4 L 751.0,338.1 L 783.7,328.7 L 816.3,301.7 L 849.0,305.2 L 881.6,288.8 L 914.3,292.0 L 946.9,285.0 L 979.6,273.5 L 1012.2,279.4 L 1044.9,296.7 L 1077.6,294.6 L 1110.2,280.3 L 1142.9,272.4 L 1175.5,271.6 L 1208.2,261.1 L 1240.8,273.6 L 1273.5,286.3 L 1306.1,291.7 L 1338.8,272.5 L 1371.4,284.3 L 1404.1,300.2 L 1436.7,316.9 L 1469.4,336.5 L 1502.0,344.4 L 1534.7,337.3 L 1567.3,317.9 L 1600.0,323.0" fill="none" stroke="var(--green)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -5494,6 +5496,53 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
       showLoginSuccessPopup('Login efetuado com sucesso!');
     }, 350);
   }
+})();
+
+// Animação de Fundo de Linhas Orbitais 4K (Mesmo visual da tela de login)
+(function initAppBgOrbital() {
+  const canvas = document.getElementById('appBgOrbitalCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  let width = canvas.width = window.innerWidth;
+  let height = canvas.height = window.innerHeight;
+
+  window.addEventListener('resize', () => {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+  });
+
+  let angle = 0;
+  function renderOrbital() {
+    ctx.clearRect(0, 0, width, height);
+    angle += 0.0018;
+
+    const cx = width / 2;
+    const cy = height / 2;
+
+    for (let i = 1; i <= 7; i++) {
+      const rx = (width * 0.38) + (i * 45);
+      const ry = (height * 0.42) + (i * 35);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate(angle * (i % 2 === 0 ? 1 : -1) + (i * 0.2));
+
+      ctx.beginPath();
+      ctx.ellipse(0, 0, rx, ry, Math.PI / 6, 0, Math.PI * 2);
+      ctx.lineWidth = 1;
+
+      if (i % 2 === 0) {
+        ctx.strokeStyle = 'rgba(200, 155, 60, ' + (0.14 - (i * 0.015)) + ')';
+      } else {
+        ctx.strokeStyle = 'rgba(91, 148, 217, ' + (0.14 - (i * 0.015)) + ')';
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    requestAnimationFrame(renderOrbital);
+  }
+  renderOrbital();
 })();
 </script>
 </body>
