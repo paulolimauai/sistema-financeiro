@@ -5342,6 +5342,15 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
 
   await loadUserData();
   if (typeof render === 'function') render();
+
+  const justLoggedIn = localStorage.getItem('nexus_just_logged_in') || sessionStorage.getItem('nexus_just_logged_in');
+  if (justLoggedIn) {
+    localStorage.removeItem('nexus_just_logged_in');
+    sessionStorage.removeItem('nexus_just_logged_in');
+    setTimeout(() => {
+      showLoginSuccessPopup('Login efetuado com sucesso!');
+    }, 350);
+  }
 })();
 </script>
 </body>

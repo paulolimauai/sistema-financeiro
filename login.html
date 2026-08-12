@@ -844,10 +844,12 @@
             localStorage.setItem('nexus_session', JSON.stringify({ email: email }));
             localStorage.setItem('nexus_token', data.token);
             localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
+            localStorage.setItem('nexus_just_logged_in', 'true');
+            sessionStorage.setItem('nexus_just_logged_in', 'true');
 
             setTimeout(() => {
                 window.location.href = targetOrigin;
-            }, 3000);
+            }, 600);
 
         } catch (err) {
             showAlert('Erro ao conectar ao servidor backend (porta 3000). Verifique se o comando "npm start" está rodando.', 'error');
