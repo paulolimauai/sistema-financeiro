@@ -1601,21 +1601,14 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
     render();
-    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + user.name.split(' ')[0] + '!');
   } else {
     alert('E-mail ou senha incorretos!');
   }
 };
 
 function showLoginSuccessPopup(msg){
-  const overlay = document.getElementById('loginSuccessOverlay');
-  document.getElementById('loginSuccessMsg').textContent = msg;
-  overlay.classList.add('show');
-  requestAnimationFrame(()=> overlay.classList.add('in'));
-  setTimeout(()=>{
-    overlay.classList.remove('in');
-    setTimeout(()=> overlay.classList.remove('show'), 250);
-  }, 1800);
+  // Popup de login bem-sucedido desativado a pedido do usuário
+  return;
 }
 
 function showAccountDisabledPopup(msg){
