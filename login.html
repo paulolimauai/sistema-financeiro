@@ -4,6 +4,25 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login | Sistema Financeiro Hub</title>
+    <script>
+        (function() {
+            try {
+                var t = localStorage.getItem('nexus_theme');
+                if (t === 'light') {
+                    document.documentElement.classList.add('light');
+                } else {
+                    document.documentElement.classList.remove('light');
+                }
+                document.addEventListener('DOMContentLoaded', function() {
+                    if (localStorage.getItem('nexus_theme') === 'light') {
+                        document.body.classList.add('light');
+                    } else {
+                        document.body.classList.remove('light');
+                    }
+                });
+            } catch(e){}
+        })();
+    </script>
     <!-- Fontes do Google: Plus Jakarta Sans & Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -45,7 +64,13 @@
         body {
             font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
             background-color: #12151A;
+            color: #F8FAFC;
             overflow-x: hidden;
+            transition: background-color 0.25s ease, color 0.25s ease;
+        }
+        body.light, html.light body {
+            background-color: #F0F4F8 !important;
+            color: #0F172A !important;
         }
         .auth-card-exact {
             background: #12151A;
@@ -54,7 +79,31 @@
             border: 1.5px solid rgba(200, 155, 60, 0.65);
             border-radius: 28px;
             box-shadow: 0 35px 80px rgba(0, 0, 0, 0.95), 0 0 45px rgba(200, 155, 60, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-            transition: transform 0.25s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.25s ease;
+            transition: transform 0.25s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+        }
+        body.light .auth-card-exact {
+            background: #FFFFFF !important;
+            border-color: #CBD5E1 !important;
+            box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08) !important;
+        }
+        body.light .auth-card-exact h2 {
+            color: #0F172A !important;
+        }
+        body.light .auth-card-exact p {
+            color: #475569 !important;
+        }
+        body.light .auth-card-exact label {
+            color: #475569 !important;
+        }
+        body.light .input-wrapper-exact {
+            background: #F8FAFC !important;
+            border-color: #CBD5E1 !important;
+        }
+        body.light .input-wrapper-exact input {
+            color: #0F172A !important;
+        }
+        body.light .input-wrapper-exact input::placeholder {
+            color: #94A3B8 !important;
         }
         .input-wrapper-exact {
             position: relative;
@@ -213,13 +262,30 @@
                 if (passWrapper) passWrapper.classList.remove('field-highlight');
             }, 1200);
 
-            showAlert(`Credenciais de <strong>${roleName}</strong> preenchidas! Clique em "Entrar na Conta →".`, 'info');
+        window.toggleLoginTheme = function() {
+            const isCurrentlyLight = document.body.classList.contains('light') || document.documentElement.classList.contains('light');
+            const nextIsLight = !isCurrentlyLight;
+            document.body.classList.toggle('light', nextIsLight);
+            document.documentElement.classList.toggle('light', nextIsLight);
+            localStorage.setItem('nexus_theme', nextIsLight ? 'light' : 'dark');
+            const btn = document.getElementById('loginThemeBtn');
+            const moonSvg = `<svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>`;
+            const sunSvg = `<svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M22 12h-2"/><path d="m4.93 19.07 1.41-1.41"/><path d="m17.66 6.34 1.41-1.41"/></svg>`;
+            if (btn) btn.innerHTML = nextIsLight ? sunSvg : moonSvg;
         };
     </script>
 </head>
 <body class="h-full bg-[#12151A] text-gray-100 font-sans antialiased flex flex-col justify-center items-center min-h-screen py-10 px-4">
 
-    <!-- Canvas de Linhas Orbitais & Partículas de Fundo (Exatamente como a Imagem) -->
+    <!-- BOTÃO FLUTUANTE DE ALTERNÂNCIA DE TEMA (CLARO/ESCURO) -->
+    <div class="fixed top-5 right-5 z-50">
+        <button type="button" id="loginThemeBtn" onclick="toggleLoginTheme()" title="Alternar Tema Claro / Escuro"
+            class="w-11 h-11 rounded-xl bg-[#141A28] light:bg-white border border-[#232D42] light:border-slate-300 flex items-center justify-center shadow-lg hover:scale-105 transition-all focus:outline-none">
+            <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+    </div>
+
+    <!-- Canvas de Linhas Orbitais & Partículas de Fundo -->
     <canvas id="bgOrbitalCanvas" class="absolute inset-0 pointer-events-none z-0 opacity-75"></canvas>
 
     <!-- Ambient Aura Glows -->

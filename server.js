@@ -176,7 +176,16 @@ const htmlContent = `<!DOCTYPE html>
     var t = localStorage.getItem('nexus_theme');
     if (t === 'light') {
       document.documentElement.classList.add('light');
+    } else {
+      document.documentElement.classList.remove('light');
     }
+    document.addEventListener('DOMContentLoaded', function() {
+      if (localStorage.getItem('nexus_theme') === 'light') {
+        document.body.classList.add('light');
+      } else {
+        document.body.classList.remove('light');
+      }
+    });
     var cu = localStorage.getItem('nexus_cached_user');
     var s = localStorage.getItem('nexus_session');
     if (s || cu) {
