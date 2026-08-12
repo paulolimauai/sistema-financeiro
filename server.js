@@ -1763,13 +1763,17 @@ function showLoginSuccessPopup(msg){
     const msgEl = document.getElementById('loginSuccessMsg');
     if(msgEl) msgEl.textContent = msg;
   }
+  overlay.style.display = 'flex';
   overlay.classList.add('show');
-  void overlay.offsetHeight; // Forçar reflow do browser
+  void overlay.offsetHeight; // Forçar reflow síncrono do browser
   overlay.classList.add('in');
   setTimeout(()=>{
     overlay.classList.remove('in');
-    setTimeout(()=> overlay.classList.remove('show'), 350);
-  }, 3200);
+    setTimeout(()=>{
+      overlay.classList.remove('show');
+      overlay.style.display = 'none';
+    }, 350);
+  }, 3500);
 }
 
 function showAccountDisabledPopup(msg){
@@ -5491,14 +5495,20 @@ bindPasswordToggle('loginPassword', 'loginPasswordToggle');
   await loadUserData();
   if (typeof render === 'function') render();
 
-  const justLoggedIn = localStorage.getItem('nexus_just_logged_in') || sessionStorage.getItem('nexus_just_logged_in');
-  if (justLoggedIn) {
-    localStorage.removeItem('nexus_just_logged_in');
-    sessionStorage.removeItem('nexus_just_logged_in');
-    setTimeout(() => {
-      showLoginSuccessPopup('Login efetuado com sucesso!');
-    }, 350);
+  function checkAndShowJustLoggedInPopup() {
+    try {
+      const justLoggedIn = localStorage.getItem('nexus_just_logged_in') || sessionStorage.getItem('nexus_just_logged_in');
+      if (justLoggedIn) {
+        localStorage.removeItem('nexus_just_logged_in');
+        sessionStorage.removeItem('nexus_just_logged_in');
+        setTimeout(() => {
+          showLoginSuccessPopup('Login efetuado com sucesso!');
+        }, 200);
+      }
+    } catch(e){}
   }
+  checkAndShowJustLoggedInPopup();
+  document.addEventListener('DOMContentLoaded', checkAndShowJustLoggedInPopup);
 })();
 
 // Animação de Fundo de Linhas Orbitais 4K (Mesmo visual da tela de login)
