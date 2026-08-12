@@ -208,15 +208,15 @@ html.is-admin #mobileDrawerFuncoesBtn {
 }
 
 :root{
-  --bg:#0E1322; --sidebar:#0A0E1A; --card:#141A2B; --card-border:rgba(59,130,246,0.32);
-  --text:#f8fafc; --text-dim:#94a3b8; --text-faint:#64748b;
-  --green:#3b82f6; --green-soft:rgba(59,130,246,.16);
-  --emerald:#3b82f6; --emerald-soft:rgba(59,130,246,.16);
+  --bg:#0D0F12; --sidebar:#090A0D; --card:#12151A; --card-border:rgba(200,155,60,0.40);
+  --text:#f8fafc; --text-dim:#9EA8B6; --text-faint:#677384;
+  --green:#E5A93C; --green-soft:rgba(229,169,60,.16);
+  --emerald:#E5A93C; --emerald-soft:rgba(229,169,60,.16);
   --red:#f43f5e; --red-soft:rgba(244,63,94,.15);
-  --blue:#60a5fa; --purple:#a855f7; --orange:#f59e0b; --teal:#2563eb; --pink:#ec4899;
-  --hover:rgba(59,130,246,.14);
-  --radius:16px;
-  --shadow:0 16px 40px rgba(0,0,0,.9), 0 0 30px rgba(59,130,246,0.20);
+  --blue:#5B94D9; --purple:#a855f7; --orange:#E5A93C; --teal:#4C84C4; --pink:#ec4899;
+  --hover:rgba(229,169,60,.12);
+  --radius:18px;
+  --shadow:0 16px 40px rgba(0,0,0,.95), 0 0 30px rgba(200,155,60,0.20);
 }
 body.light, html.light body{
   --bg:#F0F4F8; --sidebar:#ffffff; --card:#ffffff; --card-border:#CBD5E1;
@@ -227,7 +227,7 @@ body.light, html.light body{
 *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
 html, body{overflow-x:hidden; width:100%;}
 body{
-  font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
+  font-family:'Plus Jakarta Sans','Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
   background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
 }
 button, input, select{font-family:inherit; color:inherit;}
@@ -239,20 +239,20 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth (Mesma cor do Login no Fundo #0E1322) ==================== */
+/* ==================== Tela de Auth (Grafite Titânio Escuro #0D0F12) ==================== */
 .auth-container{
   --auth-accent:#E5A93C; --auth-accent-2:#5B94D9; --auth-accent-3:#E6C675;
   --auth-accent-soft:rgba(229,169,60,.20); --auth-text-on:#0A0F1A;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
-  background:#0E1322;
+  background:#0D0F12;
 }
 .auth-container.show { display: flex; }
 .auth-grid{
   position:absolute; inset:0; z-index:0; pointer-events:none;
   background-image:
-    linear-gradient(rgba(59,130,246,.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(59,130,246,.07) 1px, transparent 1px);
+    linear-gradient(rgba(200,155,60,.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(160,175,200,.06) 1px, transparent 1px);
   background-size:54px 54px;
   -webkit-mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
   mask-image:radial-gradient(circle at 50% 42%, #000 0%, transparent 72%);
@@ -294,9 +294,9 @@ body.light .auth-blob{opacity:.16;}
 }
 .auth-box{
   position:relative; z-index:1;
-  background:rgba(14,19,34,0.96); border:1.5px solid #C89B3C; border-radius:28px;
+  background:#12151A; border:1.5px solid #C89B3C; border-radius:28px;
   padding:38px 34px; width:100%; max-width:420px;
-  box-shadow:0 35px 80px rgba(0,0,0,0.95), 0 0 45px rgba(200,155,60,0.30), inset 0 1px 1px rgba(255,255,255,0.25);
+  box-shadow:0 35px 80px rgba(0,0,0,0.95), 0 0 45px rgba(200,155,60,0.28), inset 0 1px 1px rgba(255,255,255,0.20);
   backdrop-filter:blur(36px); -webkit-backdrop-filter:blur(36px);
   animation:authIn .55s cubic-bezier(.16,1,.3,1);
 }
