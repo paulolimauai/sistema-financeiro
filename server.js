@@ -2,7 +2,6 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const url = require('url');
-const net = require('net');
 const tls = require('tls');
 const { Pool } = require('pg');
 
