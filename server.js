@@ -208,7 +208,7 @@ html.is-admin #mobileDrawerFuncoesBtn {
 }
 
 :root{
-  --bg:#0D0F12; --sidebar:#090A0D; --card:#12151A; --card-border:rgba(200,155,60,0.40);
+  --bg:#12151A; --sidebar:#0D0F13; --card:#12151A; --card-border:rgba(200,155,60,0.40);
   --text:#f8fafc; --text-dim:#9EA8B6; --text-faint:#677384;
   --green:#E5A93C; --green-soft:rgba(229,169,60,.16);
   --emerald:#E5A93C; --emerald-soft:rgba(229,169,60,.16);
@@ -239,13 +239,13 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth (Grafite Titânio Escuro #0D0F12) ==================== */
+/* ==================== Tela de Auth (Mesma cor dos cards no fundo #12151A) ==================== */
 .auth-container{
   --auth-accent:#E5A93C; --auth-accent-2:#5B94D9; --auth-accent-3:#E6C675;
   --auth-accent-soft:rgba(229,169,60,.20); --auth-text-on:#0A0F1A;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
-  background:#0D0F12;
+  background:#12151A;
 }
 .auth-container.show { display: flex; }
 .auth-grid{
