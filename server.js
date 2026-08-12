@@ -298,40 +298,44 @@ body.light .auth-blob{opacity:.16;}
 }
 .auth-box{
   position:relative; z-index:1;
-  background:rgba(17,28,58,0.94); border:1.5px solid rgba(59,130,246,0.42); border-radius:24px;
-  padding:36px; width:100%; max-width:420px;
-  box-shadow:0 30px 70px rgba(0,0,0,0.92), 0 0 45px rgba(59,130,246,0.25), inset 0 1px 1px rgba(255,255,255,0.25);
-  backdrop-filter:blur(32px); -webkit-backdrop-filter:blur(32px);
+  background:rgba(14,19,34,0.96); border:1.5px solid #C89B3C; border-radius:28px;
+  padding:38px 34px; width:100%; max-width:420px;
+  box-shadow:0 35px 80px rgba(0,0,0,0.95), 0 0 45px rgba(200,155,60,0.30), inset 0 1px 1px rgba(255,255,255,0.25);
+  backdrop-filter:blur(36px); -webkit-backdrop-filter:blur(36px);
   animation:authIn .55s cubic-bezier(.16,1,.3,1);
 }
-.auth-box .brand{display:flex; justify-content:center; margin-bottom:24px; padding:0;}
+.auth-box .brand{display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:20px; padding:0;}
 .auth-box .brand .logo{
-  background:linear-gradient(135deg,#3B82F6,#2563EB) !important; color:#ffffff !important;
-  animation:logoPulse 3s ease-in-out infinite; box-shadow:0 0 20px rgba(59,130,246,0.5);
+  background:linear-gradient(135deg,#E6C675 0%, #D4A84B 45%, #76A5D9 100%) !important; color:#0A0D18 !important;
+  animation:logoPulse 3s ease-in-out infinite; box-shadow:0 0 20px rgba(200,155,60,0.5);
+  font-weight:900 !important; font-size:22px !important; width:52px !important; height:52px !important; border-radius:16px !important;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
+.auth-box .brand .name{font-size:20px; font-weight:800; color:#ffffff; letter-spacing:0.05em;}
 @keyframes logoPulse{
-  0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,.5);}
-  50%{box-shadow:0 0 0 9px rgba(59,130,246,0);}
+  0%,100%{box-shadow:0 0 0 0 rgba(200,155,60,.5);}
+  50%{box-shadow:0 0 0 9px rgba(200,155,60,0);}
 }
-.auth-box h2{font-size:22px; font-weight:800; margin-bottom:6px; text-align:center; color:#fff; letter-spacing:-0.01em;}
-.auth-box p.sub{font-size:13px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
+.auth-box h2{font-size:24px; font-weight:800; margin-bottom:6px; text-align:center; color:#fff; letter-spacing:-0.01em;}
+.auth-box p.sub{font-size:13.5px; color:#8E9BAE; text-align:center; margin-bottom:24px; transition:color .2s;}
 .auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
 .auth-box .field:nth-of-type(1){animation-delay:.05s;}
 .auth-box .field:nth-of-type(2){animation-delay:.1s;}
+.auth-box .field label{display:block; font-size:13px; font-weight:600; color:#9AA8BA; margin-bottom:6px;}
 .auth-box .field input{
-  background:rgba(8,14,33,0.88); border:1px solid rgba(59,130,246,0.28); border-radius:12px;
-  padding:12px 14px; color:#fff; transition:border-color .25s, box-shadow .25s, transform .15s;
+  background:#141A28; border:1px solid #232D42; border-radius:14px;
+  padding:14px 16px; color:#fff; font-size:14px; width:100%; transition:border-color .25s, box-shadow .25s, transform .15s;
 }
 .auth-box .field input:focus, .auth-box .field select:focus{
-  border-color:#3b82f6; box-shadow:0 0 25px rgba(59,130,246,0.40); transform:translateY(-1px);
+  border-color:#C89B3C; box-shadow:0 0 25px rgba(200,155,60,0.40); transform:translateY(-1px);
 }
-.auth-forgot{display:block; text-align:right; font-size:12px; color:var(--text-dim); margin-top:8px; cursor:pointer; transition:color .15s;}
-.auth-forgot:hover{color:#60a5fa; text-decoration:underline;}
+.auth-forgot{display:block; text-align:right; font-size:12.5px; color:#E5A93C; font-weight:700; margin-top:8px; cursor:pointer; transition:color .15s;}
+.auth-forgot:hover{color:#f5c26b; text-decoration:underline;}
 .auth-box .btn-auth{
   position:relative; overflow:hidden;
-  width:100%; padding:13.5px; background:linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%); color:#ffffff; border:none;
-  border-radius:12px; font-weight:800; font-size:14.5px; letter-spacing:0.04em; text-transform:uppercase; cursor:pointer; margin-top:10px;
-  box-shadow:0 10px 28px -4px rgba(59,130,246,0.50), 0 0 20px rgba(59,130,246,0.30);
+  width:100%; padding:14px; background:linear-gradient(90deg, #E5A93C 0%, #D4952B 35%, #5B94D9 70%, #4C84C4 100%); color:#0A0F1A; border:none;
+  border-radius:14px; font-weight:800; font-size:15px; letter-spacing:0.03em; text-transform:none; cursor:pointer; margin-top:12px;
+  box-shadow:0 10px 30px rgba(229,169,60,0.30), 0 0 20px rgba(76,132,196,0.30);
   transition:all .25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .auth-box .btn-auth::after{
@@ -339,12 +343,12 @@ body.light .auth-blob{opacity:.16;}
   background:linear-gradient(120deg, transparent, rgba(255,255,255,.6), transparent);
   transform:skewX(-20deg);
 }
-.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-2px); box-shadow:0 14px 34px -4px rgba(59,130,246,0.65);}
+.auth-box .btn-auth:hover{filter:brightness(1.08); transform:translateY(-2px); box-shadow:0 14px 34px -4px rgba(229,169,60,0.55);}
 .auth-box .btn-auth:hover::after{animation:shimmer .9s ease;}
 .auth-box .btn-auth:active{transform:translateY(0) scale(.98);}
 @keyframes shimmer{from{left:-75%;} to{left:130%;}}
-.auth-toggle{text-align:center; font-size:13px; color:var(--text-dim); margin-top:22px; padding-top:18px; border-top:1px solid var(--card-border);}
-.auth-toggle a{color:var(--auth-accent); text-decoration:none; font-weight:600; cursor:pointer;}
+.auth-toggle{text-align:center; font-size:13px; color:#8E9BAE; margin-top:22px; padding-top:18px; border-top:1px solid #1C2436;}
+.auth-toggle a{color:#E5A93C; text-decoration:none; font-weight:800; cursor:pointer;}
 .auth-toggle a:hover{text-decoration:underline;}
 
 /* ==================== App principal Centralizado ==================== */
@@ -1207,11 +1211,11 @@ body.light tr.trow:hover td { background:#f1f5f9 !important; }
   <!-- Login -->
   <div class="auth-box" id="loginBox">
     <div class="brand">
-      <div class="logo">N</div>
-      <div class="name">NEXUS<span>FINANCEIRO HUB</span></div>
+      <div class="logo">S</div>
+      <div class="name">SISTEMA</div>
     </div>
-    <h2>Acessar Conta</h2>
-    <p class="sub">Informe suas credenciais para continuar</p>
+    <h2>Bem-vindo de volta</h2>
+    <p class="sub">Acesse sua conta para gerenciar suas finanças.</p>
     <form id="loginForm">
       <div class="field">
         <label>E-mail</label>
@@ -1223,12 +1227,42 @@ body.light tr.trow:hover td { background:#f1f5f9 !important; }
           <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
           <button type="button" class="pass-toggle" id="loginPasswordToggle" tabindex="-1" aria-label="Mostrar senha"></button>
         </div>
-        <a class="auth-forgot" id="goForgot">Esqueceu a senha?</a>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px; font-size:12.5px;">
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:#8E9BAE;">
+            <input type="checkbox" id="rememberMe" checked style="accent-color:#E5A93C;">
+            <span>Lembrar de mim</span>
+          </label>
+          <a class="auth-forgot" id="goForgot" style="margin-top:0;">Esqueceu a senha?</a>
+        </div>
       </div>
-      <button type="submit" class="btn-auth">Entrar no Sistema</button>
+      <button type="submit" class="btn-auth">Entrar na Conta →</button>
     </form>
+    <div style="position:relative; margin:22px 0 16px; text-align:center;">
+      <div style="position:absolute; inset:0; display:flex; align-items:center;"><div style="width:100%; height:1px; background:#1C2436;"></div></div>
+      <span style="position:relative; padding:0 12px; background:#0E1322; font-size:11px; font-weight:700; color:#5C6B80; text-transform:uppercase; letter-spacing:0.1em;">OU ENTRE COM</span>
+    </div>
+    <div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:16px;">
+      <button type="button" onclick="fillDemoCredentials('admin@nexus.com', '123456', 'Administrador')" title="Google" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <svg style="width:20px; height:20px;" viewBox="0 0 24 24">
+          <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.4 8.9 5 12 5z"/>
+          <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
+          <path fill="#FBBC05" d="M5.3 14.7c-.2-.7-.4-1.5-.4-2.3s.2-1.6.4-2.3L1.6 7.2C.6 9.2 0 11.5 0 14s.6 4.8 1.6 6.8l3.7-2.9z"/>
+          <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.4-6.7-5.3L1.6 16C3.5 19.8 7.4 23 12 23z"/>
+        </svg>
+      </button>
+      <button type="button" onclick="fillDemoCredentials('paulolp0101@gmail.com', '123456', 'Paulo Lima')" title="Apple" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <svg style="width:20px; height:20px; fill:#ffffff;" viewBox="0 0 24 24">
+          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.32c.67-.82 1.12-1.96.99-3.1-.96.04-2.14.64-2.83 1.44-.61.71-1.15 1.87-1 3.01 1.08.08 2.17-.53 2.84-1.35z"/>
+        </svg>
+      </button>
+      <button type="button" onclick="fillDemoCredentials('admin@nexus.com', '123456', 'Administrador')" title="LinkedIn" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+        <svg style="width:20px; height:20px; fill:#0A66C2;" viewBox="0 0 24 24">
+          <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.7a1.6 1.6 0 1 0 1.6 1.6 1.61 1.61 0 0 0-1.6-1.6z"/>
+        </svg>
+      </button>
+    </div>
     <div class="auth-toggle">
-      Não tem uma conta? <a id="goRegister">Cadastrar-se</a>
+      Não tem uma conta? <a id="goRegister" style="color:#E5A93C; font-weight:800;">Cadastrar-se</a>
     </div>
   </div>
 
