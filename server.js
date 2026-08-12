@@ -2315,7 +2315,9 @@ function isAccountCreditCard(account) {
     accNameLower.includes('amex') ||
     accNameLower.includes('hipercard') ||
     accNameLower.includes('mastercard') ||
-    accNameLower.includes('visa')
+    accNameLower.includes('visa') ||
+    accNameLower.includes('nubank') ||
+    accNameLower.includes('roxinho')
   );
 }
 
@@ -2357,13 +2359,20 @@ function isTxForAccount(t, account) {
   if (tAccLower && accNameLower.length >= 3) {
     if (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower)) return true;
   }
+  if (tCardLower && accNameLower.length >= 3) {
+    if (tCardLower.includes(accNameLower) || accNameLower.includes(tCardLower)) return true;
+  }
 
-  // 5. Se a transação estiver como "Cartão de Crédito" ou "Cartão" e só houver 1 Cartão de Crédito cadastrado
+  // 5. Se a transação estiver como "Cartão de Crédito" ou "Cartão" e houver cartão correspondente
   if (isAccountCreditCard(account)) {
     const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
     if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) {
       if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
         return true;
+      }
+    } else if (allCreditCards.length > 1) {
+      if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
+        if (String(allCreditCards[0].id) === String(account.id)) return true;
       }
     }
   }
@@ -2386,14 +2395,14 @@ function getCardStats(account) {
   const isCreditCard = isAccountCreditCard(account);
   const cardTx = transactions.filter(t => isTxForAccount(t, account));
 
-  const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
-  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
+  const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
   
   const periodCardTx = cardTx.filter(inPeriod);
-  const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
-  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + (parseFloat(t.val) || 0), 0);
+  const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
 
-  const initialBalance = parseFloat(account.balance) || 0;
+  const initialBalance = parseFloat(account.balance) || parseFloat(account.limit) || 0;
 
   if (isCreditCard) {
     // Para Cartões de Crédito: initialBalance (account.balance) representa o Limite Total Aprovado
