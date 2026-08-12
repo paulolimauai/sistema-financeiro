@@ -2271,54 +2271,46 @@ const inPeriod = t => {
   return (d.getMonth() + 1) === currentPeriod.month && d.getFullYear() === currentPeriod.year;
 };
 
-
 /* ==================== Cálculos de Cartões e Limites ==================== */
 function isAccountCreditCard(account) {
   if (!account) return false;
+  if (account.isCreditCard === true || account.isCard === true) return true;
+
   const accTypeLower = (account.type || '').toLowerCase().trim();
+  const accNameLower = (account.name || '').toLowerCase().trim();
 
-  // 1. Se o tipo for explicitamente Conta Corrente, Poupança, Investimentos, Débito, Dinheiro, etc., NUNCA é cartão de crédito
-  if (
-    accTypeLower.includes('corrente') || 
-    accTypeLower.includes('poupança') || 
-    accTypeLower.includes('poupanca') || 
-    accTypeLower.includes('investimento') || 
-    accTypeLower.includes('dinheiro') || 
-    accTypeLower.includes('caixa') || 
-    accTypeLower.includes('carteira') || 
-    accTypeLower.includes('débito') || 
-    accTypeLower.includes('debito')
-  ) {
-    return false;
-  }
-
-  // 2. Se o tipo for Cartão de Crédito ou Crédito ou Fatura
+  // 1. Se o tipo contiver explicitamente Cartão / Crédito / Fatura / Card
   if (
     accTypeLower.includes('cartão') ||
     accTypeLower.includes('cartao') ||
     accTypeLower.includes('crédito') ||
     accTypeLower.includes('credito') ||
-    accTypeLower.includes('fatura')
+    accTypeLower.includes('fatura') ||
+    accTypeLower.includes('card')
   ) {
     return true;
   }
 
-  // 3. Verificação por nome da conta para contas com tipo genérico ("Outros", "", etc.)
-  const accNameLower = (account.name || '').toLowerCase().trim();
-  return (
-    accNameLower.includes('cartão de crédito') ||
-    accNameLower.includes('cartao de credito') ||
-    accNameLower.includes('cartão') ||
-    accNameLower.includes('cartao') ||
-    accNameLower.includes('fatura') ||
-    accNameLower.includes('credicard') ||
-    accNameLower.includes('amex') ||
-    accNameLower.includes('hipercard') ||
-    accNameLower.includes('mastercard') ||
-    accNameLower.includes('visa') ||
-    accNameLower.includes('nubank') ||
-    accNameLower.includes('roxinho')
+  // 2. Se o tipo não for de conta bancária de dinheiro/investimento exclusivo, verifica termos de cartão no nome
+  const isExplicitCashOrInvest = (
+    accTypeLower.includes('investimento') || 
+    accTypeLower.includes('dinheiro') || 
+    accTypeLower.includes('caixa') || 
+    accTypeLower.includes('carteira')
   );
+
+  if (!isExplicitCashOrInvest) {
+    const cardKeywords = [
+      'cartão', 'cartao', 'crédito', 'credito', 'fatura', 'credicard', 'amex', 'hipercard',
+      'mastercard', 'visa', 'nubank', 'roxinho', 'c6', 'inter', 'trigg', 'digio', 'neon',
+      'xp', 'btg', 'bradescard', 'itaucard', 'santander', 'bradesco', 'bb', 'ourocard', 'pan', 'itaú', 'itau'
+    ];
+    if (cardKeywords.some(k => accNameLower.includes(k))) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 function normalizeAccName(str) {
@@ -2344,7 +2336,11 @@ function isTxForAccount(t, account) {
   // 2. Correspondência exata do nome da conta ou do cartão
   if (tAccLower === accNameLower || tCardLower === accNameLower) return true;
 
-  // 3. Correspondência normalizada (removendo "Cartão", "Conta", "Banco", etc.)
+  // 3. Substring direta
+  if (tAccLower && (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower))) return true;
+  if (tCardLower && (tCardLower.includes(accNameLower) || accNameLower.includes(tCardLower))) return true;
+
+  // 4. Correspondência normalizada
   const normAccName = normalizeAccName(account.name);
   const normTAcc = normalizeAccName(t.acc);
   const normTCard = normalizeAccName(t.card);
@@ -2355,29 +2351,17 @@ function isTxForAccount(t, account) {
     if (normTCard && (normTCard.includes(normAccName) || normAccName.includes(normTCard))) return true;
   }
 
-  // 4. Se a transação tem nome parcial do cartão/conta (ex: "Nubank" vs "Cartão Nubank")
-  if (tAccLower && accNameLower.length >= 3) {
-    if (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower)) return true;
-  }
-  if (tCardLower && accNameLower.length >= 3) {
-    if (tCardLower.includes(accNameLower) || accNameLower.includes(tCardLower)) return true;
-  }
-
-  // 5. Se a transação estiver como "Cartão de Crédito" ou "Cartão" e houver cartão correspondente
+  // 5. Se a transação estiver marcada como "Cartão de Crédito" ou "Cartão"
   if (isAccountCreditCard(account)) {
     const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
-    if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) {
+    if (allCreditCards.length > 0) {
       if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
-        return true;
-      }
-    } else if (allCreditCards.length > 1) {
-      if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
-        if (String(allCreditCards[0].id) === String(account.id)) return true;
+        if (t.accId == null && String(allCreditCards[0].id) === String(account.id)) return true;
       }
     }
   }
 
-  // 6. Verificação de palavras-chave na descrição para transações com conta não especificada
+  // 6. Verificação de palavras-chave na descrição para transações sem conta especificada
   if (!tAccLower || tAccLower === 'sem conta' || tAccLower === 'boleto / outros' || tAccLower === 'dinheiro') {
     const descLower = (t.desc || '').toLowerCase().trim();
     if (descLower) {
@@ -2402,15 +2386,15 @@ function getCardStats(account) {
   const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
   const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
 
-  const initialBalance = parseFloat(account.balance) || parseFloat(account.limit) || 0;
+  const initialBalance = parseFloat(account.balance) || parseFloat(account.limit) || parseFloat(account.initialBalance) || 0;
 
   if (isCreditCard) {
-    // Para Cartões de Crédito: initialBalance (account.balance) representa o Limite Total Aprovado
+    // Para Cartões de Crédito: initialBalance representa o Limite Total Aprovado
     const totalLimit = Math.max(0, initialBalance);
     const spentTotal = Math.max(0, totalDespesas - totalPagamentos);
     const spentPeriod = Math.max(0, periodDespesas - periodPagamentos);
-    const availableLimit = Math.max(0, totalLimit - spentTotal);
-    const usagePct = totalLimit > 0 ? Math.min(100, Math.max(0, Math.round((spentTotal / totalLimit) * 100))) : 0;
+    const availableLimit = totalLimit - spentTotal;
+    const usagePct = totalLimit > 0 ? Math.min(100, Math.max(0, Math.round((spentTotal / totalLimit) * 100))) : (spentTotal > 0 ? 100 : 0);
     const currentBalance = availableLimit;
 
     return {
