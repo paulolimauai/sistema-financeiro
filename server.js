@@ -1606,7 +1606,7 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
     render();
-    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + user.name.split(' ')[0] + '!');
+    showLoginSuccessPopup('Login efetuado com sucesso!');
   } else {
     alert('E-mail ou senha incorretos!');
   }
@@ -1620,8 +1620,8 @@ function showLoginSuccessPopup(msg){
   requestAnimationFrame(()=> overlay.classList.add('in'));
   setTimeout(()=>{
     overlay.classList.remove('in');
-    setTimeout(()=> overlay.classList.remove('show'), 250);
-  }, 1800);
+    setTimeout(()=> overlay.classList.remove('show'), 300);
+  }, 3000);
 }
 
 function showAccountDisabledPopup(msg){
