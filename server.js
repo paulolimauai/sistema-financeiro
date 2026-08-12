@@ -185,6 +185,20 @@ const htmlContent = `<!DOCTYPE html>
       } else {
         document.body.classList.remove('light');
       }
+      try {
+        var cu = localStorage.getItem('nexus_cached_user');
+        if (cu) {
+          var uObj = JSON.parse(cu);
+          if (uObj && uObj.name) {
+            var hName = document.getElementById('headerName');
+            var hRole = document.getElementById('headerRole');
+            var hAv = document.getElementById('headerAvatar');
+            if (hName) hName.textContent = uObj.name;
+            if (hRole) hRole.textContent = uObj.role || 'Usuário';
+            if (hAv) hAv.textContent = uObj.name.trim().split(/\s+/).map(function(n){return n[0];}).slice(0,2).join('').toUpperCase();
+          }
+        }
+      } catch(e){}
     });
     var cu = localStorage.getItem('nexus_cached_user');
     var s = localStorage.getItem('nexus_session');
@@ -1366,8 +1380,8 @@ body.light tr.trow:hover td { background:#f1f5f9 !important; }
         </div>
         <div class="icon-btn" id="miniThemeBtn" title="Alternar Tema"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 0 1 1-9-9Z"/></svg></div>
         <div class="user" id="userMenu" data-nav="config">
-          <div class="avatar" id="headerAvatar">--</div>
-          <div><div class="uname" id="headerName">...</div><div class="urole" id="headerRole">...</div></div>
+          <div class="avatar" id="headerAvatar"></div>
+          <div><div class="uname" id="headerName"></div><div class="urole" id="headerRole"></div></div>
         </div>
         <button class="btn-ghost" id="logoutBtn">Sair</button>
       </div>
