@@ -911,33 +911,38 @@ tr.trow:hover td{background:var(--hover);}
 .toast.show{display:flex;}
 .toast .d{width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0;}
 
-/* ==================== Popup de login bem-sucedido ==================== */
+/* ==================== Popup de login bem-sucedido (Executive 4K) ==================== */
 .login-success-overlay{
-  position:fixed; inset:0; background:rgba(4,6,10,.6); backdrop-filter:blur(3px);
+  position:fixed; inset:0; background:rgba(4,7,17,.75); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   display:none; align-items:center; justify-content:center; z-index:300; padding:20px; opacity:0;
-  transition:opacity .25s ease;
+  transition:opacity .3s ease;
 }
 .login-success-overlay.show{display:flex;}
 .login-success-overlay.in{opacity:1;}
 .login-success-box{
-  background:var(--card); border:1px solid var(--card-border); border-radius:18px;
-  padding:36px 32px; width:100%; max-width:340px; text-align:center; box-shadow:var(--shadow);
-  transform:translateY(14px) scale(.96); opacity:0; transition:transform .3s cubic-bezier(.16,1,.3,1), opacity .3s ease;
+  background:rgba(13,21,39,0.95); border:1.5px solid rgba(59,130,246,0.4); border-radius:22px;
+  padding:38px 32px; width:100%; max-width:360px; text-align:center;
+  box-shadow:0 30px 80px rgba(0,0,0,0.9), 0 0 45px rgba(59,130,246,0.25), 0 0 30px rgba(16,185,129,0.15), inset 0 1px 1px rgba(255,255,255,0.2);
+  transform:translateY(16px) scale(.94); opacity:0; transition:transform .35s cubic-bezier(.16,1,.3,1), opacity .35s ease;
 }
 .login-success-overlay.in .login-success-box{transform:translateY(0) scale(1); opacity:1;}
 .login-success-check{
-  width:64px; height:64px; margin:0 auto 18px; border-radius:50%;
-  background:var(--green-soft); display:flex; align-items:center; justify-content:center;
+  width:68px; height:68px; margin:0 auto 20px; border-radius:50%;
+  background:linear-gradient(135deg, rgba(16,185,129,0.25), rgba(59,130,246,0.20));
+  border:1.5px solid rgba(16,185,129,0.5);
+  box-shadow:0 0 25px rgba(16,185,129,0.4), inset 0 1px 1px rgba(255,255,255,0.3);
+  display:flex; align-items:center; justify-content:center;
 }
-.login-success-check svg{width:34px; height:34px;}
-.login-success-check circle{stroke:var(--green); stroke-width:2.5; opacity:.35;}
+.login-success-check svg{width:36px; height:36px;}
+.login-success-check circle{stroke:#10b981; stroke-width:2.5; opacity:.4;}
 .login-success-check path{
-  stroke:var(--green); stroke-width:4; stroke-linecap:round; stroke-linejoin:round;
+  stroke:#10b981; stroke-width:4; stroke-linecap:round; stroke-linejoin:round;
   stroke-dasharray:40; stroke-dashoffset:40; animation:loginCheckDraw .45s ease .15s forwards;
+  filter:drop-shadow(0 0 6px rgba(16,185,129,0.8));
 }
 @keyframes loginCheckDraw{to{stroke-dashoffset:0;}}
-.login-success-box h3{font-size:16.5px; margin-bottom:6px;}
-.login-success-box p{color:var(--text-dim); font-size:13px;}
+.login-success-box h3{font-size:17.5px; font-weight:800; color:#ffffff; margin-bottom:6px; letter-spacing:-0.01em;}
+.login-success-box p{color:#60a5fa; font-size:13.5px; font-weight:600;}
 
 /* ==================== Popup de conta desativada ==================== */
 .account-disabled-icon{
@@ -1601,14 +1606,22 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     document.getElementById('authPage').classList.remove('show');
     document.getElementById('appMain').classList.add('show');
     render();
+    showLoginSuccessPopup('Bem-vindo(a) de volta, ' + user.name.split(' ')[0] + '!');
   } else {
     alert('E-mail ou senha incorretos!');
   }
 };
 
 function showLoginSuccessPopup(msg){
-  // Popup de login bem-sucedido desativado a pedido do usuário
-  return;
+  const overlay = document.getElementById('loginSuccessOverlay');
+  if(!overlay) return;
+  if(msg) document.getElementById('loginSuccessMsg').textContent = msg;
+  overlay.classList.add('show');
+  requestAnimationFrame(()=> overlay.classList.add('in'));
+  setTimeout(()=>{
+    overlay.classList.remove('in');
+    setTimeout(()=> overlay.classList.remove('show'), 250);
+  }, 1800);
 }
 
 function showAccountDisabledPopup(msg){

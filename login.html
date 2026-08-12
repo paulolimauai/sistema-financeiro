@@ -840,10 +840,14 @@
                 return false;
             }
 
+            showAlert('Autenticação realizada com sucesso! Redirecionando...', 'success');
             localStorage.setItem('nexus_session', JSON.stringify({ email: email }));
             localStorage.setItem('nexus_token', data.token);
             localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
-            window.location.href = targetOrigin;
+
+            setTimeout(() => {
+                window.location.href = targetOrigin;
+            }, 750);
 
         } catch (err) {
             showAlert('Erro ao conectar ao servidor backend (porta 3000). Verifique se o comando "npm start" está rodando.', 'error');
