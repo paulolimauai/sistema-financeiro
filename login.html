@@ -291,6 +291,7 @@
                 if (emailWrapper) emailWrapper.classList.remove('field-highlight');
                 if (passWrapper) passWrapper.classList.remove('field-highlight');
             }, 1200);
+        };
 
         window.toggleLoginTheme = function() {
             const isCurrentlyLight = document.body.classList.contains('light') || document.documentElement.classList.contains('light');
@@ -328,7 +329,7 @@
 <body class="h-full bg-[#12151A] text-gray-100 font-sans antialiased flex flex-col justify-center items-center min-h-screen py-10 px-4">
 
     <!-- Popup Executivo 3D de Login Efetuado com Sucesso -->
-    <div class="fixed inset-0 bg-black/85 backdrop-blur-md style-[display:none] flex items-center justify-center z-[99999] p-5 opacity-0 transition-opacity duration-300" id="loginSuccessOverlay" style="display:none;">
+    <div class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[99999] p-5 opacity-0 transition-opacity duration-300" id="loginSuccessOverlay" style="display:none;">
         <div class="bg-[#12151A] border-2 border-[#C89B3C] rounded-[28px] p-9 w-full max-w-[380px] text-center shadow-[0_35px_80px_rgba(0,0,0,0.95),0_0_45px_rgba(200,155,60,0.35)] transform translate-y-4 scale-95 transition-all duration-300">
             <div class="w-16 h-16 mx-auto mb-5 rounded-full bg-gradient-to-br from-amber-500/30 to-amber-600/20 border-2 border-[#C89B3C] shadow-[0_0_25px_rgba(200,155,60,0.5)] flex items-center justify-center">
                 <svg class="w-9 h-9 text-amber-400" fill="none" stroke="currentColor" stroke-width="3.5" viewBox="0 0 24 24">
@@ -442,7 +443,7 @@
                 <!-- Botões de Login Social (Google, Apple, LinkedIn) -->
                 <div class="flex items-center justify-center gap-3">
                     <!-- Google -->
-                    <button type="button" onclick="fillDemoCredentials('admin@nexus.com', '123456', 'Administrador')" title="Acesso Admin"
+                    <button type="button" onclick="fillDemoCredentials('admin@nexusfinanceiro.com', '86266049', 'Administrador')" title="Acesso Administrador"
                         class="w-12 h-12 rounded-xl bg-[#141A28] border border-[#232D42] flex items-center justify-center hover:bg-[#1A2234] hover:border-amber-500/50 transition-all">
                         <svg class="w-5 h-5" viewBox="0 0 24 24">
                             <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.4 8.9 5 12 5z"/>
@@ -452,14 +453,14 @@
                         </svg>
                     </button>
                     <!-- Apple -->
-                    <button type="button" onclick="fillDemoCredentials('paulolp0101@gmail.com', '123456', 'Paulo Lima')" title="Acesso Paulo Lima"
+                    <button type="button" onclick="fillDemoCredentials('paulolp0101@gmail.com', '86266049', 'Paulo Lima')" title="Acesso Paulo Lima"
                         class="w-12 h-12 rounded-xl bg-[#141A28] border border-[#232D42] flex items-center justify-center hover:bg-[#1A2234] hover:border-amber-500/50 transition-all">
                         <svg class="w-5 h-5 fill-current text-white" viewBox="0 0 24 24">
                             <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.32c.67-.82 1.12-1.96.99-3.1-.96.04-2.14.64-2.83 1.44-.61.71-1.15 1.87-1 3.01 1.08.08 2.17-.53 2.84-1.35z"/>
                         </svg>
                     </button>
                     <!-- LinkedIn -->
-                    <button type="button" onclick="fillDemoCredentials('admin@nexus.com', '123456', 'Administrador')" title="Acesso Rápido"
+                    <button type="button" onclick="fillDemoCredentials('admin@nexusfinanceiro.com', '86266049', 'Administrador')" title="Acesso Rápido"
                         class="w-12 h-12 rounded-xl bg-[#141A28] border border-[#232D42] flex items-center justify-center hover:bg-[#1A2234] hover:border-amber-500/50 transition-all">
                         <svg class="w-5 h-5 fill-[#0A66C2]" viewBox="0 0 24 24">
                             <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.7a1.6 1.6 0 1 0 1.6 1.6 1.61 1.61 0 0 0-1.6-1.6z"/>

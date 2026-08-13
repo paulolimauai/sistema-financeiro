@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ckpack.postgresql",
+    "ritwickdey.liveserver",
+    "formulahendry.auto-rename-tag",
+    "ecmel.vscode-html-css"
+  ]
+}

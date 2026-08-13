@@ -4,5 +4,18 @@
   "antigravity.terminal.approval": "none",
   "antigravity.agent.autoApprove": true,
   "antigravity.agent.permissions": "allowAll",
-  "antigravity.toolCallApproval": "always"
+  "antigravity.toolCallApproval": "always",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.formatOnSave": true,
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 1000,
+  "files.associations": {
+    "*.env*": "properties",
+    "Procfile": "properties"
+  },
+  "emmet.includeLanguages": {
+    "javascript": "javascriptreact",
+    "html": "html"
+  }
 }

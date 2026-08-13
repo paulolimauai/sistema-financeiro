@@ -1,26 +1,48 @@
+try {
+  require('dotenv').config();
+} catch (e) {}
+
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const url = require('url');
 const tls = require('tls');
-const { Pool } = require('pg');
+
+let Pool;
+try {
+  Pool = require('pg').Pool;
+} catch (e) {
+  // pg não instalado no ambiente
+}
 
 const PORT = process.env.PORT || 3000;
 
 // ==================== Conexão com o PostgreSQL ====================
-const pool = process.env.DATABASE_URL
-  ? new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
-  })
-  : new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    user: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '86266049',
-    database: process.env.DB_NAME || 'FINANCEIRO',
-    ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
-  });
+let pool = null;
+if (Pool) {
+  try {
+    pool = process.env.DATABASE_URL
+      ? new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      })
+      : new Pool({
+        host: process.env.DB_HOST || 'localhost',
+        port: process.env.DB_PORT || 5432,
+        user: process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASSWORD || '86266049',
+        database: process.env.DB_NAME || 'FINANCEIRO',
+        ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: false } : false
+      });
+
+    pool.on('error', (err) => {
+      console.warn('[AVISO BD] Erro no pool do PostgreSQL:', err.message);
+    });
+  } catch (err) {
+    console.warn('[AVISO BD] Falha ao configurar pool:', err.message);
+    pool = null;
+  }
+}
 
 // Usuário admin padrão, inserido no banco na primeira execução
 const DEFAULT_ADMIN = {
@@ -118,6 +140,7 @@ function sendPasswordEmail(toEmail, userName, userPassword) {
 
 // Cria as tabelas (se não existirem) e garante o admin padrão
 async function initDatabase() {
+  if (!pool) return;
   await pool.query(`
     CREATE TABLE IF NOT EXISTS usuarios (
       id SERIAL PRIMARY KEY,
@@ -156,6 +179,12 @@ async function initDatabase() {
      VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (email) DO NOTHING;`,
     [DEFAULT_ADMIN.name, DEFAULT_ADMIN.email, DEFAULT_ADMIN.password, DEFAULT_ADMIN.role, DEFAULT_ADMIN.active]
+  );
+  await pool.query(
+    `INSERT INTO usuarios (name, email, password, role, active)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (email) DO NOTHING;`,
+    ['Paulo Lima', 'paulolp0101@gmail.com', '86266049', 'Administrador', true]
   );
 }
 
@@ -1253,7 +1282,7 @@ body.light .scale-dropdown {
       <span style="position:relative; padding:0 12px; background:#0E1322; font-size:11px; font-weight:700; color:#5C6B80; text-transform:uppercase; letter-spacing:0.1em;">OU ENTRE COM</span>
     </div>
     <div style="display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom:16px;">
-      <button type="button" onclick="fillDemoCredentials('admin@nexus.com', '123456', 'Administrador')" title="Google" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+      <button type="button" onclick="fillDemoCredentials('admin@nexusfinanceiro.com', '86266049', 'Administrador')" title="Google" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
         <svg style="width:20px; height:20px;" viewBox="0 0 24 24">
           <path fill="#EA4335" d="M12 5c1.6 0 3 .6 4.1 1.6l3.1-3.1C17.3 1.7 14.8 1 12 1 7.4 1 3.5 3.6 1.6 7.4l3.7 2.9C6.2 7.4 8.9 5 12 5z"/>
           <path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7l3.7 2.9c2.2-2 3.7-5 3.7-8.8z"/>
@@ -1261,12 +1290,12 @@ body.light .scale-dropdown {
           <path fill="#34A853" d="M12 23c3.2 0 6-1.1 8-3l-3.7-2.9c-1.1.7-2.5 1.2-4.3 1.2-3.1 0-5.8-2.4-6.7-5.3L1.6 16C3.5 19.8 7.4 23 12 23z"/>
         </svg>
       </button>
-      <button type="button" onclick="fillDemoCredentials('paulolp0101@gmail.com', '123456', 'Paulo Lima')" title="Apple" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+      <button type="button" onclick="fillDemoCredentials('paulolp0101@gmail.com', '86266049', 'Paulo Lima')" title="Apple" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
         <svg style="width:20px; height:20px; fill:#ffffff;" viewBox="0 0 24 24">
           <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 6.32c.67-.82 1.12-1.96.99-3.1-.96.04-2.14.64-2.83 1.44-.61.71-1.15 1.87-1 3.01 1.08.08 2.17-.53 2.84-1.35z"/>
         </svg>
       </button>
-      <button type="button" onclick="fillDemoCredentials('admin@nexus.com', '123456', 'Administrador')" title="LinkedIn" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
+      <button type="button" onclick="fillDemoCredentials('admin@nexusfinanceiro.com', '86266049', 'Administrador')" title="LinkedIn" style="width:48px; height:48px; border-radius:14px; background:#141A28; border:1px solid #232D42; display:flex; align-items:center; justify-content:center; cursor:pointer;">
         <svg style="width:20px; height:20px; fill:#0A66C2;" viewBox="0 0 24 24">
           <path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.46 10.9v8.37H9.25V10.9H6.46M7.86 6.7a1.6 1.6 0 1 0 1.6 1.6 1.61 1.61 0 0 0-1.6-1.6z"/>
         </svg>
@@ -1705,7 +1734,8 @@ async function syncUsersWithServer() {
     }
   } catch(e) {
     registeredUsers = loadFromStorage('nexus_users', [
-      { name: 'Paulo Lima', email: 'admin@nexusfinanceiro.com', password: '86266049', role: 'Administrador', active: true }
+      { name: 'Paulo Lima', email: 'admin@nexusfinanceiro.com', password: '86266049', role: 'Administrador', active: true },
+      { name: 'Paulo Lima', email: 'paulolp0101@gmail.com', password: '86266049', role: 'Administrador', active: true }
     ]);
   }
 }
@@ -2418,23 +2448,21 @@ function normalizeAccName(str) {
 function isTxForAccount(t, account) {
   if (!t || !account) return false;
 
-  // 1. Prioridade máxima: Se accId for especificado, ele DEVE corresponder a esta conta!
-  if (t.accId != null && account.id != null) {
-    return String(t.accId) === String(account.id);
-  }
-
   const accNameLower = (account.name || '').toLowerCase().trim();
-  if (!accNameLower) return false;
-
   const tAccLower = (t.acc || '').toLowerCase().trim();
   const tCardLower = (t.card || '').toLowerCase().trim();
 
-  // 2. Correspondência exata do nome da conta ou do cartão
-  if (tAccLower === accNameLower || tCardLower === accNameLower) return true;
+  // 1. Prioridade: Se accId for especificado e coincidir com o ID da conta
+  if (t.accId != null && account.id != null && String(t.accId) === String(account.id)) {
+    return true;
+  }
 
-  // 3. Substring direta
-  if (tAccLower && (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower))) return true;
-  if (tCardLower && (tCardLower.includes(accNameLower) || accNameLower.includes(tCardLower))) return true;
+  // 2. Correspondência exata do nome da conta ou do cartão
+  if (accNameLower && (tAccLower === accNameLower || tCardLower === accNameLower)) return true;
+
+  // 3. Substring direta entre nomes
+  if (accNameLower && tAccLower && (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower))) return true;
+  if (accNameLower && tCardLower && (tCardLower.includes(accNameLower) || accNameLower.includes(tCardLower))) return true;
 
   // 4. Correspondência normalizada
   const normAccName = normalizeAccName(account.name);
@@ -3037,7 +3065,7 @@ function pageDashboard(){
             <div style="text-align:right;">
               \${stats.isCreditCard ? \`
                 <div class="acc-val" style="color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}; font-weight:700; font-size:12.5px;">Disp: \${fmt(stats.availableLimit)}</div>
-                <div style="font-size:10px; color:var(--text-faint);">Fat: \${fmt(stats.spentTotal)}</div>
+                <div style="font-size:10px; color:var(--text-faint);">Fat: \${fmt(stats.spentTotal)} (Limite: \${fmt(stats.totalLimit)})</div>
               \` : \`
                 <div class="acc-val \${stats.currentBalance<0?'neg':''}" style="font-weight:700; font-size:12.5px; color:\${stats.currentBalance<0?'var(--red)':'var(--green)'};">\${fmt(stats.currentBalance)}</div>
                 <div style="font-size:10px; color:var(--text-faint);">Saldo Atual</div>
@@ -4179,10 +4207,11 @@ function populateAccountOptions(selectedAcc) {
 function updateCardLimitHint() {
   const fConta = document.getElementById('fConta');
   const hintEl = document.getElementById('cardLimitHint');
+  const valorEl = document.getElementById('fValor');
   if(!fConta || !hintEl) return;
 
   const accName = fConta.value;
-  const acc = accounts.find(a => a.name === accName);
+  const acc = accounts.find(a => a.name === accName || (a.id != null && String(a.id) === String(accName)));
 
   if(!acc) {
     if ((accName || '').toLowerCase().includes('cartão') || (accName || '').toLowerCase().includes('cartao')) {
@@ -4197,24 +4226,46 @@ function updateCardLimitHint() {
   }
 
   const stats = getCardStats(acc);
+  const currentVal = parseInputValue(valorEl ? valorEl.value : 0);
 
   if(stats.isCreditCard) {
     if(currentType === 'in') {
+      const newAvailable = stats.availableLimit + currentVal;
+      const newSpent = Math.max(0, stats.spentTotal - currentVal);
       hintEl.style.display = 'flex';
       hintEl.style.background = 'var(--green-soft)';
       hintEl.style.color = 'var(--green)';
-      hintEl.innerHTML = '💳 <span><strong>Pagamento de Fatura / Estorno:</strong> Limite disp. atual ' + fmt(stats.availableLimit) + ' (Fatura em aberto: ' + fmt(stats.spentTotal) + ')</span>';
+      hintEl.innerHTML = '💳 <span><strong>Pagamento de Fatura / Estorno:</strong> Limite disp. atual: <strong>' + fmt(stats.availableLimit) + '</strong>' +
+        (currentVal > 0 ? (' ➔ <strong>Novo limite disponível:</strong> <strong style="color:var(--green);">' + fmt(newAvailable) + '</strong> (Fatura restante: ' + fmt(newSpent) + ')') : (' (Fatura em aberto: ' + fmt(stats.spentTotal) + ')')) + '</span>';
     } else {
+      const newAvailable = stats.availableLimit - currentVal;
+      const newSpent = stats.spentTotal + currentVal;
+      const isExceeded = newAvailable < 0;
       hintEl.style.display = 'flex';
-      hintEl.style.background = stats.availableLimit < 200 ? 'var(--red-soft)' : 'var(--green-soft)';
-      hintEl.style.color = stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)';
-      hintEl.innerHTML = '💳 <span><strong>Limite disponível:</strong> ' + fmt(stats.availableLimit) + ' de ' + fmt(stats.totalLimit) + ' (Fatura em aberto: ' + fmt(stats.spentTotal) + ')</span>';
+      hintEl.style.background = (isExceeded || newAvailable < 200) ? 'var(--red-soft)' : 'var(--green-soft)';
+      hintEl.style.color = (isExceeded || newAvailable < 200) ? 'var(--red)' : 'var(--green)';
+      
+      let msg = '💳 <span><strong>Limite Disponível:</strong> <strong>' + fmt(stats.availableLimit) + '</strong> (Limite Total: ' + fmt(stats.totalLimit) + ', Fatura: ' + fmt(stats.spentTotal) + ')';
+      if (currentVal > 0) {
+        msg += '<br>📉 <strong>Após esta despesa:</strong> Limite disponível ficará em <strong style="font-size:13px; color:' + (isExceeded ? 'var(--red)' : 'var(--green)') + '">' + fmt(newAvailable) + '</strong> (Nova Fatura: ' + fmt(newSpent) + ')';
+        if (isExceeded) {
+          msg += ' <span style="color:var(--red); font-weight:800;">⚠️ Atenção: Esta despesa ultrapassa o limite disponível!</span>';
+        }
+      }
+      msg += '</span>';
+      hintEl.innerHTML = msg;
     }
   } else {
+    const newBalance = currentType === 'in' ? (stats.currentBalance + currentVal) : (stats.currentBalance - currentVal);
     hintEl.style.display = 'flex';
-    hintEl.style.background = stats.currentBalance < 0 ? 'var(--red-soft)' : 'rgba(74,144,226,0.15)';
-    hintEl.style.color = stats.currentBalance < 0 ? 'var(--red)' : 'var(--blue)';
-    hintEl.innerHTML = '🏦 <span><strong>Saldo Atual da Conta:</strong> ' + fmt(stats.currentBalance) + '</span>';
+    hintEl.style.background = (newBalance < 0) ? 'var(--red-soft)' : 'rgba(74,144,226,0.15)';
+    hintEl.style.color = (newBalance < 0) ? 'var(--red)' : 'var(--blue)';
+    let msg = '🏦 <span><strong>Saldo Atual:</strong> <strong>' + fmt(stats.currentBalance) + '</strong>';
+    if (currentVal > 0) {
+      msg += ' ➔ <strong>Após transação:</strong> <strong style="color:' + (newBalance < 0 ? 'var(--red)' : 'var(--green)') + '">' + fmt(newBalance) + '</strong>';
+    }
+    msg += '</span>';
+    hintEl.innerHTML = msg;
   }
 }
 
@@ -4224,10 +4275,10 @@ function updateAccBalanceLabel() {
   const inp = document.getElementById('accBalance');
   if(!typeEl || !lbl || !inp) return;
   if(typeEl.value === 'Cartão de Crédito') {
-    lbl.textContent = 'Limite Total do Cartão (R$)';
+    lbl.textContent = 'Limite Total Aprovado do Cartão (R$)';
     inp.placeholder = 'Ex: 5000,00';
   } else {
-    lbl.textContent = 'Saldo (R$)';
+    lbl.textContent = 'Saldo Atual da Conta (R$)';
     inp.placeholder = '0,00';
   }
 }
@@ -4266,6 +4317,8 @@ function openModal(id){
   populateAccountOptions(selectedAcc);
   const fContaEl = document.getElementById('fConta');
   if(fContaEl) fContaEl.onchange = updateCardLimitHint;
+  const fValorEl = document.getElementById('fValor');
+  if(fValorEl) fValorEl.oninput = updateCardLimitHint;
   const fCatEl = document.getElementById('fCategoria');
   if(fCatEl) {
     fCatEl.onchange = () => {
@@ -4276,6 +4329,7 @@ function openModal(id){
       }
     };
   }
+  updateCardLimitHint();
 }
 function closeModal(){ document.getElementById('overlay').classList.remove('show'); }
 function parseInputValue(valStr) {
@@ -4409,7 +4463,7 @@ async function saveTransaction(){
     const diffText = changes.length > 0 ? changes.join(' | ') : ('Editou transação "' + desc + '" (' + fmt(val) + ')');
     logActivity('Edição', 'Transação', diffText);
   } else {
-    transactions.push({id: nextTxId++, desc, val, date, cat, status, type: currentType, acc:accSel, accId});
+    transactions.unshift({id: nextTxId++, desc, val, date, cat, status, type: currentType, acc:finalAccName, accId});
     const catObj = categories.find(c=>c.name===cat);
     if(catObj) catObj.count = (catObj.count||0)+1;
     showToast('Transação adicionada!');
@@ -4417,14 +4471,14 @@ async function saveTransaction(){
   }
   await saveUserData();
   closeModal();
-  if(currentPage!=='transacoes' || !refreshTxTable()) render();
+  render();
 }
 async function deleteTransaction(id){
   if(!confirm('Excluir esta transação?')) return;
   transactions = transactions.filter(t=>t.id!==id);
   await saveUserData();
   showToast('Transação removida');
-  if(currentPage!=='transacoes' || !refreshTxTable()) render();
+  render();
 }
 
 /* ==================== Mapeamento Inteligente de Cores de Bancos e Cartões ==================== */
@@ -4495,19 +4549,19 @@ function closeAccountModal(){ document.getElementById('overlayAccount').classLis
 async function saveAccount(){
   const name = document.getElementById('accName').value.trim();
   const type = document.getElementById('accType').value;
-  const balance = parseFloat(document.getElementById('accBalance').value);
+  const balance = parseInputValue(document.getElementById('accBalance').value);
   const color = document.getElementById('accColor').value;
-  if(!name || isNaN(balance)){ showToast('Preencha nome e saldo corretamente'); return; }
+  if(!name || isNaN(balance)){ showToast('Preencha nome e saldo/limite corretamente'); return; }
   if(editingAccId){
     const a = accounts.find(x=>x.id===editingAccId);
     const oldName = a.name;
     Object.assign(a, {name, type, balance, color});
     if(oldName!==name) transactions.forEach(t=>{ if(t.acc===oldName) t.acc = name; });
-    showToast('Conta atualizada!');
+    showToast('Conta/Cartão atualizado!');
     logActivity('Edição', 'Conta / Cartão', 'Editou conta/cartão "' + name + '" (' + type + ') com limite/saldo inicial ' + fmt(balance));
   } else {
     accounts.push({id: nextAccId++, name, type, balance, color});
-    showToast('Conta adicionada!');
+    showToast('Conta/Cartão adicionado!');
     await pushNotification('Nova conta/cartão cadastrado: ' + name + ' (' + type + ')', '🏦');
     logActivity('Criação', 'Conta / Cartão', 'Cadastrou nova conta/cartão "' + name + '" (' + type + ') com limite/saldo inicial ' + fmt(balance));
   }
@@ -4667,7 +4721,7 @@ function openBudgetModal(id){
 function closeBudgetModal(){ document.getElementById('overlayBudget').classList.remove('show'); }
 async function saveBudget(){
   const category = document.getElementById('orcCategoria').value;
-  const limit = parseFloat(document.getElementById('orcLimite').value);
+  const limit = parseInputValue(document.getElementById('orcLimite').value);
   if(!category || isNaN(limit) || limit<=0){ showToast('Informe categoria e limite válidos'); return; }
   if(editingBudgetId){
     Object.assign(budgets.find(b=>b.id===editingBudgetId), {category, limit});
@@ -4715,8 +4769,8 @@ function openGoalModal(id){
 function closeGoalModal(){ document.getElementById('overlayGoal').classList.remove('show'); }
 async function saveGoal(){
   const name = document.getElementById('goalName').value.trim();
-  const target = parseFloat(document.getElementById('goalTarget').value);
-  const current = parseFloat(document.getElementById('goalCurrent').value) || 0;
+  const target = parseInputValue(document.getElementById('goalTarget').value);
+  const current = parseInputValue(document.getElementById('goalCurrent').value) || 0;
   const deadline = document.getElementById('goalDeadline').value;
   if(!name || isNaN(target) || target<=0 || !deadline){ showToast('Preencha os campos da meta corretamente'); return; }
   if(editingGoalId){
@@ -4840,7 +4894,7 @@ function setRecType(t){
 
 async function saveRecurring(){
   const desc = document.getElementById('recDesc').value.trim();
-  const val = parseFloat(document.getElementById('recVal').value);
+  const val = parseInputValue(document.getElementById('recVal').value);
   const day = parseInt(document.getElementById('recDay').value);
   const cat = document.getElementById('recCategoria').value;
   const accSel = document.getElementById('recConta') ? document.getElementById('recConta').value : '';
@@ -4869,7 +4923,10 @@ async function deleteRecurring(id){
 async function lancarRecorrente(id){
   const r = recurringList.find(x=>x.id===id);
   const date = pdCustom(currentPeriod.year, currentPeriod.month, r.day);
-  transactions.push({id: nextTxId++, desc:r.desc, val:r.val, date, cat:r.cat, acc:r.acc, status: r.type==='in'?'Recebido':'Pago', type:r.type});
+  const targetAcc = accounts.find(a => a.name === r.acc);
+  const accId = targetAcc ? targetAcc.id : null;
+  const finalAccName = targetAcc ? targetAcc.name : r.acc;
+  transactions.unshift({id: nextTxId++, desc:r.desc, val:r.val, date, cat:r.cat, acc:finalAccName, accId, status: r.type==='in'?'Recebido':'Pago', type:r.type});
   await saveUserData();
   showToast(\`Lançamento gerado em \${periodLabel()}!\`);
   render();
@@ -5884,23 +5941,29 @@ function recordSystemLog(userName, userEmail, action, entity, details) {
 
   saveFileLogEntry(logObj);
 
-  pool.query(
-    `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
-     VALUES (now(), $1, $2, $3, $4, $5)`,
-    [logObj.user_name, logObj.user_email, logObj.action, logObj.entity, logObj.details]
-  ).catch(err => {
-    // Gravado no arquivo system_logs.json caso o banco falhe
-  });
+  if (pool) {
+    pool.query(
+      `INSERT INTO system_logs (timestamp, user_name, user_email, action, entity, details)
+       VALUES (now(), $1, $2, $3, $4, $5)`,
+      [logObj.user_name, logObj.user_email, logObj.action, logObj.entity, logObj.details]
+    ).catch(err => {
+      // Gravado no arquivo system_logs.json caso o banco falhe
+    });
+  }
 }
 
 function getLocalUsers() {
   try {
     if (fs.existsSync(LOCAL_USERS_PATH)) {
       const content = fs.readFileSync(LOCAL_USERS_PATH, 'utf8');
-      return JSON.parse(content) || [];
+      const users = JSON.parse(content) || [];
+      if (users.length > 0) return users;
     }
   } catch (e) {}
-  return [DEFAULT_ADMIN];
+  return [
+    DEFAULT_ADMIN,
+    { name: 'Paulo Lima', email: 'paulolp0101@gmail.com', password: '86266049', role: 'Administrador', active: true }
+  ];
 }
 
 function saveLocalUsers(users) {
@@ -5960,14 +6023,18 @@ const server = http.createServer((req, res) => {
         }
 
         let user = null;
-        try {
-          const result = await pool.query(
-            'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
-            [email]
-          );
-          if (result.rows.length > 0) user = result.rows[0];
-        } catch (dbErr) {
-          console.warn('[AVISO BD] Falha ao consultar PostgreSQL. Usando banco local.');
+        if (pool) {
+          try {
+            const result = await pool.query(
+              'SELECT id, name, email, password, role, active FROM usuarios WHERE LOWER(email) = LOWER($1)',
+              [email]
+            );
+            if (result.rows.length > 0) user = result.rows[0];
+          } catch (dbErr) {
+            console.warn('[AVISO BD] Falha ao consultar PostgreSQL. Usando banco local.');
+          }
+        }
+        if (!user) {
           const localUsers = getLocalUsers();
           user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
         }
@@ -6014,13 +6081,16 @@ const server = http.createServer((req, res) => {
 
         const cleanEmail = email.toLowerCase().trim();
         let isExisting = false;
-        try {
-          const existing = await pool.query(
-            'SELECT id FROM usuarios WHERE LOWER(email) = LOWER($1)',
-            [cleanEmail]
-          );
-          if (existing.rows.length > 0) isExisting = true;
-        } catch (dbErr) {
+        if (pool) {
+          try {
+            const existing = await pool.query(
+              'SELECT id FROM usuarios WHERE LOWER(email) = LOWER($1)',
+              [cleanEmail]
+            );
+            if (existing.rows.length > 0) isExisting = true;
+          } catch (dbErr) {}
+        }
+        if (!isExisting) {
           const localUsers = getLocalUsers();
           if (localUsers.some(u => u.email.toLowerCase() === cleanEmail)) isExisting = true;
         }
@@ -6030,12 +6100,14 @@ const server = http.createServer((req, res) => {
           return res.end(JSON.stringify({ success: false, error: 'Este e-mail já está cadastrado!' }));
         }
 
-        try {
-          await pool.query(
-            'INSERT INTO usuarios (name, email, password, role, active) VALUES ($1, $2, $3, $4, $5)',
-            [name, cleanEmail, password, 'Usuário', true]
-          );
-        } catch (e) {}
+        if (pool) {
+          try {
+            await pool.query(
+              'INSERT INTO usuarios (name, email, password, role, active) VALUES ($1, $2, $3, $4, $5)',
+              [name, cleanEmail, password, 'Usuário', true]
+            );
+          } catch (e) {}
+        }
 
         const localUsers = getLocalUsers();
         localUsers.push({ id: Date.now(), name, email: cleanEmail, password, role: 'Usuário', active: true });
@@ -6067,13 +6139,16 @@ const server = http.createServer((req, res) => {
         }
 
         let user = null;
-        try {
-          const result = await pool.query(
-            'SELECT id, name, email, password FROM usuarios WHERE LOWER(email) = LOWER($1)',
-            [email]
-          );
-          if (result.rows.length > 0) user = result.rows[0];
-        } catch(e) {
+        if (pool) {
+          try {
+            const result = await pool.query(
+              'SELECT id, name, email, password FROM usuarios WHERE LOWER(email) = LOWER($1)',
+              [email]
+            );
+            if (result.rows.length > 0) user = result.rows[0];
+          } catch(e) {}
+        }
+        if (!user) {
           const localUsers = getLocalUsers();
           user = localUsers.find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
         }
@@ -6086,7 +6161,9 @@ const server = http.createServer((req, res) => {
         let sendPassword = user.password;
         if (!sendPassword || sendPassword.length > 30 || sendPassword.includes(':')) {
           sendPassword = Math.floor(100000 + Math.random() * 900000).toString();
-          pool.query('UPDATE usuarios SET password = $1 WHERE email = $2', [sendPassword, user.email]).catch(()=>{});
+          if (pool) {
+            pool.query('UPDATE usuarios SET password = $1 WHERE email = $2', [sendPassword, user.email]).catch(()=>{});
+          }
           const localUsers = getLocalUsers();
           const lu = localUsers.find(u => u.email.toLowerCase() === user.email.toLowerCase());
           if (lu) { lu.password = sendPassword; saveLocalUsers(localUsers); }
@@ -6118,18 +6195,24 @@ const server = http.createServer((req, res) => {
 
   // Rota GET de Usuários
   if (req.method === 'GET' && parsedUrl.pathname === '/api/users') {
-    pool.query('SELECT name, email, password, role, active FROM usuarios ORDER BY id ASC')
-      .then(result => {
-        saveLocalUsers(result.rows);
-        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(result.rows));
-      })
-      .catch(err => {
-        console.warn('Usando lista de usuários do backup local:', err.message);
-        const localUsers = getLocalUsers();
-        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(localUsers));
-      });
+    if (pool) {
+      pool.query('SELECT name, email, password, role, active FROM usuarios ORDER BY id ASC')
+        .then(result => {
+          saveLocalUsers(result.rows);
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(result.rows));
+        })
+        .catch(err => {
+          console.warn('Usando lista de usuários do backup local:', err.message);
+          const localUsers = getLocalUsers();
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(localUsers));
+        });
+    } else {
+      const localUsers = getLocalUsers();
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(localUsers));
+    }
     return;
   }
 
@@ -6145,35 +6228,37 @@ const server = http.createServer((req, res) => {
         saveLocalUsers(users);
         recordSystemLog('Administrador', 'admin@nexusfinanceiro.com', 'Sincronização', 'Usuários', 'Administrador atualizou a lista de usuários');
 
-        try {
-          const client = await pool.connect();
+        if (pool) {
           try {
-            await client.query('BEGIN');
-            const emails = users.map(u => u.email);
-            await client.query(
-              `DELETE FROM usuarios WHERE email <> ALL($1::text[])`,
-              [emails.length ? emails : ['__nunca__']]
-            );
-
-            for (const u of users) {
+            const client = await pool.connect();
+            try {
+              await client.query('BEGIN');
+              const emails = users.map(u => u.email);
               await client.query(
-                `INSERT INTO usuarios (name, email, password, role, active)
-                 VALUES ($1, $2, $3, $4, $5)
-                 ON CONFLICT (email) DO UPDATE
-                 SET name = EXCLUDED.name,
-                     password = EXCLUDED.password,
-                     role = EXCLUDED.role,
-                     active = EXCLUDED.active;`,
-                [u.name, u.email, u.password, u.role, u.active !== false]
+                `DELETE FROM usuarios WHERE email <> ALL($1::text[])`,
+                [emails.length ? emails : ['__nunca__']]
               );
+
+              for (const u of users) {
+                await client.query(
+                  `INSERT INTO usuarios (name, email, password, role, active)
+                   VALUES ($1, $2, $3, $4, $5)
+                   ON CONFLICT (email) DO UPDATE
+                   SET name = EXCLUDED.name,
+                       password = EXCLUDED.password,
+                       role = EXCLUDED.role,
+                       active = EXCLUDED.active;`,
+                  [u.name, u.email, u.password, u.role, u.active !== false]
+                );
+              }
+              await client.query('COMMIT');
+            } catch(e) {
+              await client.query('ROLLBACK');
+            } finally {
+              client.release();
             }
-            await client.query('COMMIT');
-          } catch(e) {
-            await client.query('ROLLBACK');
-          } finally {
-            client.release();
-          }
-        } catch(dbErr) {}
+          } catch(dbErr) {}
+        }
 
         res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: true }));
@@ -6188,25 +6273,31 @@ const server = http.createServer((req, res) => {
 
   // Rota GET de Logs de Auditoria
   if (req.method === 'GET' && parsedUrl.pathname === '/api/logs') {
-    pool.query('SELECT id, timestamp, user_name, user_email, action, entity, details FROM system_logs ORDER BY id DESC LIMIT 500')
-      .then(result => {
-        const dbLogs = result.rows || [];
-        const fileLogs = getFileLogs();
-        const combinedMap = new Map();
-        [...fileLogs, ...dbLogs].forEach(l => {
-          const key = (l.user_email || '') + '_' + (l.action || '') + '_' + (l.entity || '') + '_' + (l.details || '');
-          if (!combinedMap.has(key)) combinedMap.set(key, l);
+    if (pool) {
+      pool.query('SELECT id, timestamp, user_name, user_email, action, entity, details FROM system_logs ORDER BY id DESC LIMIT 500')
+        .then(result => {
+          const dbLogs = result.rows || [];
+          const fileLogs = getFileLogs();
+          const combinedMap = new Map();
+          [...fileLogs, ...dbLogs].forEach(l => {
+            const key = (l.user_email || '') + '_' + (l.action || '') + '_' + (l.entity || '') + '_' + (l.details || '');
+            if (!combinedMap.has(key)) combinedMap.set(key, l);
+          });
+          const finalLogs = Array.from(combinedMap.values());
+          finalLogs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(finalLogs));
+        })
+        .catch(err => {
+          const fileLogs = getFileLogs();
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(fileLogs));
         });
-        const finalLogs = Array.from(combinedMap.values());
-        finalLogs.sort((a,b) => new Date(b.timestamp) - new Date(a.timestamp));
-        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(finalLogs));
-      })
-      .catch(err => {
-        const fileLogs = getFileLogs();
-        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(fileLogs));
-      });
+    } else {
+      const fileLogs = getFileLogs();
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(fileLogs));
+    }
     return;
   }
 
@@ -6246,19 +6337,25 @@ const server = http.createServer((req, res) => {
   // Rota GET para buscar dados financeiros do Usuário no banco
   if (req.method === 'GET' && parsedUrl.pathname === '/api/data') {
     const email = (parsedUrl.query.email || '').toLowerCase().trim();
-    pool.query('SELECT dados FROM dados_financeiros WHERE LOWER(email) = LOWER($1)', [email])
-      .then(result => {
-        const serverData = result.rows[0] ? result.rows[0].dados : null;
-        if (serverData) saveLocalData(email, serverData);
-        const finalData = serverData || getLocalData(email);
-        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(finalData));
-      })
-      .catch(err => {
-        const localData = getLocalData(email);
-        res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(localData));
-      });
+    if (pool) {
+      pool.query('SELECT dados FROM dados_financeiros WHERE LOWER(email) = LOWER($1)', [email])
+        .then(result => {
+          const serverData = result.rows[0] ? result.rows[0].dados : null;
+          if (serverData) saveLocalData(email, serverData);
+          const finalData = serverData || getLocalData(email);
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(finalData));
+        })
+        .catch(err => {
+          const localData = getLocalData(email);
+          res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(localData));
+        });
+    } else {
+      const localData = getLocalData(email);
+      res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(localData));
+    }
     return;
   }
 
@@ -6283,15 +6380,17 @@ const server = http.createServer((req, res) => {
       saveLocalData(cleanEmail, payload.data);
       recordSystemLog(cleanEmail, cleanEmail, 'Salvamento', 'Dados Financeiros', 'Atualizou dados financeiros no sistema');
 
-      pool.query(
-        `INSERT INTO dados_financeiros (email, dados, updated_at)
-         VALUES ($1, $2, now())
-         ON CONFLICT (email) DO UPDATE
-         SET dados = EXCLUDED.dados, updated_at = now();`,
-        [cleanEmail, payload.data]
-      ).catch(err => {
-        console.warn('[AVISO BD] Falha ao salvar no PostgreSQL. Dados salvos com resiliência local.', err.message);
-      });
+      if (pool) {
+        pool.query(
+          `INSERT INTO dados_financeiros (email, dados, updated_at)
+           VALUES ($1, $2, now())
+           ON CONFLICT (email) DO UPDATE
+           SET dados = EXCLUDED.dados, updated_at = now();`,
+          [cleanEmail, payload.data]
+        ).catch(err => {
+          console.warn('[AVISO BD] Falha ao salvar no PostgreSQL. Dados salvos com resiliência local.', err.message);
+        });
+      }
 
       res.writeHead(200, { ...corsHeaders, 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ success: true }));
@@ -6340,7 +6439,11 @@ const server = http.createServer((req, res) => {
 
 initDatabase()
   .then(() => {
-    console.log(`[BANCO] Conectado com sucesso ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
+    if (pool) {
+      console.log(`[BANCO] Conectado com sucesso ao PostgreSQL (banco: ${process.env.DB_NAME || 'FINANCEIRO'})`);
+    } else {
+      console.log(`[BANCO LOCAL] Operando com alta resiliência e persistência em arquivos JSON locais.`);
+    }
   })
   .catch(err => {
     console.warn(`[BANCO AVISO] PostgreSQL indisponível. O sistema funcionará com alta resiliência e fallback JSON local: ${err.message}`);
