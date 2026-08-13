@@ -3111,13 +3111,59 @@ function pageDashboard(){
       <div class="split-labels"><span>🟢 \${recPct}% Receitas</span><span>Despesas \${despPct}%</span></div>
     </div>
 
-    <div class="panel">
-      <div class="panel-head"><h3>Despesas por Categoria</h3><span class="tag">\${periodLabel()}</span></div>
-      <div class="cat-wrap">
-        <div class="donut-canvas" style="width:130px;height:130px;"><canvas id="chartCategorias"></canvas></div>
-        <div class="cat-legend">
-          \${cats.length? cats.map(c=>\`<div class="cat-row"><span class="lbl"><span class="dot" style="background:\${c.color}"></span>\${c.name}</span><span><span class="amt">\${fmt(c.val)}</span><span class="pct">\${Math.round(c.val/totalDesp*100)}%</span></span></div>\`).join('') : \`<p style="color:var(--text-faint);font-size:12px">Sem despesas neste período.</p>\`}
+    <div class="panel" style="display:flex; flex-direction:column; justify-content:space-between;">
+      <div>
+        <div class="panel-head" style="margin-bottom:12px;">
+          <h3 style="display:flex; align-items:center; gap:6px;">
+            <span>📁</span> Despesas por Categoria
+          </h3>
+          <span class="tag" style="background:rgba(255,255,255,0.06); color:var(--text); font-weight:700;">\${fmt(totalDesp)}</span>
         </div>
+
+        \${cats.length > 0 ? \`
+        <!-- Barra de Distribuição Segmentada Multi-Cor -->
+        <div style="width:100%; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; display:flex; overflow:hidden; margin-bottom:12px;">
+          \${cats.map(c => {
+            const pct = Math.max(2, Math.round(c.val / totalDesp * 100));
+            return \`<div style="width:\${pct}%; height:100%; background:\${c.color};" title="\${c.name}: \${fmt(c.val)} (\${pct}%)"></div>\`;
+          }).join('')}
+        </div>
+
+        <!-- Lista de Categorias com Ícones, Valores e Barras Individuais -->
+        <div class="cat-list" style="display:flex; flex-direction:column; gap:7px;">
+          \${cats.map(c => {
+            const pct = Math.round(c.val / totalDesp * 100);
+            const catObj = categories.find(x => x.name === c.name);
+            const icon = (catObj && catObj.icon) || '📁';
+            return \`
+            <div style="display:flex; flex-direction:column; gap:4px; padding:6px 8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:8px;">
+              <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+                <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+                  <span style="background:\${c.color}22; color:\${c.color}; width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0;">\${icon}</span>
+                  <span style="font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${c.name}</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
+                  <strong style="font-size:12.5px; font-weight:700; color:var(--text);">\${fmt(c.val)}</strong>
+                  <span style="font-size:10px; font-weight:700; padding:1px 5px; border-radius:4px; background:\${c.color}22; color:\${c.color}; min-width:28px; text-align:center;">\${pct}%</span>
+                </div>
+              </div>
+              <div style="width:100%; height:3px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden;">
+                <div style="width:\${pct}%; height:100%; background:\${c.color}; border-radius:2px;"></div>
+              </div>
+            </div>\`;
+          }).join('')}
+        </div>
+        \` : \`
+        <div style="text-align:center; padding:30px 10px; color:var(--text-faint);">
+          <div style="font-size:28px; margin-bottom:6px;">📊</div>
+          <p style="font-size:12px;">Nenhuma despesa registrada neste período.</p>
+        </div>
+        \`}
+      </div>
+
+      <div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-faint);">
+        <span>\${cats.length} categoria(s)</span>
+        <span style="cursor:pointer; color:var(--gold); font-weight:600;" data-nav="transacoes">Ver lançamentos →</span>
       </div>
     </div>
 
