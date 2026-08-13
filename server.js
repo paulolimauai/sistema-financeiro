@@ -2537,6 +2537,35 @@ function isTxForAccount(t, account) {
   return false;
 }
 
+function isPgtoFaturaOrEstorno(t) {
+  if (!t || t.type !== 'in') return false;
+  const catLower = (t.cat || '').toLowerCase().trim();
+  const descLower = (t.desc || '').toLowerCase().trim();
+  
+  // Categorias ou descrições explícitas de pagamento de fatura, estorno ou reembolso
+  if (catLower.includes('fatura') || catLower.includes('estorno') || catLower.includes('reembolso')) return true;
+  if (descLower.includes('fatura') || descLower.includes('estorno') || descLower.includes('reembolso') || descLower.includes('pgto cartão') || descLower.includes('pgto cartao') || descLower.includes('pagamento de cartão') || descLower.includes('pagamento cartao')) return true;
+  
+  // Categorias de renda/salário/investimento NUNCA são pagamento de fatura
+  if (
+    catLower.includes('salário') || catLower.includes('salario') || 
+    catLower.includes('rendimento') || catLower.includes('investimento') || 
+    catLower.includes('freelance') || catLower.includes('venda') || 
+    catLower.includes('pró-labore') || catLower.includes('pro-labore') ||
+    catLower.includes('bônus') || catLower.includes('bonus') ||
+    catLower.includes('comissão') || catLower.includes('comissao')
+  ) {
+    return false;
+  }
+  
+  // Se for categoria "Cartão de Crédito" e tipo "in", é estorno/pagamento
+  if (catLower.includes('cartão') || catLower.includes('cartao') || catLower.includes('crédito') || catLower.includes('credito')) {
+    return true;
+  }
+  
+  return false;
+}
+
 function getCardStats(account) {
   if (!account) return { spentPeriod: 0, spentTotal: 0, totalLimit: 0, availableLimit: 0, usagePct: 0, currentBalance: 0, initialBalance: 0, isCreditCard: false, txCount: 0, periodIn: 0, periodOut: 0 };
   
@@ -2544,11 +2573,15 @@ function getCardStats(account) {
   const cardTx = transactions.filter(t => isTxForAccount(t, account));
 
   const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
-  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const totalPagamentos = isCreditCard
+    ? cardTx.filter(t => t.type === 'in' && isPgtoFaturaOrEstorno(t)).reduce((s, t) => s + parseInputValue(t.val), 0)
+    : cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
   
   const periodCardTx = cardTx.filter(inPeriod);
   const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
-  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const periodPagamentos = isCreditCard
+    ? periodCardTx.filter(t => t.type === 'in' && isPgtoFaturaOrEstorno(t)).reduce((s, t) => s + parseInputValue(t.val), 0)
+    : periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
 
   const initialBalance = parseInputValue(account.balance) || parseInputValue(account.limit) || parseInputValue(account.initialBalance) || 0;
 
