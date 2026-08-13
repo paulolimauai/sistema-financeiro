@@ -1499,8 +1499,11 @@ body.light .scale-dropdown {
         <button type="button" id="fCategoriaAddBtn" title="Nova categoria" style="flex-shrink:0; width:40px; border:1px solid var(--card-border); background:var(--card); border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; color:var(--text);">+</button>
       </div>
     </div>
-    <div class="field"><label>Conta / Cartão</label>
-      <select id="fConta"></select>
+    <div class="field"><label id="fContaLabel">Conta / Cartão</label>
+      <div style="display:flex; gap:6px;">
+        <select id="fConta" style="flex:1;"></select>
+        <button type="button" id="fContaAddBtn" title="Nova Conta ou Cartão de Débito" style="flex-shrink:0; width:40px; border:1px solid var(--card-border); background:var(--card); border-radius:10px; font-size:16px; font-weight:700; cursor:pointer; color:var(--text);">+</button>
+      </div>
       <div id="cardLimitHint" style="display:none;margin-top:6px;font-size:12px;padding:8px 12px;border-radius:8px;background:var(--green-soft);color:var(--green);font-weight:600;align-items:center;gap:6px;"></div>
     </div>
     <div class="field"><label>Status</label>
@@ -1520,7 +1523,13 @@ body.light .scale-dropdown {
     <h2 id="accModalTitle">Nova Conta</h2>
     <div class="field"><label>Nome</label><input id="accName" placeholder="Ex: Nubank"></div>
     <div class="field"><label>Tipo</label>
-      <select id="accType"><option>Conta Corrente</option><option>Conta Poupança</option><option>Cartão de Crédito</option><option>Investimento</option></select>
+      <select id="accType">
+        <option value="Conta Corrente">Conta Corrente</option>
+        <option value="Cartão de Débito">Cartão de Débito</option>
+        <option value="Conta Poupança">Conta Poupança</option>
+        <option value="Cartão de Crédito">Cartão de Crédito</option>
+        <option value="Investimento">Investimento</option>
+      </select>
     </div>
     <div class="field-row">
       <div class="field"><label id="accBalanceLabel">Saldo (R$)</label><input id="accBalance" type="number" step="0.01" placeholder="0,00"></div>
@@ -2460,24 +2469,23 @@ const inPeriod = t => {
 /* ==================== Cálculos de Cartões e Limites ==================== */
 function isAccountCreditCard(account) {
   if (!account) return false;
-  if (account.isCreditCard === true || account.isCard === true) return true;
 
   const accTypeLower = (account.type || '').toLowerCase().trim();
   const accNameLower = (account.name || '').toLowerCase().trim();
 
-  // 1. Se o tipo contiver explicitamente Cartão / Crédito / Fatura / Card
+  // 0. Se contiver explicitamente débito/debito ou conta bancária, NUNCA é cartão de crédito
   if (
-    accTypeLower.includes('cartão') ||
-    accTypeLower.includes('cartao') ||
-    accTypeLower.includes('crédito') ||
-    accTypeLower.includes('credito') ||
-    accTypeLower.includes('fatura') ||
-    accTypeLower.includes('card')
+    accTypeLower.includes('débito') ||
+    accTypeLower.includes('debito') ||
+    accNameLower.includes('débito') ||
+    accNameLower.includes('debito')
   ) {
-    return true;
+    return false;
   }
 
-  // 2. Se o tipo for de conta bancária de dinheiro/saldo corrente/investimento/pix, NUNCA é cartão de crédito
+  if (account.isCreditCard === true || account.isCard === true) return true;
+
+  // 1. Se o tipo for de conta bancária de dinheiro/saldo corrente/investimento/pix, NUNCA é cartão de crédito
   const isExplicitBankOrCash = (
     accTypeLower.includes('corrente') ||
     accTypeLower.includes('poupança') ||
@@ -2493,12 +2501,22 @@ function isAccountCreditCard(account) {
     return false;
   }
 
-  // 3. Se o tipo não for especificado ou for 'Outros', verifica termos de cartão no nome
-  const cardKeywords = [
-    'cartão', 'cartao', 'crédito', 'credito', 'fatura', 'credicard', 'amex', 'hipercard',
+  // 2. Se o tipo contiver explicitamente Crédito / Fatura / Card
+  if (
+    accTypeLower.includes('crédito') ||
+    accTypeLower.includes('credito') ||
+    accTypeLower.includes('fatura') ||
+    accTypeLower.includes('card')
+  ) {
+    return true;
+  }
+
+  // 3. Se o tipo não for especificado ou for 'Outros', verifica termos de cartão de crédito no nome
+  const creditKeywords = [
+    'crédito', 'credito', 'fatura', 'credicard', 'amex', 'hipercard',
     'mastercard', 'visa', 'roxinho', 'trigg', 'digio', 'bradescard', 'itaucard', 'ourocard'
   ];
-  if (cardKeywords.some(k => accNameLower.includes(k))) {
+  if (creditKeywords.some(k => accNameLower.includes(k))) {
     return true;
   }
 
@@ -3076,6 +3094,12 @@ function pageDashboard(){
   const totalDesp = cats.reduce((s,c)=>s+c.val,0)||1;
   const recPct = Math.round(receitas/(receitas+despesas||1)*100) || 0;
   const despPct = 100-recPct;
+  const resultado = receitas - despesas;
+  const savingsPct = receitas > 0 ? Math.max(0, Math.round((resultado / receitas) * 100)) : 0;
+  const commitPct = receitas > 0 ? Math.min(100, Math.round((despesas / receitas) * 100)) : (despesas > 0 ? 100 : 0);
+  const now = new Date();
+  const daysInPeriod = now.getDate() || 1;
+  const dailyAvg = despesas > 0 ? (despesas / daysInPeriod) : 0;
   const lastTx = periodTx.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
   const cardSummary = computeCardSummary();
   const pendingSummary = getPendingBillsSummary();
@@ -3142,39 +3166,96 @@ function pageDashboard(){
   \` : ''}
 
   <div class="grid3">
-    <!-- Painel 1: Resumo Financeiro -->
-    <div class="panel">
-      <div>
-        <div class="panel-head" style="margin-bottom:16px;">
-          <h3><span style="font-size:16px;">📊</span> Resumo Financeiro</h3>
-          <span class="tag">\${periodLabel()}</span>
+    <!-- Painel 1: Resumo Financeiro (Redesign Executivo) -->
+    <div class="panel" style="display:flex; flex-direction:column; justify-content:space-between; gap:16px;">
+      
+      <!-- Cabeçalho -->
+      <div class="panel-head" style="margin-bottom:0;">
+        <h3 style="font-size:15px; font-weight:800; color:var(--text); margin:0; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:16px;">📊</span> Resumo Financeiro
+        </h3>
+        <span class="tag">\${periodLabel()}</span>
+      </div>
+
+      <!-- 1. Grid de Cards Principais (3 Colunas Uniformes e Elegantes) -->
+      <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:10px;">
+        <!-- Receitas -->
+        <div style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.2); border-radius:12px; padding:10px 8px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--green); display:flex; align-items:center; justify-content:center; gap:3px;">
+            <span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--green);"></span> Receitas
+          </div>
+          <b style="color:var(--green); font-size:13.5px; font-weight:800; margin-top:4px; display:block; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            \${fmt(receitas)}
+          </b>
         </div>
-        <div class="donut-wrap" style="gap:16px;">
-          <div class="donut-side" style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.18); border-radius:12px; padding:8px 12px; flex:1; text-align:center;">
-            <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-dim);">Receitas</span>
-            <b style="color:var(--green); font-size:14.5px; margin-top:3px; display:block; font-variant-numeric: tabular-nums;">\${fmt(receitas)}</b>
+
+        <!-- Despesas -->
+        <div style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.2); border-radius:12px; padding:10px 8px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:var(--red); display:flex; align-items:center; justify-content:center; gap:3px;">
+            <span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--red);"></span> Despesas
           </div>
-          <div class="donut-canvas" style="width:130px; height:130px;"><canvas id="chartResumo"></canvas>
-            <div class="donut-center">
-              <span style="font-size:10px; text-transform:uppercase; letter-spacing:0.05em; font-weight:700; color:var(--text-dim);">Saldo</span>
-              <b style="color:\${saldo < 0 ? 'var(--red)' : 'var(--text)'}; font-size:15px; font-weight:800; font-variant-numeric: tabular-nums;">\${fmt(saldo)}</b>
-            </div>
+          <b style="color:var(--red); font-size:13.5px; font-weight:800; margin-top:4px; display:block; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            \${fmt(despesas)}
+          </b>
+        </div>
+
+        <!-- Resultado do Mês -->
+        <div style="background:\${resultado >= 0 ? 'rgba(59,130,246,0.06)' : 'rgba(239,68,68,0.08)'}; border:1px solid \${resultado >= 0 ? 'rgba(59,130,246,0.2)' : 'rgba(239,68,68,0.25)'}; border-radius:12px; padding:10px 8px; text-align:center;">
+          <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; color:\${resultado >= 0 ? 'var(--blue)' : 'var(--red)'}; display:flex; align-items:center; justify-content:center; gap:3px;">
+            <span style="display:inline-block; width:5px; height:5px; border-radius:50%; background:\${resultado >= 0 ? 'var(--blue)' : 'var(--red)'};"></span> Resultado
           </div>
-          <div class="donut-side r" style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.18); border-radius:12px; padding:8px 12px; flex:1; text-align:center;">
-            <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-dim);">Despesas</span>
-            <b style="color:var(--red); font-size:14.5px; margin-top:3px; display:block; font-variant-numeric: tabular-nums;">\${fmt(despesas)}</b>
+          <b style="color:\${resultado >= 0 ? 'var(--green)' : 'var(--red)'}; font-size:13.5px; font-weight:800; margin-top:4px; display:block; font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+            \${fmt(resultado)}
+          </b>
+        </div>
+      </div>
+
+      <!-- 2. Gráfico Rosca Central com Indicador de Economia -->
+      <div style="position:relative; width:135px; height:135px; margin:2px auto; display:flex; align-items:center; justify-content:center;">
+        <canvas id="chartResumo" style="width:100% !important; height:100% !important;"></canvas>
+        <div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; pointer-events:none;">
+          <span style="font-size:9.5px; text-transform:uppercase; letter-spacing:0.06em; font-weight:700; color:var(--text-dim);">Economia</span>
+          <b style="color:\${savingsPct > 0 ? 'var(--green)' : 'var(--text-dim)'}; font-size:16px; font-weight:800; margin-top:1px; line-height:1;">\${savingsPct}%</b>
+          <span style="font-size:9px; color:var(--text-faint); margin-top:2px;">da receita</span>
+        </div>
+      </div>
+
+      <!-- 3. Micro-Cards de Indicadores de Saúde Financeira -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+        <div style="background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:8px 10px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:13px; background:rgba(232,176,75,0.12); color:var(--gold); border:1px solid rgba(232,176,75,0.25); width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">📈</span>
+          <div style="min-width:0;">
+            <div style="font-size:10px; color:var(--text-dim); font-weight:600;">Comprometimento</div>
+            <div style="font-size:11.5px; font-weight:800; color:\${commitPct > 80 ? 'var(--red)' : commitPct > 60 ? 'var(--orange)' : 'var(--green)'}; font-variant-numeric:tabular-nums;">\${commitPct}% da Renda</div>
+          </div>
+        </div>
+
+        <div style="background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.06); border-radius:10px; padding:8px 10px; display:flex; align-items:center; gap:8px;">
+          <span style="font-size:13px; background:rgba(59,130,246,0.12); color:var(--blue); border:1px solid rgba(59,130,246,0.25); width:28px; height:28px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0;">📅</span>
+          <div style="min-width:0;">
+            <div style="font-size:10px; color:var(--text-dim); font-weight:600;">Média Diária</div>
+            <div style="font-size:11.5px; font-weight:800; color:var(--text); font-variant-numeric:tabular-nums;">\${fmt(dailyAvg)}/dia</div>
           </div>
         </div>
       </div>
-      <div style="margin-top:auto; padding-top:16px;">
-        <div class="bar-split" style="height:8px; border-radius:6px; overflow:hidden; background:rgba(239,68,68,0.2); box-shadow:inset 0 1px 2px rgba(0,0,0,0.3);">
+
+      <!-- 4. Barra de Distribuição de Renda e Relação Receita x Despesa -->
+      <div style="margin-top:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:11px; font-weight:700;">
+          <span style="color:var(--green); display:flex; align-items:center; gap:4px;">
+            <span style="width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block;"></span>
+            Receitas \${recPct}%
+          </span>
+          <span style="color:var(--red); display:flex; align-items:center; gap:4px;">
+            Despesas \${despPct}%
+            <span style="width:6px; height:6px; border-radius:50%; background:var(--red); display:inline-block;"></span>
+          </span>
+        </div>
+        <div class="bar-split" style="height:7px; border-radius:6px; overflow:hidden; background:rgba(239,68,68,0.25); box-shadow:inset 0 1px 2px rgba(0,0,0,0.3); display:flex;">
           <div class="g" style="width:\${recPct}%; border-radius:6px; background:linear-gradient(90deg, #10B981, #34D399); transition:width 0.4s ease;"></div>
         </div>
-        <div class="split-labels" style="margin-top:10px; font-size:11.5px; font-weight:700; display:flex; justify-content:space-between;">
-          <span style="color:var(--green); display:flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block;"></span> \${recPct}% Receitas</span>
-          <span style="color:var(--red); display:flex; align-items:center; gap:4px;">Despesas \${despPct}% <span style="width:6px; height:6px; border-radius:50%; background:var(--red); display:inline-block;"></span></span>
-        </div>
       </div>
+
     </div>
 
     <!-- Painel 2: Despesas por Categoria -->
@@ -4376,8 +4457,31 @@ function drawDashboardCharts(){
   const ctx1 = document.getElementById('chartResumo');
   if(ctx1) charts.resumo = new Chart(ctx1, {
     type:'doughnut',
-    data:{ datasets:[{data:[receitas||0.0001,despesas||0.0001], backgroundColor:['#e8b04b','#ef5a5a'], borderWidth:0}] },
-    options:{cutout:'72%', plugins:{legend:{display:false}}}
+    data:{ 
+      labels: ['Receitas', 'Despesas'],
+      datasets:[{
+        data:[receitas||0.0001,despesas||0.0001], 
+        backgroundColor:['#10B981','#EF4444'],
+        hoverBackgroundColor:['#34D399','#F87171'],
+        borderWidth:2,
+        borderColor:'rgba(11,15,24,0.6)'
+      }] 
+    },
+    options:{
+      responsive:true,
+      maintainAspectRatio:false,
+      cutout:'75%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label: function(context) {
+              return ' ' + context.label + ': ' + fmt(context.raw);
+            }
+          }
+        }
+      }
+    }
   });
   const cats = despesasPorCategoria(periodTx);
   const ctx2 = document.getElementById('chartCategorias');
@@ -4392,24 +4496,35 @@ function populateAccountOptions(selectedAcc) {
   const fConta = document.getElementById('fConta');
   if(!fConta) return;
 
-  // 1. Mapeia todas as contas e cartões cadastrados pelo usuário (ordenados de A a Z)
-  let htmlOptions = accounts.slice().sort((a,b)=>a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(a => {
+  const isReceita = (currentType === 'in');
+  
+  // Na aba de Receita, filtrar para NÃO mostrar Cartões de Crédito!
+  let availableAccounts = accounts.slice();
+  if (isReceita) {
+    availableAccounts = availableAccounts.filter(a => !isAccountCreditCard(a));
+  }
+
+  // 1. Mapeia as contas válidas para o tipo atual (ordenadas de A a Z)
+  let htmlOptions = availableAccounts.sort((a,b)=>a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(a => {
     const stats = getCardStats(a);
     const label = stats.isCreditCard 
-      ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + (currentType === 'in' ? ' — Pgto Fatura/Estorno' : '') + ')') 
+      ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + ')') 
       : (a.name + ' (Saldo: ' + fmt(stats.currentBalance) + ')');
     return '<option value="' + a.name + '"' + (selectedAcc === a.name ? ' selected' : '') + '>' + label + '</option>';
   }).join('');
 
   // 2. Opções adicionais de pagamento / recebimento padrão
-  const extraOptions = [
-    { value: 'Cartão de Crédito', label: '💳 Cartão de Crédito' },
+  let extraOptions = [
     { value: 'Dinheiro em Espécie', label: '💵 Dinheiro em Espécie' },
     { value: 'Boleto / Pix / Outros', label: '📄 Boleto / Pix / Outros' }
   ];
 
+  if (!isReceita) {
+    extraOptions.unshift({ value: 'Cartão de Crédito', label: '💳 Cartão de Crédito' });
+  }
+
   extraOptions.forEach(opt => {
-    const existsInAccounts = accounts.some(a => {
+    const existsInAccounts = availableAccounts.some(a => {
       const aName = (a.name || '').toLowerCase().trim();
       const oVal = opt.value.toLowerCase().trim();
       return aName === oVal;
@@ -4421,21 +4536,35 @@ function populateAccountOptions(selectedAcc) {
   });
 
   if(!htmlOptions) {
-    fConta.innerHTML = '<option value="Cartão de Crédito">💳 Cartão de Crédito</option><option value="Dinheiro em Espécie">💵 Dinheiro em Espécie</option><option value="Boleto / Pix / Outros">📄 Boleto / Pix / Outros</option>';
+    htmlOptions = isReceita
+      ? '<option value="Dinheiro em Espécie">💵 Dinheiro em Espécie</option><option value="Boleto / Pix / Outros">📄 Boleto / Pix / Outros</option>'
+      : '<option value="Cartão de Crédito">💳 Cartão de Crédito</option><option value="Dinheiro em Espécie">💵 Dinheiro em Espécie</option><option value="Boleto / Pix / Outros">📄 Boleto / Pix / Outros</option>';
+    fConta.innerHTML = htmlOptions;
     updateCardLimitHint();
     return;
   }
 
   fConta.innerHTML = htmlOptions;
 
-  // Se a categoria selecionada for 'Cartão de Crédito' e selectedAcc não for especificado, seleciona o primeiro cartão de crédito
-  const fCat = document.getElementById('fCategoria');
-  if(fCat && (fCat.value || '').toLowerCase().includes('cartão') && !selectedAcc) {
-    const firstCard = accounts.find(a => isAccountCreditCard(a));
-    if(firstCard) {
-      fConta.value = firstCard.name;
-    } else {
-      fConta.value = 'Cartão de Crédito';
+  // Se for despesa e categoria contiver 'cartão', seleciona o primeiro cartão de crédito se nenhum foi selecionado
+  if(!isReceita) {
+    const fCat = document.getElementById('fCategoria');
+    if(fCat && (fCat.value || '').toLowerCase().includes('cartão') && !selectedAcc) {
+      const firstCard = accounts.find(a => isAccountCreditCard(a));
+      if(firstCard) {
+        fConta.value = firstCard.name;
+      } else {
+        fConta.value = 'Cartão de Crédito';
+      }
+    }
+  } else {
+    // Na receita, se selectedAcc era um cartão de crédito, reseta para a primeira conta de débito/bancária válida
+    if (selectedAcc && accounts.some(a => a.name === selectedAcc && isAccountCreditCard(a))) {
+      if (availableAccounts.length > 0) {
+        fConta.value = availableAccounts[0].name;
+      } else {
+        fConta.value = 'Dinheiro em Espécie';
+      }
     }
   }
 
@@ -4447,6 +4576,11 @@ function updateCardLimitHint() {
   const hintEl = document.getElementById('cardLimitHint');
   const valorEl = document.getElementById('fValor');
   if(!fConta || !hintEl) return;
+
+  if (currentType === 'in') {
+    hintEl.style.display = 'none';
+    return;
+  }
 
   const accName = fConta.value;
   const acc = accounts.find(a => a.name === accName || (a.id != null && String(a.id) === String(accName)));
@@ -4608,6 +4742,10 @@ function setType(t){
   const fStatusEl = document.getElementById('fStatus');
   if(fStatusEl && !editingId) {
     fStatusEl.value = t==='in' ? 'Recebido' : 'Pago';
+  }
+  const fContaLabel = document.getElementById('fContaLabel');
+  if(fContaLabel) {
+    fContaLabel.textContent = t==='in' ? 'Conta / Cartão de Débito' : 'Conta / Cartão';
   }
   const fContaEl = document.getElementById('fConta');
   if(fContaEl) {
@@ -4807,6 +4945,10 @@ async function saveAccount(){
   }
   await saveUserData();
   closeAccountModal();
+  const txOverlay = document.getElementById('overlay');
+  if(txOverlay && txOverlay.classList.contains('show')){
+    populateAccountOptions(name);
+  }
   render();
 }
 async function deleteAccount(id){
@@ -5799,6 +5941,16 @@ document.getElementById('overlay').addEventListener('click', e=>{ if(e.target.id
 document.getElementById('typeInBtn').onclick = ()=>setType('in');
 document.getElementById('typeOutBtn').onclick = ()=>setType('out');
 document.getElementById('fCategoriaAddBtn').onclick = ()=>openCategoryModal(null, currentType);
+const fContaAddBtn = document.getElementById('fContaAddBtn');
+if (fContaAddBtn) {
+  fContaAddBtn.onclick = () => {
+    openAccountModal(null);
+    if (currentType === 'in') {
+      const accTypeEl = document.getElementById('accType');
+      if (accTypeEl) accTypeEl.value = 'Conta Corrente';
+    }
+  };
+}
 
 document.getElementById('closeAccModal').onclick = closeAccountModal;
 document.getElementById('accCancelBtn').onclick = closeAccountModal;
