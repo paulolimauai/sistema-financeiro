@@ -3154,61 +3154,64 @@ function pageDashboard(){
       <div class="split-labels"><span>🟢 \${recPct}% Receitas</span><span>Despesas \${despPct}%</span></div>
     </div>
 
-    <div class="panel" style="display:flex; flex-direction:column; justify-content:space-between;">
+    <div class="panel" style="padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; min-height:220px;">
       <div>
-        <div class="panel-head" style="margin-bottom:12px;">
-          <h3 style="display:flex; align-items:center; gap:8px;">
-            <span style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:7px; background:rgba(232,176,75,0.18); color:var(--gold);">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
-            </span>
-            Despesas por Categoria
-          </h3>
-          <span class="tag" style="background:rgba(255,255,255,0.06); color:var(--text); font-weight:700;">\${fmt(totalDesp)}</span>
+        <!-- Cabeçalho Executivo Limpo -->
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+          <div>
+            <h3 style="font-size:14px; font-weight:700; color:var(--text); margin:0;">Despesas por Categoria</h3>
+            <span style="font-size:11px; color:var(--text-faint); margin-top:2px; display:block;">Distribuição dos gastos no período</span>
+          </div>
+          <span class="tag" style="background:rgba(239,90,90,0.12); color:var(--red); font-weight:800; font-size:12px; padding:3px 10px; border-radius:8px; border:1px solid rgba(239,90,90,0.25);">
+            \${fmt(totalDesp)}
+          </span>
         </div>
 
         \${cats.length > 0 ? \`
-        <!-- Barra de Distribuição Segmentada Multi-Cor -->
-        <div style="width:100%; height:6px; background:rgba(255,255,255,0.06); border-radius:3px; display:flex; overflow:hidden; margin-bottom:12px;">
-          \${cats.map(c => {
-            const pct = Math.max(2, Math.round(c.val / totalDesp * 100));
-            return \`<div style="width:\${pct}%; height:100%; background:\${c.color};" title="\${c.name}: \${fmt(c.val)} (\${pct}%)"></div>\`;
-          }).join('')}
-        </div>
-
-        <!-- Lista de Categorias com Ícones Temáticos, Valores e Barras Individuais -->
-        <div class="cat-list" style="display:flex; flex-direction:column; gap:7px;">
+        <!-- Lista Executiva em Linhas Limpas e Elegantes -->
+        <div style="display:flex; flex-direction:column; gap:10px;">
           \${cats.map(c => {
             const pct = Math.round(c.val / totalDesp * 100);
             const icon = getCategoryIcon(c.name);
+            const count = periodTx.filter(t => t.cat === c.name && t.type === 'out').length;
             return \`
-            <div style="display:flex; flex-direction:column; gap:4px; padding:6px 8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:8px;">
+            <div style="display:flex; flex-direction:column; gap:5px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.04);">
               <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
-                <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-                  <span style="background:\${c.color}22; border:1px solid \${c.color}44; color:\${c.color}; width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; box-shadow:0 2px 5px rgba(0,0,0,0.25);">\${icon}</span>
-                  <span style="font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${c.name}</span>
+                
+                <!-- Esquerda: Ícone + Nome da Categoria + Qtd de transações -->
+                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                  <span style="background:\${c.color}20; color:\${c.color}; width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">\${icon}</span>
+                  <div style="min-width:0;">
+                    <div style="font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${c.name}</div>
+                    <div style="font-size:10px; color:var(--text-faint);">\${count} lançamento\${count === 1 ? '' : 's'}</div>
+                  </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
-                  <strong style="font-size:12.5px; font-weight:700; color:var(--text);">\${fmt(c.val)}</strong>
-                  <span style="font-size:10px; font-weight:700; padding:1px 5px; border-radius:4px; background:\${c.color}22; color:\${c.color}; min-width:28px; text-align:center;">\${pct}%</span>
+
+                <!-- Direita: Valor em destaque e Porcentagem -->
+                <div style="text-align:right; flex-shrink:0;">
+                  <div style="font-size:13.5px; font-weight:700; color:var(--text);">\${fmt(c.val)}</div>
+                  <div style="font-size:10.5px; font-weight:600; color:\${c.color};">\${pct}% do total</div>
                 </div>
               </div>
-              <div style="width:100%; height:3px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden;">
-                <div style="width:\${pct}%; height:100%; background:\${c.color}; border-radius:2px;"></div>
+
+              <!-- Barra de Progresso Integrada e Discreta (3px) -->
+              <div style="width:100%; height:3.5px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; margin-top:2px;">
+                <div style="width:\${pct}%; height:100%; background:\${c.color}; border-radius:2px; transition:width .3s ease;"></div>
               </div>
             </div>\`;
           }).join('')}
         </div>
         \` : \`
         <div style="text-align:center; padding:30px 10px; color:var(--text-faint);">
-          <div style="font-size:28px; margin-bottom:6px;">📊</div>
+          <div style="font-size:26px; margin-bottom:6px;">📊</div>
           <p style="font-size:12px;">Nenhuma despesa registrada neste período.</p>
         </div>
         \`}
       </div>
 
-      <div style="margin-top:10px; padding-top:8px; border-top:1px solid rgba(255,255,255,0.05); display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-faint);">
-        <span>\${cats.length} categoria(s)</span>
-        <span style="cursor:pointer; color:var(--gold); font-weight:600;" data-nav="transacoes">Ver lançamentos →</span>
+      <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-faint);">
+        <span>Total: <strong>\${cats.length}</strong> categoria\${cats.length === 1 ? '' : 's'}</span>
+        <span style="cursor:pointer; color:var(--gold); font-weight:600;" data-nav="transacoes">Ver todas as despesas →</span>
       </div>
     </div>
 
