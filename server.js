@@ -2773,8 +2773,19 @@ function refreshTxTable(){
   list.sort((a,b)=>b.date.localeCompare(a.date));
   tableWrap.innerHTML = transactionsTable(list, true);
   const statsRow = document.getElementById('txStatsRow'); if(statsRow) statsRow.innerHTML = txStatsCardsHTML(list);
-  document.querySelectorAll('[data-edit]').forEach(el=>el.onclick = ()=>openModal(parseInt(el.getAttribute('data-edit'))));
-  document.querySelectorAll('[data-del]').forEach(el=>el.onclick = ()=>deleteTransaction(parseInt(el.getAttribute('data-del'))));
+  document.querySelectorAll('[data-edit]').forEach(el => {
+    el.onclick = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      openModal(parseInt(el.getAttribute('data-edit')));
+    };
+  });
+  document.querySelectorAll('[data-del]').forEach(el => {
+    el.onclick = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const id = parseInt(el.getAttribute('data-del'));
+      if (!isNaN(id)) deleteTransaction(id);
+    };
+  });
   return true;
 }
 
@@ -4534,10 +4545,12 @@ async function saveTransaction(){
   render();
 }
 async function deleteTransaction(id){
-  if(!confirm('Excluir esta transação?')) return;
-  transactions = transactions.filter(t=>t.id!==id);
+  const target = transactions.find(t => t.id === id);
+  const desc = target ? target.desc : '';
+  transactions = transactions.filter(t => t.id !== id);
   await saveUserData();
-  showToast('Transação removida');
+  showToast('🗑 Transação ' + (desc ? ('"' + desc + '" ') : '') + 'excluída!');
+  logActivity('Exclusão', 'Transação', 'Excluiu transação "' + (desc || id) + '"');
   render();
 }
 
@@ -5296,9 +5309,25 @@ function attachPageEvents(){
 
   const nova = document.getElementById('btnNovaTransacao'); if(nova) nova.onclick = ()=>openModal(null);
   const gerCat = document.getElementById('btnGerenciarCategorias'); if(gerCat) gerCat.onclick = openCatManageModal;
-  document.querySelectorAll('[data-edit]').forEach(el=>el.onclick = ()=>openModal(parseInt(el.getAttribute('data-edit'))));
-  document.querySelectorAll('[data-del]').forEach(el=>el.onclick = ()=>deleteTransaction(parseInt(el.getAttribute('data-del'))));
-  document.querySelectorAll('[data-paytx]').forEach(el=>el.onclick = ()=>markTransactionAsPaid(parseInt(el.getAttribute('data-paytx'))));
+  document.querySelectorAll('[data-edit]').forEach(el => {
+    el.onclick = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      openModal(parseInt(el.getAttribute('data-edit')));
+    };
+  });
+  document.querySelectorAll('[data-del]').forEach(el => {
+    el.onclick = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      const id = parseInt(el.getAttribute('data-del'));
+      if (!isNaN(id)) deleteTransaction(id);
+    };
+  });
+  document.querySelectorAll('[data-paytx]').forEach(el => {
+    el.onclick = (e) => {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      markTransactionAsPaid(parseInt(el.getAttribute('data-paytx')));
+    };
+  });
 
   const novaConta = document.getElementById('btnNovaConta'); if(novaConta) novaConta.onclick = ()=>openAccountModal(null);
   document.querySelectorAll('[data-editacc]').forEach(el=>el.onclick = ()=>openAccountModal(parseInt(el.getAttribute('data-editacc'))));
