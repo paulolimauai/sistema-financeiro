@@ -2038,7 +2038,7 @@ function autoMigrateTransactionsAndAccounts() {
       changed = true;
     }
 
-    // 2. Se a transação possui nome de conta (t.acc), vincula ao ID exato da conta/cartão correspondente
+    // 2. Se a transação possui t.acc que corresponde ao nome de uma conta, vincula ao ID exato dessa conta
     if (t.acc) {
       const exactMatch = accounts.find(a => a.name.toLowerCase().trim() === String(t.acc).toLowerCase().trim());
       if (exactMatch && String(t.accId) !== String(exactMatch.id)) {
@@ -2048,7 +2048,22 @@ function autoMigrateTransactionsAndAccounts() {
       }
     }
 
-    // 3. Se a transação não tem accId válido, encontra a conta correspondente via isTxForAccount
+    // 3. Se t.desc menciona o nome de um cartão específico, vincula ao ID desse cartão
+    if (t.desc) {
+      const descLower = String(t.desc).toLowerCase().trim();
+      const cardMatch = accounts.find(a => {
+        const aName = a.name.toLowerCase().trim();
+        const normName = normalizeAccName(a.name);
+        return (normName.length >= 3 && descLower.includes(normName)) || (aName.length >= 3 && descLower.includes(aName));
+      });
+      if (cardMatch && String(t.accId) !== String(cardMatch.id)) {
+        t.accId = cardMatch.id;
+        t.acc = cardMatch.name;
+        changed = true;
+      }
+    }
+
+    // 4. Se a transação não tem accId válido, encontra a conta correspondente via isTxForAccount
     if (t.accId == null) {
       const match = accounts.find(a => isTxForAccount(t, a));
       if (match) {
@@ -2436,14 +2451,22 @@ function isTxForAccount(t, account) {
     const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
     if (allCreditCards.length > 0) {
       if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
-        // Se houver apenas 1 cartão cadastrado, vincula a ele
-        if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) return true;
-        
-        // Se houver múltiplos cartões, verifica se a descrição traz o nome da conta
         const descLower = (t.desc || '').toLowerCase().trim();
-        if (descLower && normAccName.length >= 3 && descLower.includes(normAccName)) return true;
 
-        // Fallback para o primeiro cartão caso nenhum outro especifique
+        // 5a. Se a descrição contiver o nome de algum cartão específico, vincula prioritariamente a ele
+        const specificMatch = allCreditCards.find(a => {
+          const aNameLower = (a.name || '').toLowerCase().trim();
+          const normName = normalizeAccName(a.name);
+          return (normName.length >= 3 && descLower.includes(normName)) || (aNameLower.length >= 3 && descLower.includes(aNameLower));
+        });
+        if (specificMatch) {
+          return String(specificMatch.id) === String(account.id);
+        }
+
+        // 5b. Se houver apenas 1 cartão cadastrado, vincula a ele
+        if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) return true;
+
+        // 5c. Fallback para o primeiro cartão caso nenhum outro cartão específico combine com desc
         if (String(allCreditCards[0].id) === String(account.id)) return true;
       }
     }
@@ -4337,9 +4360,20 @@ async function saveTransaction(){
 
   let targetAcc = accounts.find(a => a.name === accSel);
   if (!targetAcc && (accSel.toLowerCase().includes('cartão') || accSel.toLowerCase().includes('cartao'))) {
-    const creditCards = accounts.filter(a => isAccountCreditCard(a));
-    if (creditCards.length > 0) {
-      targetAcc = creditCards[0];
+    if (desc) {
+      const descLower = desc.toLowerCase().trim();
+      targetAcc = accounts.find(a => {
+        if (!isAccountCreditCard(a)) return false;
+        const aName = a.name.toLowerCase().trim();
+        const normName = normalizeAccName(a.name);
+        return (normName.length >= 3 && descLower.includes(normName)) || (aName.length >= 3 && descLower.includes(aName));
+      });
+    }
+    if (!targetAcc) {
+      const creditCards = accounts.filter(a => isAccountCreditCard(a));
+      if (creditCards.length > 0) {
+        targetAcc = creditCards[0];
+      }
     }
   }
   const accId = targetAcc ? targetAcc.id : null;
