@@ -821,12 +821,22 @@ body.light #logoutBtn:hover {
 .kpi .sub{font-size:11.5px; color:var(--text-faint); font-weight:500;}
 .kpi .sub.up{color:#10B981; font-weight:700;}
 
+.kpi.kpi-balance::before { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+.kpi.kpi-income::before { background: linear-gradient(90deg, #10B981, #34D399); }
+.kpi.kpi-expense::before { background: linear-gradient(90deg, #EF4444, #F87171); }
+.kpi.kpi-net::before { background: linear-gradient(90deg, #3B82F6, #10B981); }
+.kpi.kpi-tx::before { background: linear-gradient(90deg, #8B5CF6, #C084FC); }
+
 body.light .kpi {
   background:#ffffff !important;
   border-color:#cbd5e1 !important;
   box-shadow:0 8px 24px rgba(15,23,42,0.06) !important;
 }
-body.light .kpi::before { background:linear-gradient(90deg, #2563EB, #3B82F6); }
+body.light .kpi.kpi-balance::before { background: linear-gradient(90deg, #2563EB, #3B82F6); }
+body.light .kpi.kpi-income::before { background: linear-gradient(90deg, #059669, #10B981); }
+body.light .kpi.kpi-expense::before { background: linear-gradient(90deg, #DC2626, #EF4444); }
+body.light .kpi.kpi-net::before { background: linear-gradient(90deg, #2563EB, #059669); }
+body.light .kpi.kpi-tx::before { background: linear-gradient(90deg, #7C3AED, #8B5CF6); }
 body.light .kpi:hover {
   border-color:#2563EB !important;
   box-shadow:0 14px 32px rgba(15,23,42,0.12) !important;
@@ -3120,19 +3130,73 @@ function pageDashboard(){
 
   return \`
   <div class="page-head">
-    <div><h1>Olá, \${currentUser ? currentUser.name.split(' ')[0] : 'Usuário'} 👋</h1><p>Aqui está o resumo da sua vida financeira</p></div>
-    <div class="head-actions">
+    <div>
+      <h1 style="font-size:22px; font-weight:800; letter-spacing:-0.02em; margin:0; display:flex; align-items:center; gap:8px;">
+        Olá, \${currentUser ? currentUser.name.split(' ')[0] : 'Usuário'} <span style="font-size:22px;">👋</span>
+      </h1>
+      <p style="font-size:12.5px; color:var(--text-dim); margin:4px 0 0 0; font-weight:500;">
+        Aqui está o resumo da sua vida financeira
+      </p>
+    </div>
+    <div class="head-actions" style="display:flex; align-items:center; gap:12px;">
       \${periodPickerHTML()}
-      <button class="btn-primary" id="btnNovaTransacao">+ Nova Transação</button>
+      <button class="btn-primary" id="btnNovaTransacao" style="display:flex; align-items:center; gap:6px; font-weight:700;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nova Transação
+      </button>
     </div>
   </div>
 
   <div class="kpis">
-    <div class="kpi"><div class="row1">Saldo Total <span>👁</span></div><div class="val" style="color:var(--green)">\${fmt(saldo)}</div><div class="sub">saldo atual de todas as contas</div></div>
-    <div class="kpi"><div class="row1">Receitas <span class="ic" style="background:var(--green-soft);color:var(--green)">↑</span></div><div class="val">\${fmt(receitas)}</div><div class="sub up">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Despesas <span class="ic" style="background:var(--red-soft);color:var(--red)">↓</span></div><div class="val">\${fmt(despesas)}</div><div class="sub">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Saldo do Mês <span class="ic" style="background:rgba(74,144,226,.14);color:var(--blue)">⇄</span></div><div class="val" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${fmt(receitas-despesas)}</div><div class="sub" style="color:\${(receitas-despesas)<0?'var(--red)':'var(--green)'}">\${periodLabel()}</div></div>
-    <div class="kpi"><div class="row1">Transações <span class="ic" style="background:rgba(155,107,216,.14);color:var(--purple)">☰</span></div><div class="val">\${periodTx.length}</div><div class="sub">registros no período</div></div>
+    <!-- 1. Saldo Total -->
+    <div class="kpi kpi-balance">
+      <div class="row1">
+        <span>Saldo Total</span>
+        <span class="ic" style="background:rgba(59,130,246,0.14); color:var(--blue); border-color:rgba(59,130,246,0.25);">💳</span>
+      </div>
+      <div class="val" style="color:\${saldo < 0 ? 'var(--red)' : 'var(--green)'};">\${fmt(saldo)}</div>
+      <div class="sub">Saldo atual de todas as contas</div>
+    </div>
+
+    <!-- 2. Receitas -->
+    <div class="kpi kpi-income">
+      <div class="row1">
+        <span>Receitas</span>
+        <span class="ic" style="background:rgba(16,185,129,0.14); color:var(--green); border-color:rgba(16,185,129,0.25);">↑</span>
+      </div>
+      <div class="val" style="color:var(--green);">\${fmt(receitas)}</div>
+      <div class="sub up">\${periodLabel()}</div>
+    </div>
+
+    <!-- 3. Despesas -->
+    <div class="kpi kpi-expense">
+      <div class="row1">
+        <span>Despesas</span>
+        <span class="ic" style="background:rgba(239,68,68,0.14); color:var(--red); border-color:rgba(239,68,68,0.25);">↓</span>
+      </div>
+      <div class="val" style="color:var(--red);">\${fmt(despesas)}</div>
+      <div class="sub" style="color:var(--red);">\${periodLabel()}</div>
+    </div>
+
+    <!-- 4. Saldo do Mês -->
+    <div class="kpi kpi-net">
+      <div class="row1">
+        <span>Saldo do Mês</span>
+        <span class="ic" style="background:\${(receitas-despesas) < 0 ? 'rgba(239,68,68,0.14)' : 'rgba(59,130,246,0.14)'}; color:\${(receitas-despesas) < 0 ? 'var(--red)' : 'var(--blue)'}; border-color:\${(receitas-despesas) < 0 ? 'rgba(239,68,68,0.25)' : 'rgba(59,130,246,0.25)'};">⇄</span>
+      </div>
+      <div class="val" style="color:\${(receitas-despesas) < 0 ? 'var(--red)' : 'var(--green)'};">\${fmt(receitas-despesas)}</div>
+      <div class="sub" style="color:\${(receitas-despesas) < 0 ? 'var(--red)' : 'var(--green)'}">\${periodLabel()}</div>
+    </div>
+
+    <!-- 5. Transações -->
+    <div class="kpi kpi-tx">
+      <div class="row1">
+        <span>Transações</span>
+        <span class="ic" style="background:rgba(155,107,216,0.14); color:var(--purple); border-color:rgba(155,107,216,0.25);">☰</span>
+      </div>
+      <div class="val">\${periodTx.length}</div>
+      <div class="sub">Registros no período</div>
+    </div>
   </div>
 
   \${cardSummary.creditCards.length > 0 ? \`
