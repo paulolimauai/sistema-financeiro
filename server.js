@@ -2038,7 +2038,17 @@ function autoMigrateTransactionsAndAccounts() {
       changed = true;
     }
 
-    // 2. Se a transação não tem accId válido, encontra a conta correspondente
+    // 2. Se a transação possui nome de conta (t.acc), vincula ao ID exato da conta/cartão correspondente
+    if (t.acc) {
+      const exactMatch = accounts.find(a => a.name.toLowerCase().trim() === String(t.acc).toLowerCase().trim());
+      if (exactMatch && String(t.accId) !== String(exactMatch.id)) {
+        t.accId = exactMatch.id;
+        t.acc = exactMatch.name;
+        changed = true;
+      }
+    }
+
+    // 3. Se a transação não tem accId válido, encontra a conta correspondente via isTxForAccount
     if (t.accId == null) {
       const match = accounts.find(a => isTxForAccount(t, a));
       if (match) {
@@ -2353,23 +2363,29 @@ function isAccountCreditCard(account) {
     return true;
   }
 
-  // 2. Se o tipo não for de conta bancária de dinheiro/investimento exclusivo, verifica termos de cartão no nome
-  const isExplicitCashOrInvest = (
+  // 2. Se o tipo for de conta bancária de dinheiro/saldo corrente/investimento/pix, NUNCA é cartão de crédito
+  const isExplicitBankOrCash = (
+    accTypeLower.includes('corrente') ||
+    accTypeLower.includes('poupança') ||
+    accTypeLower.includes('poupanca') ||
     accTypeLower.includes('investimento') || 
     accTypeLower.includes('dinheiro') || 
     accTypeLower.includes('caixa') || 
-    accTypeLower.includes('carteira')
+    accTypeLower.includes('carteira') ||
+    accTypeLower.includes('pix')
   );
 
-  if (!isExplicitCashOrInvest) {
-    const cardKeywords = [
-      'cartão', 'cartao', 'crédito', 'credito', 'fatura', 'credicard', 'amex', 'hipercard',
-      'mastercard', 'visa', 'nubank', 'roxinho', 'c6', 'inter', 'trigg', 'digio', 'neon',
-      'xp', 'btg', 'bradescard', 'itaucard', 'santander', 'bradesco', 'bb', 'ourocard', 'pan', 'itaú', 'itau'
-    ];
-    if (cardKeywords.some(k => accNameLower.includes(k))) {
-      return true;
-    }
+  if (isExplicitBankOrCash) {
+    return false;
+  }
+
+  // 3. Se o tipo não for especificado ou for 'Outros', verifica termos de cartão no nome
+  const cardKeywords = [
+    'cartão', 'cartao', 'crédito', 'credito', 'fatura', 'credicard', 'amex', 'hipercard',
+    'mastercard', 'visa', 'roxinho', 'trigg', 'digio', 'bradescard', 'itaucard', 'ourocard'
+  ];
+  if (cardKeywords.some(k => accNameLower.includes(k))) {
+    return true;
   }
 
   return false;
@@ -2386,8 +2402,10 @@ function normalizeAccName(str) {
 function isTxForAccount(t, account) {
   if (!t || !account) return false;
 
-  // 1. Prioridade máxima: ID da conta
-  if (t.accId != null && account.id != null && String(t.accId) === String(account.id)) return true;
+  // 1. Prioridade máxima: Se accId for especificado, ele DEVE corresponder a esta conta!
+  if (t.accId != null && account.id != null) {
+    return String(t.accId) === String(account.id);
+  }
 
   const accNameLower = (account.name || '').toLowerCase().trim();
   if (!accNameLower) return false;
@@ -2413,12 +2431,20 @@ function isTxForAccount(t, account) {
     if (normTCard && (normTCard.includes(normAccName) || normAccName.includes(normTCard))) return true;
   }
 
-  // 5. Se a transação estiver marcada como "Cartão de Crédito" ou "Cartão"
+  // 5. Se a transação estiver marcada como "Cartão de Crédito" ou "Cartão" sem accId
   if (isAccountCreditCard(account)) {
     const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
     if (allCreditCards.length > 0) {
       if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
-        if (t.accId == null && String(allCreditCards[0].id) === String(account.id)) return true;
+        // Se houver apenas 1 cartão cadastrado, vincula a ele
+        if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) return true;
+        
+        // Se houver múltiplos cartões, verifica se a descrição traz o nome da conta
+        const descLower = (t.desc || '').toLowerCase().trim();
+        if (descLower && normAccName.length >= 3 && descLower.includes(normAccName)) return true;
+
+        // Fallback para o primeiro cartão caso nenhum outro especifique
+        if (String(allCreditCards[0].id) === String(account.id)) return true;
       }
     }
   }
@@ -4309,8 +4335,15 @@ async function saveTransaction(){
     return;
   }
 
-  const targetAcc = accounts.find(a => a.name === accSel);
+  let targetAcc = accounts.find(a => a.name === accSel);
+  if (!targetAcc && (accSel.toLowerCase().includes('cartão') || accSel.toLowerCase().includes('cartao'))) {
+    const creditCards = accounts.filter(a => isAccountCreditCard(a));
+    if (creditCards.length > 0) {
+      targetAcc = creditCards[0];
+    }
+  }
   const accId = targetAcc ? targetAcc.id : null;
+  const finalAccName = targetAcc ? targetAcc.name : accSel;
 
   if(editingId){
     const t = transactions.find(x=>x.id===editingId);
@@ -4326,14 +4359,14 @@ async function saveTransaction(){
       const newCatObj = categories.find(c=>c.name===cat);
       if(newCatObj) newCatObj.count = (newCatObj.count||0)+1;
     }
-    Object.assign(t, {desc, val, date, cat, status, type:currentType, acc:accSel, accId});
+    Object.assign(t, {desc, val, date, cat, status, type:currentType, acc:finalAccName, accId});
     showToast('Transação atualizada!');
 
     const changes = [];
     if (oldDesc !== desc) changes.push('Descrição: "' + oldDesc + '" ➔ "' + desc + '"');
     if (oldVal !== val) changes.push('Valor: ' + fmt(oldVal) + ' ➔ ' + fmt(val));
     if (oldCat !== cat) changes.push('Categoria: "' + oldCat + '" ➔ "' + cat + '"');
-    if (oldAcc !== accSel) changes.push('Conta: "' + (oldAcc||'Sem conta') + '" ➔ "' + (accSel||'Sem conta') + '"');
+    if (oldAcc !== finalAccName) changes.push('Conta: "' + (oldAcc||'Sem conta') + '" ➔ "' + (finalAccName||'Sem conta') + '"');
     if (oldDate !== date) changes.push('Data: ' + oldDate + ' ➔ ' + date);
     if (oldStatus !== status) changes.push('Status: ' + oldStatus + ' ➔ ' + status);
     if (oldType !== currentType) changes.push('Tipo: ' + (oldType==='in'?'Receita':'Despesa') + ' ➔ ' + (currentType==='in'?'Receita':'Despesa'));
@@ -4939,17 +4972,26 @@ function renderImportPreview(){
   document.getElementById('btnConfirmarImport').onclick = confirmImport;
 }
 async function confirmImport(){
-  const accSel = document.getElementById('impConta').value.split(' — ')[0];
+  const rawAcc = (document.getElementById('impConta').value || '').split(' — ')[0].trim();
+  let targetAcc = accounts.find(a => a.name === rawAcc || a.name.toLowerCase().trim() === rawAcc.toLowerCase());
+  if (!targetAcc && (rawAcc.toLowerCase().includes('cartão') || rawAcc.toLowerCase().includes('cartao'))) {
+    const creditCards = accounts.filter(a => isAccountCreditCard(a));
+    if (creditCards.length > 0) targetAcc = creditCards[0];
+  }
+  const accId = targetAcc ? targetAcc.id : null;
+  const finalAcc = targetAcc ? targetAcc.name : rawAcc;
+
   const cat = document.getElementById('impCategoria').value;
   let added = 0;
   pendingImport.forEach(r=>{
     let date = r.date;
-    transactions.push({ id: nextTxId++, date, desc:r.desc||'Importado', cat, acc:accSel, type: r.val>=0?'in':'out', val: Math.abs(r.val), status: r.val>=0?'Recebido':'Pago' });
+    transactions.push({ id: nextTxId++, date, desc:r.desc||'Importado', cat, acc:finalAcc, accId, type: r.val>=0?'in':'out', val: Math.abs(r.val), status: r.val>=0?'Recebido':'Pago' });
     added++;
   });
   pendingImport = [];
+  autoMigrateTransactionsAndAccounts();
   await saveUserData();
-  showToast(\`\${added} transações importadas!\`);
+  showToast(added + ' transações importadas!');
   navigate('transacoes');
 }
 
