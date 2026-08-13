@@ -2057,11 +2057,35 @@ function migrateCategories(){
   if(changed) saveUserData();
 }
 
+function parseInputValue(valStr) {
+  if (typeof valStr === 'number') return isNaN(valStr) ? 0 : Math.abs(valStr);
+  if (!valStr) return 0;
+  let cleaned = String(valStr).replace(/[^0-9.,-]/g, '').trim();
+  if (cleaned.includes(',') && cleaned.includes('.')) {
+    if (cleaned.indexOf('.') < cleaned.indexOf(',')) {
+      cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+    } else {
+      cleaned = cleaned.replace(/,/g, '');
+    }
+  } else if (cleaned.includes(',')) {
+    cleaned = cleaned.replace(',', '.');
+  }
+  const num = Math.abs(parseFloat(cleaned));
+  return isNaN(num) ? 0 : num;
+}
+
 function autoMigrateTransactionsAndAccounts() {
   if (!accounts || accounts.length === 0) return;
   let changed = false;
 
   transactions.forEach(t => {
+    // 0. Garante que t.val é um número float válido positivo
+    const parsedVal = parseInputValue(t.val);
+    if (t.val !== parsedVal) {
+      t.val = parsedVal;
+      changed = true;
+    }
+
     // 1. Se t.accId aponta para um ID de conta que não existe mais, reseta para relinkar
     if (t.accId != null && !accounts.some(a => String(a.id) === String(t.accId))) {
       t.accId = null;
@@ -2071,7 +2095,7 @@ function autoMigrateTransactionsAndAccounts() {
     // 2. Se a transação possui t.acc que corresponde ao nome exato de uma conta, vincula ao ID exato dessa conta
     if (t.acc) {
       const exactMatch = accounts.find(a => a.name.toLowerCase().trim() === String(t.acc).toLowerCase().trim());
-      if (exactMatch && String(t.accId) !== String(exactMatch.id)) {
+      if (exactMatch && (String(t.accId) !== String(exactMatch.id) || t.acc !== exactMatch.name)) {
         t.accId = exactMatch.id;
         t.acc = exactMatch.name;
         changed = true;
@@ -2087,7 +2111,7 @@ function autoMigrateTransactionsAndAccounts() {
         const normName = normalizeAccName(a.name);
         return (normName.length >= 3 && descText.includes(normName)) || (aName.length >= 3 && descText.includes(aName));
       });
-      if (cardMatch && String(t.accId) !== String(cardMatch.id)) {
+      if (cardMatch && (String(t.accId) !== String(cardMatch.id) || (t.acc === 'Cartão de Crédito' || !t.acc))) {
         t.accId = cardMatch.id;
         t.acc = cardMatch.name;
         changed = true;
@@ -2519,14 +2543,14 @@ function getCardStats(account) {
   const isCreditCard = isAccountCreditCard(account);
   const cardTx = transactions.filter(t => isTxForAccount(t, account));
 
-  const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
-  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
   
   const periodCardTx = cardTx.filter(inPeriod);
-  const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
-  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + Math.abs(parseFloat(t.val) || 0), 0);
+  const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
 
-  const initialBalance = parseFloat(account.balance) || parseFloat(account.limit) || parseFloat(account.initialBalance) || 0;
+  const initialBalance = parseInputValue(account.balance) || parseInputValue(account.limit) || parseInputValue(account.initialBalance) || 0;
 
   if (isCreditCard) {
     // Para Cartões de Crédito: initialBalance representa o Limite Total Aprovado
@@ -2597,8 +2621,8 @@ function computeCardSummary() {
 
 /* ==================== Cálculos ==================== */
 function computeTotals(list=transactions){
-  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
-  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+(parseFloat(t.val)||0),0);
+  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+parseInputValue(t.val),0);
+  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+parseInputValue(t.val),0);
   
   let saldoContasBancarias = 0;
   let faturasCartoesCredito = 0;
@@ -2616,8 +2640,8 @@ function computeTotals(list=transactions){
   return { receitas, despesas, saldo, saldoContasBancarias, faturasCartoesCredito };
 }
 function txStatsCardsHTML(list){
-  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val,0);
-  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.val,0);
+  const receitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+parseInputValue(t.val),0);
+  const despesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+parseInputValue(t.val),0);
   const saldo = receitas - despesas;
   const saldoColor = saldo < 0 ? 'var(--red)' : 'var(--green)';
   let html = '';
@@ -2629,13 +2653,16 @@ function txStatsCardsHTML(list){
 }
 function despesasPorCategoria(list=transactions){
   const map = {};
-  list.filter(t=>t.type==='out').forEach(t=>{ map[t.cat]=(map[t.cat]||0)+t.val; });
+  list.filter(t=>t.type==='out').forEach(t=>{ 
+    const v = parseInputValue(t.val);
+    map[t.cat]=(map[t.cat]||0)+v; 
+  });
   return Object.entries(map).map(([name,val])=>({name,val,color:catColor(name)})).sort((a,b)=>b.val-a.val);
 }
 function budgetStatus(list=budgets){
   const periodTx = transactions.filter(inPeriod);
   return list.map(b=>{
-    const spent = periodTx.filter(t=>t.cat===b.category && t.type==='out').reduce((s,t)=>s+t.val,0);
+    const spent = periodTx.filter(t=>t.cat===b.category && t.type==='out').reduce((s,t)=>s+parseInputValue(t.val),0);
     const pct = b.limit>0 ? Math.round(spent/b.limit*100) : 0;
     return {...b, spent, pct};
   });
@@ -3143,8 +3170,8 @@ function transactionsTable(list, showActions){
   }
   if(list.length===0) return \`<div class="placeholder"><div class="big">🗂️</div><h3>Nenhuma transação encontrada</h3><p>Nenhuma transação registrada no período selecionado.</p></div>\`;
 
-  const totalDespesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+t.val, 0);
-  const totalReceitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+t.val, 0);
+  const totalDespesas = list.filter(t=>t.type==='out').reduce((s,t)=>s+parseInputValue(t.val), 0);
+  const totalReceitas = list.filter(t=>t.type==='in').reduce((s,t)=>s+parseInputValue(t.val), 0);
   const saldoPeriodo = totalReceitas - totalDespesas;
   const countDespesas = list.filter(t=>t.type==='out').length;
   const countReceitas = list.filter(t=>t.type==='in').length;
