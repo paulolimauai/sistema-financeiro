@@ -819,14 +819,15 @@ body.light .kpi:hover {
 }
 body.light .kpi .val { color:#0f172a !important; text-shadow:none; }
 
-.grid3{display:grid; grid-template-columns:1fr 1fr .82fr; gap:16px; margin-bottom:20px; align-items:start;}
+.grid3{display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:20px; align-items:stretch;}
 .panel{
   position:relative; overflow:hidden;
   background:linear-gradient(145deg, rgba(17,23,34,0.90) 0%, rgba(11,15,24,0.95) 100%);
-  border:1px solid rgba(255,255,255,0.09); border-radius:20px; padding:22px;
+  border:1px solid rgba(255,255,255,0.09); border-radius:20px; padding:20px 22px;
   box-shadow:0 16px 40px -10px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.12);
   backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);
   transition:all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  display:flex; flex-direction:column; justify-content:space-between; height:100%; box-sizing:border-box;
 }
 .panel:hover{
   border-color:rgba(255,255,255,0.18);
@@ -3141,143 +3142,178 @@ function pageDashboard(){
   \` : ''}
 
   <div class="grid3">
+    <!-- Painel 1: Resumo Financeiro -->
     <div class="panel">
-      <div class="panel-head"><h3>Resumo Financeiro</h3><span class="tag">\${periodLabel()}</span></div>
-      <div class="donut-wrap">
-        <div class="donut-side">Receitas<b style="color:var(--green)">\${fmt(receitas)}</b></div>
-        <div class="donut-canvas"><canvas id="chartResumo"></canvas>
-          <div class="donut-center"><span>Saldo</span><b>\${fmt(saldo)}</b></div>
+      <div>
+        <div class="panel-head" style="margin-bottom:16px;">
+          <h3><span style="font-size:16px;">📊</span> Resumo Financeiro</h3>
+          <span class="tag">\${periodLabel()}</span>
         </div>
-        <div class="donut-side r">Despesas<b style="color:var(--red)">\${fmt(despesas)}</b></div>
+        <div class="donut-wrap" style="gap:16px;">
+          <div class="donut-side" style="background:rgba(16,185,129,0.06); border:1px solid rgba(16,185,129,0.18); border-radius:12px; padding:8px 12px; flex:1; text-align:center;">
+            <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-dim);">Receitas</span>
+            <b style="color:var(--green); font-size:14.5px; margin-top:3px; display:block; font-variant-numeric: tabular-nums;">\${fmt(receitas)}</b>
+          </div>
+          <div class="donut-canvas" style="width:130px; height:130px;"><canvas id="chartResumo"></canvas>
+            <div class="donut-center">
+              <span style="font-size:10px; text-transform:uppercase; letter-spacing:0.05em; font-weight:700; color:var(--text-dim);">Saldo</span>
+              <b style="color:\${saldo < 0 ? 'var(--red)' : 'var(--text)'}; font-size:15px; font-weight:800; font-variant-numeric: tabular-nums;">\${fmt(saldo)}</b>
+            </div>
+          </div>
+          <div class="donut-side r" style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.18); border-radius:12px; padding:8px 12px; flex:1; text-align:center;">
+            <span style="font-size:10.5px; font-weight:600; text-transform:uppercase; letter-spacing:0.04em; color:var(--text-dim);">Despesas</span>
+            <b style="color:var(--red); font-size:14.5px; margin-top:3px; display:block; font-variant-numeric: tabular-nums;">\${fmt(despesas)}</b>
+          </div>
+        </div>
       </div>
-      <div class="bar-split"><div class="g" style="width:\${recPct}%"></div></div>
-      <div class="split-labels"><span>🟢 \${recPct}% Receitas</span><span>Despesas \${despPct}%</span></div>
+      <div style="margin-top:auto; padding-top:16px;">
+        <div class="bar-split" style="height:8px; border-radius:6px; overflow:hidden; background:rgba(239,68,68,0.2); box-shadow:inset 0 1px 2px rgba(0,0,0,0.3);">
+          <div class="g" style="width:\${recPct}%; border-radius:6px; background:linear-gradient(90deg, #10B981, #34D399); transition:width 0.4s ease;"></div>
+        </div>
+        <div class="split-labels" style="margin-top:10px; font-size:11.5px; font-weight:700; display:flex; justify-content:space-between;">
+          <span style="color:var(--green); display:flex; align-items:center; gap:4px;"><span style="width:6px; height:6px; border-radius:50%; background:var(--green); display:inline-block;"></span> \${recPct}% Receitas</span>
+          <span style="color:var(--red); display:flex; align-items:center; gap:4px;">Despesas \${despPct}% <span style="width:6px; height:6px; border-radius:50%; background:var(--red); display:inline-block;"></span></span>
+        </div>
+      </div>
     </div>
 
-    <div class="panel" style="padding:16px 18px; display:flex; flex-direction:column; justify-content:space-between; min-height:220px;">
-      <div>
+    <!-- Painel 2: Despesas por Categoria -->
+    <div class="panel">
+      <div style="display:flex; flex-direction:column; gap:12px;">
         <!-- Cabeçalho Executivo Limpo -->
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
           <div>
-            <h3 style="font-size:14px; font-weight:700; color:var(--text); margin:0;">Despesas por Categoria</h3>
-            <span style="font-size:11px; color:var(--text-faint); margin-top:2px; display:block;">Distribuição dos gastos no período</span>
+            <h3 style="font-size:14px; font-weight:800; color:var(--text); margin:0; display:flex; align-items:center; gap:6px;">
+              <span style="font-size:15px;">🏷️</span> Despesas por Categoria
+            </h3>
+            <span style="font-size:11px; color:var(--text-dim); margin-top:2px; display:block; opacity:0.85;">Distribuição dos gastos no período</span>
           </div>
-          <span class="tag" style="background:rgba(239,90,90,0.12); color:var(--red); font-weight:800; font-size:12px; padding:3px 10px; border-radius:8px; border:1px solid rgba(239,90,90,0.25);">
+          <span class="tag" style="background:rgba(239,68,68,0.12); color:var(--red); font-weight:800; font-size:12px; padding:4px 10px; border-radius:8px; border:1px solid rgba(239,68,68,0.25); font-variant-numeric: tabular-nums;">
             \${fmt(totalDesp)}
           </span>
         </div>
 
         \${cats.length > 0 ? \`
-        <!-- Lista Executiva em Linhas Limpas e Elegantes -->
-        <div style="display:flex; flex-direction:column; gap:10px;">
+        <!-- Lista Executiva em Cards com Hover suave -->
+        <div style="display:flex; flex-direction:column; gap:8px;">
           \${cats.map(c => {
             const pct = Math.round(c.val / totalDesp * 100);
             const icon = getCategoryIcon(c.name);
             const count = periodTx.filter(t => t.cat === c.name && t.type === 'out').length;
             return \`
-            <div style="display:flex; flex-direction:column; gap:5px; padding-bottom:8px; border-bottom:1px solid rgba(255,255,255,0.04);">
+            <div style="display:flex; flex-direction:column; gap:6px; padding:8px 10px; border-radius:10px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); transition:all 0.2s ease;">
               <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
                 
-                <!-- Esquerda: Ícone + Nome da Categoria + Qtd de transações -->
+                <!-- Esquerda: Ícone em Badge + Nome da Categoria + Qtd -->
                 <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                  <span style="background:\${c.color}20; color:\${c.color}; width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0;">\${icon}</span>
+                  <span style="background:\${c.color}18; color:\${c.color}; border:1px solid \${c.color}35; width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; flex-shrink:0; box-shadow:0 2px 6px \${c.color}15;">\${icon}</span>
                   <div style="min-width:0;">
-                    <div style="font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${c.name}</div>
-                    <div style="font-size:10px; color:var(--text-faint);">\${count} lançamento\${count === 1 ? '' : 's'}</div>
+                    <div style="font-size:13px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${c.name}</div>
+                    <div style="font-size:10.5px; color:var(--text-dim); font-weight:500;">\${count} lançamento\${count === 1 ? '' : 's'}</div>
                   </div>
                 </div>
 
-                <!-- Direita: Valor em destaque e Porcentagem -->
+                <!-- Direita: Valor em destaque e Badge de Porcentagem -->
                 <div style="text-align:right; flex-shrink:0;">
-                  <div style="font-size:13.5px; font-weight:700; color:var(--text);">\${fmt(c.val)}</div>
-                  <div style="font-size:10.5px; font-weight:600; color:\${c.color};">\${pct}% do total</div>
+                  <div style="font-size:13.5px; font-weight:800; color:var(--text); font-variant-numeric: tabular-nums;">\${fmt(c.val)}</div>
+                  <div style="display:inline-block; font-size:10px; font-weight:700; color:\${c.color}; background:\${c.color}15; border:1px solid \${c.color}30; padding:1px 6px; border-radius:6px; margin-top:2px;">\${pct}% do total</div>
                 </div>
               </div>
 
-              <!-- Barra de Progresso Integrada e Discreta (3px) -->
-              <div style="width:100%; height:3.5px; background:rgba(255,255,255,0.06); border-radius:2px; overflow:hidden; margin-top:2px;">
-                <div style="width:\${pct}%; height:100%; background:\${c.color}; border-radius:2px; transition:width .3s ease;"></div>
+              <!-- Barra de Progresso Arredondada (4px) -->
+              <div style="width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden; margin-top:2px;">
+                <div style="width:\${pct}%; height:100%; background:\${c.color}; border-radius:2px; transition:width .4s ease;"></div>
               </div>
             </div>\`;
           }).join('')}
         </div>
         \` : \`
-        <div style="text-align:center; padding:30px 10px; color:var(--text-faint);">
+        <div style="text-align:center; padding:30px 10px; color:var(--text-dim);">
           <div style="font-size:26px; margin-bottom:6px;">📊</div>
           <p style="font-size:12px;">Nenhuma despesa registrada neste período.</p>
         </div>
         \`}
       </div>
 
-      <div style="margin-top:10px; display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--text-faint);">
-        <span>Total: <strong>\${cats.length}</strong> categoria\${cats.length === 1 ? '' : 's'}</span>
-        <span style="cursor:pointer; color:var(--gold); font-weight:600;" data-nav="transacoes">Ver todas as despesas →</span>
+      <div style="margin-top:auto; padding-top:14px; display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--text-dim); border-top:1px solid rgba(255,255,255,0.06);">
+        <span>Total: <strong style="color:var(--text); font-weight:700;">\${cats.length}</strong> categoria\${cats.length === 1 ? '' : 's'}</span>
+        <span style="cursor:pointer; color:var(--gold); font-weight:700; transition:opacity 0.2s ease;" data-nav="transacoes">Ver todas as despesas →</span>
       </div>
     </div>
 
-    <div class="panel" style="padding:14px 16px;">
-      <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:14px;">Contas e Cartões</h3><button class="tag" data-nav="cartoes" style="font-size:11px; padding:2px 8px;">Editar</button></div>
-      <div class="accounts-list" style="display:flex; flex-direction:column; gap:8px; width:100%; box-sizing:border-box;">
-        \${accounts.slice().sort((a,b)=>a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(a=>{
-          const stats = getCardStats(a);
-          return \`
-          <div class="acc-row" style="display:flex; flex-direction:column; width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-radius:12px; gap:8px;">
-            
-            <!-- Linha 1: Topo com Nome à Esquerda e Limite Disponível à Direita -->
-            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; box-sizing:border-box; gap:10px;">
-              <div style="display:flex; align-items:center; gap:10px; min-width:0;">
-                <div class="acc-ic" style="background:\${a.color}; width:32px; height:32px; border-radius:8px; font-weight:800; font-size:12px; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">\${a.name.slice(0,2).toUpperCase()}</div>
-                <div style="min-width:0;">
-                  <div style="font-weight:700; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${a.name}</div>
-                  <div style="font-size:10.5px; color:var(--text-faint); margin-top:1px;">\${a.type}</div>
-                </div>
-              </div>
-
-              <div style="text-align:right; flex-shrink:0;">
-                \${stats.isCreditCard ? \`
-                  <div style="font-size:9.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">Disponível</div>
-                  <div style="color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:14px; letter-spacing:-0.01em;">
-                    \${fmt(stats.availableLimit)}
-                  </div>
-                \` : \`
-                  <div style="font-size:9.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">Saldo</div>
-                  <div style="color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:14px;">
-                    \${fmt(stats.currentBalance)}
-                  </div>
-                \`}
-              </div>
-            </div>
-
-            \${stats.isCreditCard ? \`
-            <!-- Linha 2: Barra de Progresso do Limite -->
-            <div style="width:100%; box-sizing:border-box; display:flex; flex-direction:column; gap:5px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
-              <div style="width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;">
-                <div style="width:\${stats.usagePct}%; height:100%; background:\${stats.usagePct >= 90 ? 'var(--red)' : stats.usagePct >= 70 ? 'var(--orange)' : 'var(--green)'}; border-radius:2px; transition:width .3s ease;"></div>
-              </div>
+    <!-- Painel 3: Contas e Cartões -->
+    <div class="panel">
+      <div>
+        <div class="panel-head" style="margin-bottom:16px;">
+          <h3 style="font-size:14px; font-weight:800; display:flex; align-items:center; gap:6px;">
+            <span style="font-size:15px;">💳</span> Contas e Cartões
+          </h3>
+          <button class="tag" data-nav="cartoes" style="font-size:11px; padding:3px 10px; font-weight:600;">Editar</button>
+        </div>
+        <div class="accounts-list" style="display:flex; flex-direction:column; gap:10px; width:100%; box-sizing:border-box;">
+          \${accounts.slice().sort((a,b)=>a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(a=>{
+            const stats = getCardStats(a);
+            return \`
+            <div class="acc-row" style="display:flex; flex-direction:column; width:100%; box-sizing:border-box; padding:11px 14px; background:rgba(255,255,255,0.025); border:1px solid rgba(255,255,255,0.08); border-radius:14px; gap:8px; transition:transform 0.2s ease, border-color 0.2s ease;">
               
-              <!-- Linha 3: Fatura na Esquerda e Limite Total na Direita com Separação Total -->
-              <div style="display:flex; justify-content:space-between; align-items:center; width:100%; box-sizing:border-box; font-size:11px;">
-                <div style="display:flex; align-items:center; gap:4px;">
-                  <span style="color:var(--text-dim);">Fatura:</span>
-                  <strong style="color:var(--orange); font-weight:700;">\${fmt(stats.spentTotal)}</strong>
+              <!-- Linha 1: Nome à Esquerda e Disponível/Saldo à Direita -->
+              <div style="display:flex; align-items:center; justify-content:space-between; width:100%; box-sizing:border-box; gap:10px;">
+                <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                  <div class="acc-ic" style="background:\${a.color}; width:34px; height:34px; border-radius:9px; font-weight:800; font-size:12px; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 3px 10px rgba(0,0,0,0.35); text-shadow:0 1px 2px rgba(0,0,0,0.4);">\${a.name.slice(0,2).toUpperCase()}</div>
+                  <div style="min-width:0;">
+                    <div style="font-weight:700; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${a.name}</div>
+                    <div style="font-size:10.5px; color:var(--text-dim); margin-top:1px; opacity:0.85; font-weight:500;">\${a.type}</div>
+                  </div>
                 </div>
-                <div style="display:flex; align-items:center; gap:4px;">
-                  <span style="color:var(--text-dim);">Limite:</span>
-                  <strong style="color:var(--text); font-weight:700;">\${fmt(stats.totalLimit)}</strong>
+
+                <div style="text-align:right; flex-shrink:0;">
+                  \${stats.isCreditCard ? \`
+                    <div style="font-size:9.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; opacity:0.85;">Disponível</div>
+                    <div style="color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:14px; letter-spacing:-0.01em; font-variant-numeric: tabular-nums;">
+                      \${fmt(stats.availableLimit)}
+                    </div>
+                  \` : \`
+                    <div style="font-size:9.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.05em; opacity:0.85;">Saldo</div>
+                    <div style="color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:14px; font-variant-numeric: tabular-nums;">
+                      \${fmt(stats.currentBalance)}
+                    </div>
+                  \`}
                 </div>
               </div>
-            </div>
-            \` : \`
-            <!-- Conta Corrente / Poupança / Investimento -->
-            <div style="width:100%; box-sizing:border-box; background:rgba(74,144,226,0.08); border:1px solid rgba(74,144,226,0.22); border-radius:7px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
-              <span style="font-size:10.5px; font-weight:600; color:var(--text-dim);">Saldo em Conta:</span>
-              <strong style="color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:13px;">\${fmt(stats.currentBalance)}</strong>
-            </div>
-            \`}
-          </div>\`;
-        }).join('')}
+
+              \${stats.isCreditCard ? \`
+              <!-- Linha 2: Barra de Progresso do Limite -->
+              <div style="width:100%; box-sizing:border-box; display:flex; flex-direction:column; gap:5px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
+                <div style="width:100%; height:4.5px; background:rgba(255,255,255,0.08); border-radius:2.5px; overflow:hidden;">
+                  <div style="width:\${stats.usagePct}%; height:100%; background:\${stats.usagePct >= 90 ? 'var(--red)' : stats.usagePct >= 70 ? 'var(--orange)' : 'var(--green)'}; border-radius:2.5px; transition:width .4s ease;"></div>
+                </div>
+                
+                <!-- Linha 3: Fatura na Esquerda e Limite Total na Direita -->
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%; box-sizing:border-box; font-size:11px;">
+                  <div style="display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.03); padding:2px 7px; border-radius:6px;">
+                    <span style="color:var(--text-dim); font-size:10.5px; opacity:0.85;">Fatura:</span>
+                    <strong style="color:var(--orange); font-weight:700; font-variant-numeric: tabular-nums;">\${fmt(stats.spentTotal)}</strong>
+                  </div>
+                  <div style="display:flex; align-items:center; gap:4px; background:rgba(255,255,255,0.03); padding:2px 7px; border-radius:6px;">
+                    <span style="color:var(--text-dim); font-size:10.5px; opacity:0.85;">Limite:</span>
+                    <strong style="color:var(--text); font-weight:700; font-variant-numeric: tabular-nums;">\${fmt(stats.totalLimit)}</strong>
+                  </div>
+                </div>
+              </div>
+              \` : \`
+              <!-- Conta Corrente / Poupança / Investimento -->
+              <div style="width:100%; box-sizing:border-box; background:rgba(59,130,246,0.08); border:1px solid rgba(59,130,246,0.20); border-radius:8px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:11px; font-weight:600; color:var(--text-dim);">Saldo em Conta:</span>
+                <strong style="color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:13px; font-variant-numeric: tabular-nums;">\${fmt(stats.currentBalance)}</strong>
+              </div>
+              \`}
+            </div>\`;
+          }).join('')}
+        </div>
       </div>
-      <button class="btn-ghost" style="width:100%; margin-top:8px; font-size:11.5px; padding:5px;" data-nav="cartoes">Ver todas as contas</button>
+      <button class="btn-ghost" style="width:100%; margin-top:14px; font-size:12px; font-weight:700; padding:10px 12px; border-radius:12px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.09); color:var(--text); transition:all 0.2s ease; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:6px;" data-nav="cartoes">
+        Ver todas as contas <span style="font-size:13px;">→</span>
+      </button>
     </div>
   </div>
 
