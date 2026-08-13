@@ -772,6 +772,20 @@ body.light .due-bill-row {
 }
 .btn-ghost:hover{background:rgba(255,255,255,0.12); border-color:rgba(255,255,255,0.22); color:#FFFFFF; transform:translateY(-1px);}
 
+body.light .btn-ghost,
+body.light #logoutBtn {
+  background: rgba(15, 23, 42, 0.05) !important;
+  color: #0F172A !important;
+  border: 1px solid rgba(15, 23, 42, 0.15) !important;
+}
+body.light .btn-ghost:hover,
+body.light #logoutBtn:hover {
+  background: rgba(239, 68, 68, 0.12) !important;
+  color: #DC2626 !important;
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  transform: translateY(-1px);
+}
+
 .kpis{display:grid; grid-template-columns:repeat(5,1fr); gap:16px; margin-bottom:20px;}
 .kpi{
   position:relative; overflow:hidden;
