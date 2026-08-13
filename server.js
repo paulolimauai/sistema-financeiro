@@ -3123,31 +3123,30 @@ function pageDashboard(){
 
     <div class="panel" style="padding:14px 16px;">
       <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:14px;">Contas e Cartões</h3><button class="tag" data-nav="cartoes" style="font-size:11px; padding:2px 8px;">Editar</button></div>
-      <div class="accounts-list" style="display:flex; flex-direction:column; gap:8px;">
+      <div class="accounts-list" style="display:flex; flex-direction:column; gap:8px; width:100%; box-sizing:border-box;">
         \${accounts.map(a=>{
           const stats = getCardStats(a);
           return \`
-          <div class="acc-row" style="display:flex; flex-direction:column; padding:10px 12px; background:rgba(255,255,255,0.025); border:1px solid var(--card-border); border-radius:12px; gap:8px; transition:all .2s ease;">
+          <div class="acc-row" style="display:flex; flex-direction:column; width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-radius:12px; gap:8px;">
             
-            <!-- Linha 1: Identificação (Esquerda) e Valor Principal (Direita) -->
-            <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
-              <div style="display:flex; align-items:center; gap:9px; min-width:0;">
-                <div class="acc-ic" style="background:\${a.color}; width:32px; height:32px; border-radius:8px; font-weight:800; font-size:12px; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0; box-shadow:0 2px 6px rgba(0,0,0,0.3);">\${a.name.slice(0,2).toUpperCase()}</div>
+            <!-- Linha 1: Topo com Nome à Esquerda e Limite Disponível à Direita -->
+            <div style="display:flex; align-items:center; justify-content:space-between; width:100%; box-sizing:border-box; gap:10px;">
+              <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                <div class="acc-ic" style="background:\${a.color}; width:32px; height:32px; border-radius:8px; font-weight:800; font-size:12px; color:#fff; display:flex; align-items:center; justify-content:center; flex-shrink:0;">\${a.name.slice(0,2).toUpperCase()}</div>
                 <div style="min-width:0;">
-                  <div style="font-weight:700; font-size:13.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${a.name}</div>
+                  <div style="font-weight:700; font-size:13px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${a.name}</div>
                   <div style="font-size:10.5px; color:var(--text-faint); margin-top:1px;">\${a.type}</div>
                 </div>
               </div>
 
-              <!-- Valor Principal -->
               <div style="text-align:right; flex-shrink:0;">
                 \${stats.isCreditCard ? \`
-                  <div style="font-size:9.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.03em;">Disponível</div>
+                  <div style="font-size:9.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">Disponível</div>
                   <div style="color:\${stats.availableLimit < 200 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:14px; letter-spacing:-0.01em;">
                     \${fmt(stats.availableLimit)}
                   </div>
                 \` : \`
-                  <div style="font-size:9.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.03em;">Saldo</div>
+                  <div style="font-size:9.5px; font-weight:700; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em;">Saldo</div>
                   <div style="color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:14px;">
                     \${fmt(stats.currentBalance)}
                   </div>
@@ -3156,21 +3155,29 @@ function pageDashboard(){
             </div>
 
             \${stats.isCreditCard ? \`
-            <!-- Linha 2: Barra de Progresso e Rodapé com Fatura vs Limite Total -->
-            <div style="display:flex; flex-direction:column; gap:5px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.05);">
+            <!-- Linha 2: Barra de Progresso do Limite -->
+            <div style="width:100%; box-sizing:border-box; display:flex; flex-direction:column; gap:5px; padding-top:6px; border-top:1px solid rgba(255,255,255,0.06);">
               <div style="width:100%; height:4px; background:rgba(255,255,255,0.08); border-radius:2px; overflow:hidden;">
                 <div style="width:\${stats.usagePct}%; height:100%; background:\${stats.usagePct >= 90 ? 'var(--red)' : stats.usagePct >= 70 ? 'var(--orange)' : 'var(--green)'}; border-radius:2px; transition:width .3s ease;"></div>
               </div>
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:10.5px;">
-                <span style="color:var(--text-dim);">Fatura: <strong style="color:var(--orange); font-weight:700;">\${fmt(stats.spentTotal)}</strong></span>
-                <span style="color:var(--text-dim);">Limite: <strong style="color:var(--text); font-weight:600;">\${fmt(stats.totalLimit)}</strong></span>
+              
+              <!-- Linha 3: Fatura na Esquerda e Limite Total na Direita com Separação Total -->
+              <div style="display:flex; justify-content:space-between; align-items:center; width:100%; box-sizing:border-box; font-size:11px;">
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <span style="color:var(--text-dim);">Fatura:</span>
+                  <strong style="color:var(--orange); font-weight:700;">\${fmt(stats.spentTotal)}</strong>
+                </div>
+                <div style="display:flex; align-items:center; gap:4px;">
+                  <span style="color:var(--text-dim);">Limite:</span>
+                  <strong style="color:var(--text); font-weight:700;">\${fmt(stats.totalLimit)}</strong>
+                </div>
               </div>
             </div>
             \` : \`
-            <!-- Conta Corrente / Poupança / Investimento Compacta -->
-            <div style="background:rgba(74,144,226,0.08); border:1px solid rgba(74,144,226,0.22); border-radius:7px; padding:6px 8px; display:flex; justify-content:space-between; align-items:center;">
+            <!-- Conta Corrente / Poupança / Investimento -->
+            <div style="width:100%; box-sizing:border-box; background:rgba(74,144,226,0.08); border:1px solid rgba(74,144,226,0.22); border-radius:7px; padding:6px 10px; display:flex; justify-content:space-between; align-items:center;">
               <span style="font-size:10.5px; font-weight:600; color:var(--text-dim);">Saldo em Conta:</span>
-              <strong style="color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:12.5px;">\${fmt(stats.currentBalance)}</strong>
+              <strong style="color:\${stats.currentBalance < 0 ? 'var(--red)' : 'var(--green)'}; font-weight:800; font-size:13px;">\${fmt(stats.currentBalance)}</strong>
             </div>
             \`}
           </div>\`;
