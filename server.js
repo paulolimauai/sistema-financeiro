@@ -2038,7 +2038,7 @@ function autoMigrateTransactionsAndAccounts() {
       changed = true;
     }
 
-    // 2. Se a transação possui t.acc que corresponde ao nome de uma conta, vincula ao ID exato dessa conta
+    // 2. Se a transação possui t.acc que corresponde ao nome exato de uma conta, vincula ao ID exato dessa conta
     if (t.acc) {
       const exactMatch = accounts.find(a => a.name.toLowerCase().trim() === String(t.acc).toLowerCase().trim());
       if (exactMatch && String(t.accId) !== String(exactMatch.id)) {
@@ -2048,13 +2048,14 @@ function autoMigrateTransactionsAndAccounts() {
       }
     }
 
-    // 3. Se t.desc menciona o nome de um cartão específico, vincula ao ID desse cartão
-    if (t.desc) {
-      const descLower = String(t.desc).toLowerCase().trim();
+    // 3. Se t.desc, t.cat ou t.card menciona o nome de um cartão específico, vincula ao ID desse cartão
+    const descText = ((t.desc || '') + ' ' + (t.cat || '') + ' ' + (t.acc || '') + ' ' + (t.card || '')).toLowerCase().trim();
+    if (descText) {
       const cardMatch = accounts.find(a => {
+        if (!isAccountCreditCard(a)) return false;
         const aName = a.name.toLowerCase().trim();
         const normName = normalizeAccName(a.name);
-        return (normName.length >= 3 && descLower.includes(normName)) || (aName.length >= 3 && descLower.includes(aName));
+        return (normName.length >= 3 && descText.includes(normName)) || (aName.length >= 3 && descText.includes(aName));
       });
       if (cardMatch && String(t.accId) !== String(cardMatch.id)) {
         t.accId = cardMatch.id;
