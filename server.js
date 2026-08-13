@@ -3124,7 +3124,7 @@ function pageDashboard(){
     <div class="panel" style="padding:14px 16px;">
       <div class="panel-head" style="margin-bottom:10px;"><h3 style="font-size:14px;">Contas e Cartões</h3><button class="tag" data-nav="cartoes" style="font-size:11px; padding:2px 8px;">Editar</button></div>
       <div class="accounts-list" style="display:flex; flex-direction:column; gap:8px; width:100%; box-sizing:border-box;">
-        \${accounts.map(a=>{
+        \${accounts.slice().sort((a,b)=>a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(a=>{
           const stats = getCardStats(a);
           return \`
           <div class="acc-row" style="display:flex; flex-direction:column; width:100%; box-sizing:border-box; padding:10px 14px; background:rgba(255,255,255,0.03); border:1px solid var(--card-border); border-radius:12px; gap:8px;">
@@ -3315,7 +3315,7 @@ function transactionsTable(list, showActions){
 
 function pageTransacoes(){
   const periodTx = transactions.filter(inPeriod);
-  const accOptsHTML = accounts.map(a => '<option value="' + a.name + '">' + a.name + ' (' + a.type + ')</option>').join('');
+  const accOptsHTML = accounts.slice().sort((a,b)=>a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(a => '<option value="' + a.name + '">' + a.name + ' (' + a.type + ')</option>').join('');
   return \`
   <div class="page-head">
     <div><h1>Transações — \${periodLabel()}</h1><p>Gerencie suas receitas e despesas do mês selecionado</p></div>
@@ -3338,7 +3338,7 @@ function pageTransacoes(){
 }
 
 function pageContas(){
-  const list = accounts;
+  const list = accounts.slice().sort((a,b)=>a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
   const summary = computeCardSummary();
   
   return \`
@@ -4262,8 +4262,8 @@ function populateAccountOptions(selectedAcc) {
   const fConta = document.getElementById('fConta');
   if(!fConta) return;
 
-  // 1. Mapeia todas as contas e cartões cadastrados pelo usuário
-  let htmlOptions = accounts.map(a => {
+  // 1. Mapeia todas as contas e cartões cadastrados pelo usuário (ordenados de A a Z)
+  let htmlOptions = accounts.slice().sort((a,b)=>a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' })).map(a => {
     const stats = getCardStats(a);
     const label = stats.isCreditCard 
       ? (a.name + ' (Disp: ' + fmt(stats.availableLimit) + (currentType === 'in' ? ' — Pgto Fatura/Estorno' : '') + ')') 
