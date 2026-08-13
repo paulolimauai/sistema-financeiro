@@ -2129,6 +2129,19 @@ function autoMigrateTransactionsAndAccounts() {
     }
   });
 
+  // 5. Atualiza ícones genéricos (📁) das categorias para ícones semânticos profissionais
+  if (Array.isArray(categories)) {
+    categories.forEach(c => {
+      if (!c.icon || c.icon === '📁') {
+        const smartIcon = getCategoryIcon(c.name);
+        if (smartIcon !== '📁') {
+          c.icon = smartIcon;
+          changed = true;
+        }
+      }
+    });
+  }
+
   if (changed && typeof saveUserData === 'function') {
     saveUserData();
   }
@@ -2370,14 +2383,44 @@ let currentPage = (function getInitialPage() {
 })();
 let charts = {};
 
+function getCategoryIcon(name) {
+  if (!name) return '🏷️';
+  const c = Array.isArray(categories) ? categories.find(cat => cat.name && cat.name.toLowerCase().trim() === String(name).toLowerCase().trim()) : null;
+  if (c && c.icon && c.icon !== '📁') return c.icon;
+  
+  const n = String(name).toLowerCase().trim();
+  if (n.includes('cartão') || n.includes('cartao') || n.includes('crédito') || n.includes('credito')) return '💳';
+  if (n.includes('boleto') || n.includes('fatura') || n.includes('carnê') || n.includes('carne') || n.includes('conta')) return '📄';
+  if (n.includes('salário') || n.includes('salario') || n.includes('pagamento') || n.includes('pró-labore') || n.includes('pro-labore') || n.includes('renda')) return '💰';
+  if (n.includes('alimentação') || n.includes('alimentacao') || n.includes('restaurante') || n.includes('lanche') || n.includes('ifood') || n.includes('refeição') || n.includes('comida')) return '🍔';
+  if (n.includes('mercado') || n.includes('supermercado') || n.includes('compras') || n.includes('feira') || n.includes('açougue') || n.includes('padaria')) return '🛒';
+  if (n.includes('moradia') || n.includes('casa') || n.includes('aluguel') || n.includes('condomínio') || n.includes('condominio')) return '🏠';
+  if (n.includes('transporte') || n.includes('combustível') || n.includes('combustivel') || n.includes('gasolina') || n.includes('uber') || n.includes('carro') || n.includes('estacionamento')) return '🚗';
+  if (n.includes('saúde') || n.includes('saude') || n.includes('farmácia') || n.includes('farmacia') || n.includes('médico') || n.includes('medico') || n.includes('hospital') || n.includes('dentista') || n.includes('exame')) return '💊';
+  if (n.includes('educação') || n.includes('educacao') || n.includes('curso') || n.includes('faculdade') || n.includes('livro') || n.includes('escola') || n.includes('mensalidade')) return '📚';
+  if (n.includes('lazer') || n.includes('viagem') || n.includes('festa') || n.includes('passeio') || n.includes('cinema') || n.includes('show') || n.includes('hotel')) return '🎉';
+  if (n.includes('internet') || n.includes('telefone') || n.includes('celular') || n.includes('fibra') || n.includes('plano')) return '📶';
+  if (n.includes('luz') || n.includes('energia') || n.includes('elétrica') || n.includes('eletrica') || n.includes('cemig') || n.includes('enel')) return '💡';
+  if (n.includes('água') || n.includes('agua') || n.includes('saneamento') || n.includes('copasa') || n.includes('sabesp')) return '💧';
+  if (n.includes('investimento') || n.includes('poupança') || n.includes('poupanca') || n.includes('ações') || n.includes('acoes') || n.includes('rendimento') || n.includes('cdb') || n.includes('cripto')) return '📈';
+  if (n.includes('streaming') || n.includes('netflix') || n.includes('spotify') || n.includes('assinatura') || n.includes('tv') || n.includes('amazon prime') || n.includes('disney')) return '🎬';
+  if (n.includes('vestuário') || n.includes('vestuario') || n.includes('roupa') || n.includes('calçado') || n.includes('calcado') || n.includes('moda') || n.includes('tênis')) return '👕';
+  if (n.includes('pet') || n.includes('animal') || n.includes('veterinário') || n.includes('veterinario') || n.includes('ração') || n.includes('racao') || n.includes('gato') || n.includes('cachorro')) return '🐾';
+  if (n.includes('imposto') || n.includes('tributo') || n.includes('taxa') || n.includes('iptu') || n.includes('ipva') || n.includes('irpf') || n.includes('darf')) return '🏛️';
+  if (n.includes('presente') || n.includes('doação') || n.includes('doacao') || n.includes('aniversário') || n.includes('natal')) return '🎁';
+  if (n.includes('serviço') || n.includes('servico') || n.includes('manutenção') || n.includes('manutencao') || n.includes('reforma') || n.includes('obra')) return '🔧';
+  
+  return '🏷️';
+}
+
 const fmt = v => 'R$ ' + (v||0).toLocaleString('pt-BR',{minimumFractionDigits:2, maximumFractionDigits:2});
 const catColor = name => (categories.find(c=>c.name===name)||{}).color || '#888';
-const catIcon = name => { const c = categories.find(c=>c.name===name); return (c && c.icon) || '📁'; };
+const catIcon = name => getCategoryIcon(name);
 
 function catOptionsHTML(type, selected){
   let list = type ? categories.filter(c=>(c.type||'despesa')===type) : categories.slice();
   list = list.slice().sort((a,b)=> (b.count||0)-(a.count||0) || a.name.localeCompare(b.name,'pt-BR'));
-  return list.map(c=>'<option value="'+c.name+'"'+(selected===c.name?' selected':'')+'>'+(c.icon||'📁')+' '+c.name+'</option>').join('');
+  return list.map(c=>'<option value="'+c.name+'"'+(selected===c.name?' selected':'')+'>'+catIcon(c.name)+' '+c.name+'</option>').join('');
 }
 const periodLabel = () => currentPeriod.month === 0 ? 'Todas as Datas (Geral)' : ((MONTHS[currentPeriod.month-1] || 'Mês ' + currentPeriod.month) + ' / ' + currentPeriod.year);
 
@@ -3114,8 +3157,11 @@ function pageDashboard(){
     <div class="panel" style="display:flex; flex-direction:column; justify-content:space-between;">
       <div>
         <div class="panel-head" style="margin-bottom:12px;">
-          <h3 style="display:flex; align-items:center; gap:6px;">
-            <span>📁</span> Despesas por Categoria
+          <h3 style="display:flex; align-items:center; gap:8px;">
+            <span style="display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:7px; background:rgba(232,176,75,0.18); color:var(--gold);">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+            </span>
+            Despesas por Categoria
           </h3>
           <span class="tag" style="background:rgba(255,255,255,0.06); color:var(--text); font-weight:700;">\${fmt(totalDesp)}</span>
         </div>
@@ -3129,17 +3175,16 @@ function pageDashboard(){
           }).join('')}
         </div>
 
-        <!-- Lista de Categorias com Ícones, Valores e Barras Individuais -->
+        <!-- Lista de Categorias com Ícones Temáticos, Valores e Barras Individuais -->
         <div class="cat-list" style="display:flex; flex-direction:column; gap:7px;">
           \${cats.map(c => {
             const pct = Math.round(c.val / totalDesp * 100);
-            const catObj = categories.find(x => x.name === c.name);
-            const icon = (catObj && catObj.icon) || '📁';
+            const icon = getCategoryIcon(c.name);
             return \`
             <div style="display:flex; flex-direction:column; gap:4px; padding:6px 8px; background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.05); border-radius:8px;">
               <div style="display:flex; align-items:center; justify-content:space-between; width:100%;">
                 <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-                  <span style="background:\${c.color}22; color:\${c.color}; width:24px; height:24px; border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0;">\${icon}</span>
+                  <span style="background:\${c.color}22; border:1px solid \${c.color}44; color:\${c.color}; width:26px; height:26px; border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; box-shadow:0 2px 5px rgba(0,0,0,0.25);">\${icon}</span>
                   <span style="font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">\${c.name}</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px; flex-shrink:0;">
