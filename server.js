@@ -320,13 +320,13 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth (Mesma cor dos cards no fundo #12151A) ==================== */
+/* ==================== Tela de Auth (Design UI de Alta Performance) ==================== */
 .auth-container{
   --auth-accent:#E5A93C; --auth-accent-2:#5B94D9; --auth-accent-3:#E6C675;
   --auth-accent-soft:rgba(229,169,60,.20); --auth-text-on:#0A0F1A;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
-  background:#12151A;
+  background:var(--bg);
 }
 .auth-container.show { display: flex; }
 .auth-grid{
@@ -375,9 +375,9 @@ body.light .auth-blob{opacity:.16;}
 }
 .auth-box{
   position:relative; z-index:1;
-  background:#12151A; border:1.5px solid #C89B3C; border-radius:28px;
+  background:var(--card); border:1px solid var(--card-border); border-radius:24px;
   padding:38px 34px; width:100%; max-width:420px;
-  box-shadow:0 35px 80px rgba(0,0,0,0.95), 0 0 45px rgba(200,155,60,0.28), inset 0 1px 1px rgba(255,255,255,0.20);
+  box-shadow:0 25px 65px -10px rgba(0,0,0,0.65), 0 0 35px rgba(229,169,60,0.10), inset 0 1px 1px rgba(255,255,255,0.08);
   backdrop-filter:blur(36px); -webkit-backdrop-filter:blur(36px);
   animation:authIn .55s cubic-bezier(.16,1,.3,1);
 }
@@ -388,23 +388,23 @@ body.light .auth-blob{opacity:.16;}
   font-weight:900 !important; font-size:22px !important; width:52px !important; height:52px !important; border-radius:16px !important;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.auth-box .brand .name{font-size:20px; font-weight:800; color:#ffffff; letter-spacing:0.05em;}
+.auth-box .brand .name{font-size:20px; font-weight:800; color:var(--text); letter-spacing:0.05em;}
 @keyframes logoPulse{
   0%,100%{box-shadow:0 0 0 0 rgba(200,155,60,.5);}
   50%{box-shadow:0 0 0 9px rgba(200,155,60,0);}
 }
-.auth-box h2{font-size:24px; font-weight:800; margin-bottom:6px; text-align:center; color:#fff; letter-spacing:-0.01em;}
-.auth-box p.sub{font-size:13.5px; color:#8E9BAE; text-align:center; margin-bottom:24px; transition:color .2s;}
+.auth-box h2{font-size:24px; font-weight:800; margin-bottom:6px; text-align:center; color:var(--text); letter-spacing:-0.01em;}
+.auth-box p.sub{font-size:13.5px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
 .auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
 .auth-box .field:nth-of-type(1){animation-delay:.05s;}
 .auth-box .field:nth-of-type(2){animation-delay:.1s;}
-.auth-box .field label{display:block; font-size:13px; font-weight:600; color:#9AA8BA; margin-bottom:6px;}
+.auth-box .field label{display:block; font-size:13px; font-weight:600; color:var(--text-dim); margin-bottom:6px;}
 .auth-box .field input{
-  background:#141A28; border:1px solid #232D42; border-radius:14px;
-  padding:14px 16px; color:#fff; font-size:14px; width:100%; transition:border-color .25s, box-shadow .25s, transform .15s;
+  background:rgba(255,255,255,0.035); border:1px solid var(--card-border); border-radius:14px;
+  padding:14px 16px; color:var(--text); font-size:14px; width:100%; transition:border-color .25s, box-shadow .25s, transform .15s;
 }
 .auth-box .field input:focus, .auth-box .field select:focus{
-  border-color:#C89B3C; box-shadow:0 0 25px rgba(200,155,60,0.40); transform:translateY(-1px);
+  border-color:#E5A93C; box-shadow:0 0 20px rgba(229,169,60,0.30); transform:translateY(-1px);
 }
 .auth-forgot{display:block; text-align:right; font-size:12.5px; color:#E5A93C; font-weight:700; margin-top:8px; cursor:pointer; transition:color .15s;}
 .auth-forgot:hover{color:#f5c26b; text-decoration:underline;}
@@ -602,11 +602,11 @@ body.light .menu button.active .ic{background:rgba(255,255,255,0.2); color:#FFFF
 .dev-chip{
   position:relative;
   pointer-events:auto; display:inline-flex; align-items:center; gap:10px;
-  background:linear-gradient(135deg, rgba(38,26,10,0.95), rgba(16,13,8,0.96));
-  border:1.5px solid rgba(232,176,75,.6);
+  background:var(--card);
+  border:1px solid var(--card-border);
   border-radius:999px;
   padding:7px 22px 7px 8px;
-  box-shadow:0 0 25px rgba(232,176,75,.3), inset 0 1px 1px rgba(255,255,255,.2);
+  box-shadow:0 8px 25px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.1);
   transition: transform .25s ease, box-shadow .25s ease;
 }
 .dev-chip:hover{
