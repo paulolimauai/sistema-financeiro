@@ -1765,6 +1765,16 @@ async function syncUsersWithServer() {
     if (res.ok) {
       registeredUsers = await res.json();
       saveToStorage('nexus_users', registeredUsers);
+      if (currentUser && currentUser.email) {
+        const updatedMe = registeredUsers.find(u => (u.email||'').toLowerCase().trim() === currentUser.email.toLowerCase().trim());
+        if (updatedMe) {
+          currentUser.name = updatedMe.name;
+          currentUser.role = updatedMe.role;
+          if (updatedMe.active !== undefined) currentUser.active = updatedMe.active;
+          saveToStorage('nexus_cached_user', currentUser);
+          updateHeaderUser();
+        }
+      }
     }
   } catch(e) {
     registeredUsers = loadFromStorage('nexus_users', [
@@ -3025,14 +3035,23 @@ function updateViewModeBanner(){
 }
 
 function updateHeaderUser(){
+  if (!currentUser) {
+    const cachedUser = loadFromStorage('nexus_cached_user', null);
+    if (cachedUser) currentUser = cachedUser;
+  }
   if (!currentUser) return;
   const unameEl = document.getElementById('headerName');
   const avatarEl = document.getElementById('headerAvatar');
   const roleEl = document.getElementById('headerRole');
 
-  if(unameEl) unameEl.textContent = currentUser.name;
+  const finalName = currentUser.name || currentUser.email || 'Usuário';
+  if(unameEl) unameEl.textContent = finalName;
   if(roleEl) roleEl.textContent = currentUser.role || 'Usuário';
-  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
+  if(avatarEl) {
+    const initials = finalName.trim().split(/\s+/).map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
+    avatarEl.textContent = initials || 'U';
+  }
+  saveToStorage('nexus_cached_user', currentUser);
 }
 
 function periodPickerHTML(){
@@ -5823,6 +5842,9 @@ function attachPageEvents(){
           localStorage.removeItem(oldKey);
         }
         currentUser.name = newName;
+        saveToStorage('nexus_cached_user', currentUser);
+        saveToStorage('nexus_session', { email: currentUser.email });
+        updateHeaderUser();
         await saveUserData();
 
         document.getElementById('cfgPassword').value = '';
@@ -6247,17 +6269,14 @@ if (scaleMenuBtn && scaleDropdown) {
         currentUser = cachedUser;
         if (currentUser.role === 'Administrador') {
           document.documentElement.classList.add('is-admin');
-          const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
-          const savedPage = localStorage.getItem('nexus_current_page');
-          const pageTarget = hashPage || savedPage;
-          if (pageTarget === 'logs') {
-            currentPage = 'logs';
-          } else {
-            currentPage = 'usuarios';
-          }
         } else {
           document.documentElement.classList.remove('is-admin');
         }
+        const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'usuarios', 'logs', 'config'];
+        const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+        const savedPage = localStorage.getItem('nexus_current_page');
+        const pageTarget = (hashPage && validPages.includes(hashPage)) ? hashPage : (savedPage && validPages.includes(savedPage) ? savedPage : 'dashboard');
+        currentPage = pageTarget;
         if (typeof updateHeaderUser === 'function') updateHeaderUser();
         if (typeof updateAdminMenuVisibility === 'function') updateAdminMenuVisibility();
       }
@@ -6283,7 +6302,7 @@ if (scaleMenuBtn && scaleDropdown) {
     await syncUsersWithServer();
   } catch(e) {}
 
-  const serverUser = registeredUsers.find(u => u.email.toLowerCase() === (sessionEmail || '').toLowerCase());
+  const serverUser = registeredUsers.find(u => (u.email || '').toLowerCase().trim() === (sessionEmail || '').toLowerCase().trim());
   const realUser = serverUser || cachedUser || { email: sessionEmail, name: sessionEmail.split('@')[0], role: 'Usuário' };
 
   if (realUser && realUser.active === false) {
@@ -6326,16 +6345,11 @@ if (scaleMenuBtn && scaleDropdown) {
   isViewingOtherUser = false;
   localStorage.removeItem('nexus_viewing_user');
 
-  if (currentUser.role === 'Administrador') {
-    const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
-    const savedPage = localStorage.getItem('nexus_current_page');
-    const pageTarget = hashPage || savedPage || currentPage;
-    if (pageTarget === 'logs') {
-      currentPage = 'logs';
-    } else {
-      currentPage = 'usuarios';
-    }
-  }
+  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'usuarios', 'logs', 'config'];
+  const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+  const savedPage = localStorage.getItem('nexus_current_page');
+  const pageTarget = (hashPage && validPages.includes(hashPage)) ? hashPage : (savedPage && validPages.includes(savedPage) ? savedPage : 'dashboard');
+  currentPage = pageTarget;
 
   await loadUserData();
   if (typeof render === 'function') render();
