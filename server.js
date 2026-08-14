@@ -320,13 +320,13 @@ code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5
   will-change: auto;
 }
 
-/* ==================== Tela de Auth (Mesma cor dos cards no fundo #12151A) ==================== */
+/* ==================== Tela de Auth (Mesma cor do fundo do sistema) ==================== */
 .auth-container{
   --auth-accent:#E5A93C; --auth-accent-2:#5B94D9; --auth-accent-3:#E6C675;
   --auth-accent-soft:rgba(229,169,60,.20); --auth-text-on:#0A0F1A;
   position:relative; overflow:hidden;
   display:none; align-items:center; justify-content:center; flex-direction:column; min-height:100vh; padding:20px;
-  background:#12151A;
+  background:var(--bg);
 }
 .auth-container.show { display: flex; }
 .auth-grid{
@@ -375,9 +375,9 @@ body.light .auth-blob{opacity:.16;}
 }
 .auth-box{
   position:relative; z-index:1;
-  background:#12151A; border:1.5px solid #C89B3C; border-radius:28px;
+  background:var(--card); border:1px solid var(--card-border); border-radius:24px;
   padding:38px 34px; width:100%; max-width:420px;
-  box-shadow:0 35px 80px rgba(0,0,0,0.95), 0 0 45px rgba(200,155,60,0.28), inset 0 1px 1px rgba(255,255,255,0.20);
+  box-shadow:0 25px 60px rgba(0,0,0,0.65), 0 0 35px rgba(229,169,60,0.12), inset 0 1px 1px rgba(255,255,255,0.08);
   backdrop-filter:blur(36px); -webkit-backdrop-filter:blur(36px);
   animation:authIn .55s cubic-bezier(.16,1,.3,1);
 }
@@ -388,23 +388,23 @@ body.light .auth-blob{opacity:.16;}
   font-weight:900 !important; font-size:22px !important; width:52px !important; height:52px !important; border-radius:16px !important;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
-.auth-box .brand .name{font-size:20px; font-weight:800; color:#ffffff; letter-spacing:0.05em;}
+.auth-box .brand .name{font-size:20px; font-weight:800; color:var(--text); letter-spacing:0.05em;}
 @keyframes logoPulse{
   0%,100%{box-shadow:0 0 0 0 rgba(200,155,60,.5);}
   50%{box-shadow:0 0 0 9px rgba(200,155,60,0);}
 }
-.auth-box h2{font-size:24px; font-weight:800; margin-bottom:6px; text-align:center; color:#fff; letter-spacing:-0.01em;}
-.auth-box p.sub{font-size:13.5px; color:#8E9BAE; text-align:center; margin-bottom:24px; transition:color .2s;}
+.auth-box h2{font-size:24px; font-weight:800; margin-bottom:6px; text-align:center; color:var(--text); letter-spacing:-0.01em;}
+.auth-box p.sub{font-size:13.5px; color:var(--text-dim); text-align:center; margin-bottom:24px; transition:color .2s;}
 .auth-box .field{margin-bottom:16px; animation:fieldIn .45s ease backwards;}
 .auth-box .field:nth-of-type(1){animation-delay:.05s;}
 .auth-box .field:nth-of-type(2){animation-delay:.1s;}
-.auth-box .field label{display:block; font-size:13px; font-weight:600; color:#9AA8BA; margin-bottom:6px;}
+.auth-box .field label{display:block; font-size:13px; font-weight:600; color:var(--text-dim); margin-bottom:6px;}
 .auth-box .field input{
-  background:#141A28; border:1px solid #232D42; border-radius:14px;
-  padding:14px 16px; color:#fff; font-size:14px; width:100%; transition:border-color .25s, box-shadow .25s, transform .15s;
+  background:rgba(255,255,255,0.035); border:1px solid var(--card-border); border-radius:14px;
+  padding:14px 16px; color:var(--text); font-size:14px; width:100%; transition:border-color .25s, box-shadow .25s, transform .15s;
 }
 .auth-box .field input:focus, .auth-box .field select:focus{
-  border-color:#C89B3C; box-shadow:0 0 25px rgba(200,155,60,0.40); transform:translateY(-1px);
+  border-color:#E5A93C; box-shadow:0 0 20px rgba(229,169,60,0.30); transform:translateY(-1px);
 }
 .auth-forgot{display:block; text-align:right; font-size:12.5px; color:#E5A93C; font-weight:700; margin-top:8px; cursor:pointer; transition:color .15s;}
 .auth-forgot:hover{color:#f5c26b; text-decoration:underline;}
@@ -602,11 +602,11 @@ body.light .menu button.active .ic{background:rgba(255,255,255,0.2); color:#FFFF
 .dev-chip{
   position:relative;
   pointer-events:auto; display:inline-flex; align-items:center; gap:10px;
-  background:linear-gradient(135deg, rgba(38,26,10,0.95), rgba(16,13,8,0.96));
-  border:1.5px solid rgba(232,176,75,.6);
+  background:var(--card);
+  border:1px solid var(--card-border);
   border-radius:999px;
   padding:7px 22px 7px 8px;
-  box-shadow:0 0 25px rgba(232,176,75,.3), inset 0 1px 1px rgba(255,255,255,.2);
+  box-shadow:0 8px 25px rgba(0,0,0,.4), inset 0 1px 1px rgba(255,255,255,.1);
   transition: transform .25s ease, box-shadow .25s ease;
 }
 .dev-chip:hover{
@@ -1113,36 +1113,36 @@ body.light tr.trow:hover td { background:#f1f5f9 !important; }
 
 /* ==================== Popup de login bem-sucedido (Executive 4K) ==================== */
 .login-success-overlay{
-  position:fixed; inset:0; background:rgba(4,7,17,.80); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  position:fixed; inset:0; background:rgba(4,7,17,.80); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
   display:none; align-items:center; justify-content:center; z-index:99999 !important; padding:20px; opacity:0;
   transition:opacity .3s ease;
 }
 .login-success-overlay.show{display:flex;}
 .login-success-overlay.in{opacity:1;}
 .login-success-box{
-  background:#12151A; border:1.5px solid #C89B3C; border-radius:22px;
-  padding:38px 32px; width:100%; max-width:360px; text-align:center;
-  box-shadow:0 30px 80px rgba(0,0,0,0.95), 0 0 45px rgba(200,155,60,0.30), inset 0 1px 1px rgba(255,255,255,0.3);
+  background:var(--card); border:1px solid var(--card-border); border-radius:24px;
+  padding:36px 30px; width:100%; max-width:380px; text-align:center;
+  box-shadow:0 25px 60px rgba(0,0,0,0.7), 0 0 35px rgba(16,185,129,0.15), inset 0 1px 1px rgba(255,255,255,0.08);
   transform:translateY(16px) scale(.94); opacity:0; transition:transform .35s cubic-bezier(.16,1,.3,1), opacity .35s ease;
 }
 .login-success-overlay.in .login-success-box{transform:translateY(0) scale(1); opacity:1;}
 .login-success-check{
-  width:68px; height:68px; margin:0 auto 20px; border-radius:50%;
-  background:linear-gradient(135deg, rgba(229,169,60,0.28), rgba(200,155,60,0.22));
-  border:1.5px solid #C89B3C;
-  box-shadow:0 0 25px rgba(200,155,60,0.45), inset 0 1px 1px rgba(255,255,255,0.4);
+  width:64px; height:64px; margin:0 auto 18px; border-radius:50%;
+  background:rgba(16, 185, 129, 0.12);
+  border:1px solid rgba(16, 185, 129, 0.35);
+  box-shadow:0 0 20px rgba(16, 185, 129, 0.20);
   display:flex; align-items:center; justify-content:center;
 }
-.login-success-check svg{width:36px; height:36px;}
-.login-success-check circle{stroke:#C89B3C; stroke-width:2.5; opacity:.4;}
+.login-success-check svg{width:34px; height:34px;}
+.login-success-check circle{stroke:#10B981; stroke-width:2; opacity:.3;}
 .login-success-check path{
-  stroke:#E5A93C; stroke-width:4; stroke-linecap:round; stroke-linejoin:round;
+  stroke:#10B981; stroke-width:3.5; stroke-linecap:round; stroke-linejoin:round;
   stroke-dasharray:40; stroke-dashoffset:40; animation:loginCheckDraw .45s ease .15s forwards;
-  filter:drop-shadow(0 0 6px rgba(229,169,60,0.8));
+  filter:drop-shadow(0 0 6px rgba(16,185,129,0.6));
 }
 @keyframes loginCheckDraw{to{stroke-dashoffset:0;}}
-.login-success-box h3{font-size:17.5px; font-weight:800; color:#ffffff; margin-bottom:6px; letter-spacing:-0.01em;}
-.login-success-box p{color:#E5A93C; font-size:13.5px; font-weight:600;}
+.login-success-box h3{font-size:19px; font-weight:800; color:var(--text); margin-bottom:8px; letter-spacing:-0.01em;}
+.login-success-box p{color:#10B981; font-size:13.5px; font-weight:600;}
 
 /* ==================== Popup de conta desativada ==================== */
 .account-disabled-icon{
@@ -1159,28 +1159,28 @@ body.light tr.trow:hover td { background:#f1f5f9 !important; }
 
 /* ==================== Popup de Logout (Sessão Encerrada) ==================== */
 .logout-success-icon {
-  width: 68px; height: 68px; margin: 0 auto 18px; border-radius: 50%;
-  background: rgba(6, 214, 160, 0.15); border: 1px solid rgba(6, 214, 160, 0.35);
+  width: 64px; height: 64px; margin: 0 auto 18px; border-radius: 50%;
+  background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.35);
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 25px rgba(6, 214, 160, 0.25);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.20);
 }
 .logout-success-icon svg {
-  width: 32px; height: 32px; stroke: #06D6A0;
+  width: 30px; height: 30px; stroke: #10B981;
 }
 .logout-box h3 {
-  font-size: 19px; font-weight: 800; color: #ffffff; margin-bottom: 8px; tracking-tight;
+  font-size: 19px; font-weight: 800; color: var(--text); margin-bottom: 8px; tracking-tight;
 }
 .logout-box p {
-  color: #9ca3af; font-size: 13.5px; line-height: 1.5; margin-bottom: 20px;
+  color: var(--text-dim); font-size: 13.5px; line-height: 1.5; margin-bottom: 22px;
 }
 .logout-btn-action {
-  width: 100%; padding: 12px 16px; border-radius: 12px; font-weight: 700; font-size: 13.5px;
-  background: linear-gradient(135deg, #06D6A0, #00E5FF); color: #060B18; border: none;
-  cursor: pointer; box-shadow: 0 4px 14px rgba(6, 214, 160, 0.3);
-  transition: transform 0.2s ease, filter 0.2s ease;
+  width: 100%; padding: 13px 16px; border-radius: 12px; font-weight: 800; font-size: 14px;
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%); color: #FFFFFF; border: none;
+  cursor: pointer; box-shadow: 0 8px 24px rgba(16, 185, 129, 0.30);
+  transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
 }
 .logout-btn-action:hover {
-  transform: translateY(-1px); filter: brightness(1.08);
+  transform: translateY(-2px); filter: brightness(1.08); box-shadow: 0 12px 28px rgba(16, 185, 129, 0.45);
 }
 
 @media(min-width:1700px){
@@ -1709,7 +1709,7 @@ body.light .scale-dropdown {
       <svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" fill="none"/><path fill="none" d="M14 27l7 7 17-17"/></svg>
     </div>
     <h3>Login efetuado com sucesso!</h3>
-    <p id="loginSuccessMsg">Bem-vindo(a) de volta.</p>
+    <p id="loginSuccessMsg">Sua sessão foi iniciada com segurança.</p>
   </div>
 </div>
 
@@ -1873,7 +1873,7 @@ document.getElementById('loginForm').onsubmit = async (e) => {
     } else {
       currentPage = 'dashboard';
     }
-    showLoginSuccessPopup('Login efetuado com sucesso!');
+    showLoginSuccessPopup('Sua sessão foi iniciada com segurança.');
     setTimeout(() => {
       document.getElementById('authPage').classList.remove('show');
       document.getElementById('appMain').classList.add('show');
@@ -2329,9 +2329,10 @@ async function saveUserData() {
 /* ==================== Admin: Visualizar dados de outro usuário ==================== */
 async function viewUserData(email){
   await syncUsersWithServer();
-  if(!currentUser || currentUser.role !== 'Administrador') return;
+  const realAdmin = (currentUser && currentUser.role === 'Administrador') ? currentUser : (adminOriginalUser && adminOriginalUser.role === 'Administrador' ? adminOriginalUser : null);
+  if(!realAdmin) return;
   const target = registeredUsers.find(u => u.email.toLowerCase() === (email||'').toLowerCase());
-  if(!target || target.email.toLowerCase() === currentUser.email.toLowerCase()) return;
+  if(!target) return;
 
   if(!isViewingOtherUser){
     await saveUserData();
@@ -2897,11 +2898,9 @@ function render(){
   const el = document.getElementById('pageContent');
   if (!el) return;
 
-  const isAdmin = currentUser && currentUser.role === 'Administrador';
-  const isAdminView = isAdmin && !isViewingOtherUser;
-  if (isAdminView && currentPage !== 'usuarios' && currentPage !== 'logs') {
-    currentPage = 'usuarios';
-  }
+function render(){
+  const el = document.getElementById('pageContent');
+  if (!el) return;
 
   let newHTML = '';
   if(currentPage==='usuarios') {
@@ -2948,37 +2947,6 @@ function render(){
 }
 
 function updateActiveMenu(){
-  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'usuarios', 'logs', 'config'];
-  const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'config'];
-  const isAdmin = currentUser && currentUser.role === 'Administrador';
-  const isAdminView = isAdmin && !isViewingOtherUser;
-
-  if (isAdminView) {
-    if (!currentPage || financialPages.includes(currentPage) || !['usuarios', 'logs', 'funcoes'].includes(currentPage)) {
-      currentPage = 'usuarios';
-      try {
-        localStorage.setItem('nexus_current_page', 'usuarios');
-        if (window.history && window.history.replaceState) {
-          window.history.replaceState(null, null, '#usuarios');
-        } else {
-          window.location.hash = 'usuarios';
-        }
-      } catch(e){}
-    }
-  } else {
-    if (!currentPage || !financialPages.includes(currentPage) || ['usuarios', 'logs', 'funcoes'].includes(currentPage)) {
-      const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
-      const savedPage = localStorage.getItem('nexus_current_page');
-      if (hashPage && financialPages.includes(hashPage)) {
-        currentPage = hashPage;
-      } else if (savedPage && financialPages.includes(savedPage)) {
-        currentPage = savedPage;
-      } else {
-        currentPage = 'dashboard';
-      }
-    }
-  }
-
   const buttons = document.querySelectorAll('button[data-page]');
   buttons.forEach(b => {
     const isCurrent = (b.getAttribute('data-page') === currentPage);
@@ -2987,10 +2955,9 @@ function updateActiveMenu(){
 }
 
 function updateAdminMenuVisibility(){
-  const isAdmin = currentUser && currentUser.role === 'Administrador';
-  const isAdminView = isAdmin && !isViewingOtherUser;
+  const realIsAdmin = (currentUser && currentUser.role === 'Administrador') || (adminOriginalUser && adminOriginalUser.role === 'Administrador');
 
-  if (isAdminView) {
+  if (realIsAdmin) {
     document.documentElement.classList.add('is-admin');
   } else {
     document.documentElement.classList.remove('is-admin');
@@ -2999,14 +2966,14 @@ function updateAdminMenuVisibility(){
   const financialPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'config'];
   financialPages.forEach(function(pg) {
     document.querySelectorAll('button[data-page="' + pg + '"]').forEach(function(btn) {
-      btn.style.display = isAdminView ? 'none' : 'flex';
+      btn.style.display = 'flex';
     });
   });
 
-  const adminPages = ['usuarios', 'logs'];
+  const adminPages = ['usuarios', 'logs', 'funcoes'];
   adminPages.forEach(function(pg) {
     document.querySelectorAll('button[data-page="' + pg + '"]').forEach(function(btn) {
-      btn.style.display = isAdminView ? 'flex' : 'none';
+      btn.style.display = realIsAdmin ? 'flex' : 'none';
     });
   });
 }
@@ -3609,11 +3576,11 @@ function transactionsTable(list, showActions){
     </div>
 
     <div style="display:flex; align-items:center; gap:12px; min-width:200px;">
-      <div style="width:44px; height:44px; border-radius:12px; background:\${saldoPeriodo<0?'var(--red-soft)':'rgba(74,144,226,.14)'}; color:\${saldoPeriodo<0?'var(--red)':'var(--blue)'}; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0;">⇄</div>
+      <div style="width:44px; height:44px; border-radius:12px; background:\${saldoPeriodo<0?'var(--red-soft)':'rgba(74,144,226,.14)'}; color:\${saldoPeriodo<0?'var(--red)':'var(--blue)'}; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:800; flex-shrink:0;">💳</div>
       <div>
-        <div style="font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Balanço do Período</div>
+        <div style="font-size:11px; color:var(--text-faint); text-transform:uppercase; letter-spacing:0.06em; font-weight:700;">Disponível para Gastar no Mês</div>
         <div style="font-size:20px; font-weight:800; color:\${saldoPeriodo<0?'var(--red)':'var(--green)'}; margin-top:2px;">\${fmt(saldoPeriodo)}</div>
-        <div style="font-size:11px; color:var(--text-dim); margin-top:1px;">\${list.length} registro(s) no filtro</div>
+        <div style="font-size:11px; color:var(--text-dim); margin-top:1px;">Saldo livre (\${list.length} registros no filtro)</div>
       </div>
     </div>
   </div>\`;
@@ -4126,8 +4093,8 @@ function pageConfig(){
 
 /* ==================== Aba 4K: Central de Funções & Permissões ==================== */
 function pageFuncoes(){
-  const isAdmin = currentUser && currentUser.role === 'Administrador';
-  if(!isAdmin || isViewingOtherUser){
+  const realIsAdmin = (currentUser && currentUser.role === 'Administrador') || (adminOriginalUser && adminOriginalUser.role === 'Administrador');
+  if(!realIsAdmin){
     return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área de Gestão de Funções é exclusiva para administradores.</p></div>\`;
   }
   const userRole = (currentUser && currentUser.role) || 'Usuário';
@@ -4293,10 +4260,11 @@ function getUserActivitySummary(email){
 }
 
 function pageUsuarios(){
-  const isAdmin = currentUser && currentUser.role === 'Administrador';
-  if(!isAdmin || isViewingOtherUser){
+  const realIsAdmin = (currentUser && currentUser.role === 'Administrador') || (adminOriginalUser && adminOriginalUser.role === 'Administrador');
+  if(!realIsAdmin){
     return \`<div class="placeholder"><div class="big">🔒</div><h3>Acesso restrito</h3><p>Esta área é exclusiva para administradores.</p></div>\`;
   }
+  const myEmail = (adminOriginalUser ? adminOriginalUser.email : (currentUser ? currentUser.email : '')).toLowerCase();
   return \`
   <div class="page-head"><div><h1>Usuários Cadastrados</h1><p>Administre as contas do sistema e acompanhe a atividade de cada usuário</p></div></div>
   <div class="panel" style="margin-bottom:0;">
@@ -4305,18 +4273,19 @@ function pageUsuarios(){
     <div class="user-admin-list">
       \${registeredUsers.map(u=>{
         const stats = getUserActivitySummary(u.email);
+        const isCurrentViewing = isViewingOtherUser && currentUser && currentUser.email.toLowerCase() === u.email.toLowerCase();
         return \`
-        <div class="user-row \${u.active===false?'inactive':''}">
+        <div class="user-row \${u.active===false?'inactive':''} \${isCurrentViewing?'viewing-now':''}">
           <div class="user-ic">\${u.name.slice(0,2).toUpperCase()}</div>
           <div class="user-info">
-            <div class="n">\${u.name}</div>
+            <div class="n">\${u.name} \${isCurrentViewing ? '<span class="tag" style="background:rgba(16,185,129,0.2);color:#10B981;margin-left:6px;font-size:11px;">Visualizando agora</span>' : ''}</div>
             <div class="e">\${u.email}</div>
             <div class="stats">\${stats.hasData ? \`\${stats.txCount} transaç\${stats.txCount===1?'ão':'ões'} · \${stats.accCount} conta\${stats.accCount===1?'':'s'} · \${stats.budCount} orçamento\${stats.budCount===1?'':'s'} · \${stats.goalCount} meta\${stats.goalCount===1?'':'s'}\${stats.lastDate ? \` · última mov. em \${formatDateBR(stats.lastDate)}\` : ''}\` : 'Ainda sem atividade registrada'}</div>
           </div>
           <span class="role-badge \${u.role==='Administrador'?'admin':'user'}">\${u.role}</span>
           \${u.active===false ? '<span class="role-badge inactive">Desativado</span>' : ''}
-          \${u.email!==currentUser.email ? \`<button class="row-view" data-viewuser="\${u.email}" title="Visualizar tudo que este usuário fez">👁</button>\` : ''}
-          \${u.email!==currentUser.email ? \`<button class="row-toggle" data-toggleuser="\${u.email}" title="\${u.active===false?'Ativar usuário':'Desativar usuário'}">\${u.active===false?'✅':'🚫'}</button>\` : ''}
+          \${u.email.toLowerCase() !== myEmail ? \`<button class="row-view" data-viewuser="\${u.email}" title="Visualizar tudo que este usuário fez">👁</button>\` : ''}
+          \${u.email.toLowerCase() !== myEmail ? \`<button class="row-toggle" data-toggleuser="\${u.email}" title="\${u.active===false?'Ativar usuário':'Desativar usuário'}">\${u.active===false?'✅':'🚫'}</button>\` : ''}
           <button class="row-edit" data-edituser="\${u.email}" title="Editar usuário">✎</button>
         </div>\`;
       }).join('')}
@@ -6344,7 +6313,7 @@ if (scaleMenuBtn && scaleDropdown) {
         localStorage.removeItem('nexus_just_logged_in');
         sessionStorage.removeItem('nexus_just_logged_in');
         setTimeout(() => {
-          showLoginSuccessPopup('Login efetuado com sucesso!');
+          showLoginSuccessPopup('Sua sessão foi iniciada com segurança.');
         }, 200);
       }
     } catch(e){}

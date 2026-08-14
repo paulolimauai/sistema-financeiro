@@ -93,22 +93,22 @@
     <style>
         body {
             font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
-            background-color: #12151A;
+            background-color: #0A0D14;
             color: #F8FAFC;
             overflow-x: hidden;
             transition: background-color 0.25s ease, color 0.25s ease;
         }
         body.light, html.light body {
-            background-color: #F0F4F8 !important;
+            background-color: #F1F5F9 !important;
             color: #0F172A !important;
         }
         .auth-card-exact {
-            background: #12151A;
+            background: #0F1420;
             backdrop-filter: blur(36px);
             -webkit-backdrop-filter: blur(36px);
-            border: 1.5px solid rgba(200, 155, 60, 0.65);
-            border-radius: 28px;
-            box-shadow: 0 35px 80px rgba(0, 0, 0, 0.95), 0 0 45px rgba(200, 155, 60, 0.28), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.65), 0 0 35px rgba(229, 169, 60, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.08);
             transition: transform 0.25s cubic-bezier(0.2, 0, 0.2, 1), box-shadow 0.25s ease, background 0.25s ease, border-color 0.25s ease;
         }
         body.light .auth-card-exact {
@@ -137,14 +137,14 @@
         }
         .input-wrapper-exact {
             position: relative;
-            background: #171B21;
-            border: 1px solid #262C36;
+            background: rgba(255, 255, 255, 0.035);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             border-radius: 14px;
             transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         .input-wrapper-exact:focus-within {
-            border-color: #C89B3C !important;
-            box-shadow: 0 0 25px rgba(200, 155, 60, 0.40) !important;
+            border-color: #E5A93C !important;
+            box-shadow: 0 0 20px rgba(229, 169, 60, 0.30) !important;
             transform: translateY(-1px);
         }
         .input-wrapper-exact.field-highlight {
@@ -326,18 +326,18 @@
         };
     </script>
 </head>
-<body class="h-full bg-[#12151A] text-gray-100 font-sans antialiased flex flex-col justify-center items-center min-h-screen py-10 px-4">
+<body class="h-full bg-[#0A0D14] light:bg-[#F1F5F9] text-gray-100 font-sans antialiased flex flex-col justify-center items-center min-h-screen py-10 px-4">
 
     <!-- Popup Executivo 3D de Login Efetuado com Sucesso -->
-    <div class="fixed inset-0 bg-black/85 backdrop-blur-md flex items-center justify-center z-[99999] p-5 opacity-0 transition-opacity duration-300" id="loginSuccessOverlay" style="display:none;">
-        <div class="bg-[#12151A] border-2 border-[#C89B3C] rounded-[28px] p-9 w-full max-w-[380px] text-center shadow-[0_35px_80px_rgba(0,0,0,0.95),0_0_45px_rgba(200,155,60,0.35)] transform translate-y-4 scale-95 transition-all duration-300">
-            <div class="w-16 h-16 mx-auto mb-5 rounded-full bg-gradient-to-br from-amber-500/30 to-amber-600/20 border-2 border-[#C89B3C] shadow-[0_0_25px_rgba(200,155,60,0.5)] flex items-center justify-center">
-                <svg class="w-9 h-9 text-amber-400" fill="none" stroke="currentColor" stroke-width="3.5" viewBox="0 0 24 24">
+    <div class="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[99999] p-5 opacity-0 transition-opacity duration-300" id="loginSuccessOverlay" style="display:none;">
+        <div class="bg-[#0F1420] light:bg-white border border-white/10 light:border-slate-200 rounded-[24px] p-8 w-full max-w-[380px] text-center shadow-[0_25px_60px_rgba(0,0,0,0.7),0_0_35px_rgba(16,185,129,0.15)] transform translate-y-4 scale-95 transition-all duration-300">
+            <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/15 border border-emerald-500/35 shadow-[0_0_20px_rgba(16,185,129,0.25)] flex items-center justify-center">
+                <svg class="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/>
                 </svg>
             </div>
-            <h3 class="text-xl font-extrabold text-white mb-2 tracking-tight">Login efetuado com sucesso!</h3>
-            <p class="text-amber-400 font-semibold text-sm" id="loginSuccessMsg">Bem-vindo(a) de volta.</p>
+            <h3 class="text-xl font-extrabold text-white light:text-slate-900 mb-1.5 tracking-tight">Login efetuado com sucesso!</h3>
+            <p class="text-emerald-400 font-semibold text-sm" id="loginSuccessMsg">Sua sessão foi iniciada com segurança.</p>
         </div>
     </div>
 
@@ -545,15 +545,15 @@
 
         </div>
 
-        <!-- CHIP DE DESTAQUE DO DESENVOLVEDOR PAULO LIMA (100% IDÊNTICO À FOTO DO USUÁRIO) -->
+        <!-- CHIP DE DESTAQUE DO DESENVOLVEDOR PAULO LIMA -->
         <div class="mt-6 flex justify-center">
-            <div class="inline-flex items-center gap-3 px-6 py-2.5 rounded-full bg-[#0E1322]/95 border border-[#C89B3C] shadow-[0_0_25px_rgba(200,155,60,0.35)] backdrop-blur-2xl transition-transform hover:scale-105">
+            <div class="inline-flex items-center gap-3 px-6 py-2.5 rounded-full bg-[#0F1420]/95 light:bg-white/95 border border-white/10 light:border-slate-300 shadow-[0_8px_25px_rgba(0,0,0,0.4)] backdrop-blur-2xl transition-transform hover:scale-105">
                 <span class="w-8 h-8 rounded-full bg-gradient-to-br from-[#E6C675] to-[#C89B3C] text-[#0A0F1A] font-black text-xs flex items-center justify-center shadow-md">
                     PL
                 </span>
                 <div class="flex items-center gap-2">
                     <span class="text-[11px] font-bold uppercase tracking-wider text-[#D4A84B]">DESENVOLVEDOR</span>
-                    <span class="text-sm font-extrabold tracking-wider text-white">PAULO LIMA</span>
+                    <span class="text-sm font-extrabold tracking-wider text-white light:text-slate-900">PAULO LIMA</span>
                 </div>
             </div>
         </div>
@@ -597,7 +597,7 @@
                 return false;
             }
 
-            showLoginSuccessModal('Login efetuado com sucesso!');
+            showLoginSuccessModal('Sua sessão foi iniciada com segurança.');
             localStorage.setItem('nexus_session', JSON.stringify({ email: email }));
             localStorage.setItem('nexus_token', data.token);
             localStorage.setItem('nexus_cached_user', JSON.stringify(data.user));
