@@ -2644,23 +2644,26 @@ function getCardStats(account) {
   if (!account) return { spentPeriod: 0, spentTotal: 0, totalLimit: 0, availableLimit: 0, usagePct: 0, currentBalance: 0, initialBalance: 0, isCreditCard: false, txCount: 0, periodIn: 0, periodOut: 0 };
   
   const isCreditCard = isAccountCreditCard(account);
-  const cardTx = transactions.filter(t => isTxForAccount(t, account));
+  // Para Cartões de Crédito: associado EXCLUSIVAMENTE a despesas (saídas)!
+  const cardTx = isCreditCard 
+    ? transactions.filter(t => t.type === 'out' && isTxForAccount(t, account))
+    : transactions.filter(t => isTxForAccount(t, account));
 
   const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
-  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const totalPagamentos = isCreditCard ? 0 : cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
   
   const periodCardTx = cardTx.filter(inPeriod);
   const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
-  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const periodPagamentos = isCreditCard ? 0 : periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
 
   const initialBalance = parseInputValue(account.balance) || parseInputValue(account.limit) || parseInputValue(account.initialBalance) || 0;
 
   if (isCreditCard) {
-    // Para Cartões de Crédito: initialBalance representa o Limite Total Aprovado
+    // Para Cartões de Crédito: initialBalance representa o Limite Total Aprovado. Associado apenas a despesas!
     const totalLimit = Math.max(0, initialBalance);
-    const spentTotal = Math.max(0, totalDespesas - totalPagamentos);
-    const spentPeriod = Math.max(0, periodDespesas - periodPagamentos);
-    const availableLimit = totalLimit - spentTotal;
+    const spentTotal = Math.max(0, totalDespesas);
+    const spentPeriod = Math.max(0, periodDespesas);
+    const availableLimit = Math.max(0, totalLimit - spentTotal);
     const usagePct = totalLimit > 0 ? Math.min(100, Math.max(0, Math.round((spentTotal / totalLimit) * 100))) : (spentTotal > 0 ? 100 : 0);
     const currentBalance = availableLimit;
 
@@ -2674,11 +2677,11 @@ function getCardStats(account) {
       initialBalance,
       isCreditCard: true,
       txCount: cardTx.length,
-      periodIn: periodPagamentos,
+      periodIn: 0,
       periodOut: periodDespesas
     };
   } else {
-    // Para Contas Bancárias (Conta Corrente, Poupança, Investimentos, etc.)
+    // Para Contas Bancárias (Conta Corrente, Débito, Poupança, Investimentos)
     const spentTotal = totalDespesas;
     const spentPeriod = periodDespesas;
     const currentBalance = initialBalance + totalPagamentos - totalDespesas;
