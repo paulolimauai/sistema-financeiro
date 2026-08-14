@@ -2062,18 +2062,32 @@ const DEFAULT_TRANSACTIONS = [
   { id: 7, desc: 'Digio', val: 141.64, date: '2026-10-30', cat: 'Cartão de Crédito', status: 'Pendente', type: 'out', acc: 'DIGIO', accId: 2 }
 ];
 
+function isCurrentAdmin() {
+  if (!currentUser) return false;
+  if (currentUser.role === 'Administrador') return true;
+  const e = (currentUser.email || '').toLowerCase().trim();
+  return e.includes('admin') || e.includes('paulolp0101') || e.includes('paulodelima');
+}
+
 function resetUserDataState() {
   categories = BASE_CATEGORIES.map(c => ({ ...c, count: 0 }));
-  accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
-  transactions = JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS));
+  if (isCurrentAdmin()) {
+    accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+    transactions = JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS));
+    nextAccId = 10;
+    nextTxId = 10;
+  } else {
+    accounts = [];
+    transactions = [];
+    nextAccId = 1;
+    nextTxId = 1;
+  }
   budgets = [];
   goals = [];
   recurringList = [];
   alerts = [];
   attachments = [];
   notifications = [];
-  nextAccId = 10;
-  nextTxId = 10;
   nextBudgetId = 1;
   nextGoalId = 1;
   nextRecId = 1;
@@ -2205,10 +2219,10 @@ function applyDataPayload(data) {
   if (Array.isArray(data.categories) && data.categories.length > 0) {
     categories = data.categories;
   }
-  if (Array.isArray(data.accounts) && data.accounts.length > 0) {
+  if (Array.isArray(data.accounts)) {
     accounts = data.accounts;
   }
-  if (Array.isArray(data.transactions) && data.transactions.length > 0) {
+  if (Array.isArray(data.transactions)) {
     transactions = data.transactions;
   }
   if (Array.isArray(data.budgets)) budgets = data.budgets;
@@ -2242,46 +2256,24 @@ async function loadUserData() {
   const cleanEmail = (currentUser.email || '').toLowerCase().trim();
   const userKey = 'nexus_data_' + cleanEmail;
   
-  // 1. Reset state e carrega dados do cache local se existir
+  // 1. Reset state e carrega dados do cache local do próprio usuário se existir
   let localData = loadFromStorage(userKey, null);
-  if (localData && (Array.isArray(localData.accounts) && localData.accounts.length > 0 || Array.isArray(localData.transactions) && localData.transactions.length > 0)) {
+  if (localData) {
     applyDataPayload(localData);
     isDataLoading = false;
   } else {
-    // Procura por dados cadastrados sob outra chave nexus_data_ no localStorage como backup
-    let foundBackupData = null;
-    try {
-      if (typeof localStorage !== 'undefined') {
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && k.startsWith('nexus_data_')) {
-            const d = loadFromStorage(k, null);
-            if (d && (Array.isArray(d.accounts) && d.accounts.length > 0 || Array.isArray(d.transactions) && d.transactions.length > 0)) {
-              foundBackupData = d;
-              break;
-            }
-          }
-        }
-      }
-    } catch(e){}
-
-    if (foundBackupData) {
-      applyDataPayload(foundBackupData);
-      saveToStorage(userKey, foundBackupData);
-      isDataLoading = false;
-    } else {
-      resetUserDataState();
-      saveUserData();
-      isDataLoading = false;
-    }
+    // Novos usuários ou cadastros récem-criados iniciam com seu próprio espaço limpo e isolado
+    resetUserDataState();
+    saveUserData();
+    isDataLoading = false;
   }
 
-  // 2. Sincroniza em segundo plano com o servidor PostgreSQL / API
+  // 2. Sincroniza em segundo plano com o servidor PostgreSQL / API especificamente para este e-mail
   try {
     const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(cleanEmail));
     if (res.ok) {
       const serverData = await res.json();
-      if (serverData && typeof serverData === 'object' && (Array.isArray(serverData.accounts) && serverData.accounts.length > 0 || Array.isArray(serverData.transactions) && serverData.transactions.length > 0)) {
+      if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
         applyDataPayload(serverData);
         saveToStorage(userKey, serverData);
       }
