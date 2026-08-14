@@ -2970,6 +2970,13 @@ function render(){
   else if(currentPage==='config') newHTML = pageConfig();
   else if(currentPage==='funcoes') newHTML = pageFuncoes();
 
+  if (el.dataset.renderedPage === currentPage && el.innerHTML === newHTML) {
+    updateHeaderUser();
+    updateActiveMenu();
+    return;
+  }
+
+  el.dataset.renderedPage = currentPage;
   el.innerHTML = newHTML;
   attachPageEvents();
   updateHeaderUser();
@@ -6212,8 +6219,12 @@ function applyDisplayScale(scaleVal) {
   var scaleNum = parseFloat(effectiveScale) / 100 || 1;
   document.documentElement.style.setProperty('--app-zoom', scaleNum);
 
-  if ('zoom' in document.documentElement.style) {
-    document.documentElement.style.zoom = scaleNum;
+  var scaleNumStr = String(scaleNum);
+  if (document.documentElement.getAttribute('data-active-zoom') !== scaleNumStr) {
+    document.documentElement.setAttribute('data-active-zoom', scaleNumStr);
+    if ('zoom' in document.documentElement.style) {
+      document.documentElement.style.zoom = scaleNum;
+    }
   }
 
   var lbl = document.getElementById('currentScaleLabel');
