@@ -237,22 +237,6 @@ const htmlContent = `<!DOCTYPE html>
       document.documentElement.style.zoom = scaleNum;
     }
 
-    (function initHeaderSync(){
-      try {
-        var cu = localStorage.getItem('nexus_cached_user');
-        if (cu) {
-          var uObj = JSON.parse(cu);
-          if (uObj && uObj.name) {
-            var hName = document.getElementById('headerName');
-            var hRole = document.getElementById('headerRole');
-            var hAv = document.getElementById('headerAvatar');
-            if (hName) hName.textContent = uObj.name;
-            if (hRole) hRole.textContent = uObj.role || 'Usuário';
-            if (hAv) hAv.textContent = uObj.name.trim().split(/\s+/).map(function(n){return n[0];}).filter(Boolean).slice(0,2).join('').toUpperCase();
-          }
-        }
-      } catch(e){}
-    })();
     document.addEventListener('DOMContentLoaded', function() {
       if (localStorage.getItem('nexus_theme') === 'light') {
         document.body.classList.add('light');
@@ -267,9 +251,9 @@ const htmlContent = `<!DOCTYPE html>
             var hName = document.getElementById('headerName');
             var hRole = document.getElementById('headerRole');
             var hAv = document.getElementById('headerAvatar');
-            if (hName && !hName.textContent) hName.textContent = uObj.name;
-            if (hRole && !hRole.textContent) hRole.textContent = uObj.role || 'Usuário';
-            if (hAv && !hAv.textContent) hAv.textContent = uObj.name.trim().split(/\s+/).map(function(n){return n[0];}).filter(Boolean).slice(0,2).join('').toUpperCase();
+            if (hName) hName.textContent = uObj.name;
+            if (hRole) hRole.textContent = uObj.role || 'Usuário';
+            if (hAv) hAv.textContent = uObj.name.trim().split(/\s+/).map(function(n){return n[0];}).slice(0,2).join('').toUpperCase();
           }
         }
       } catch(e){}
@@ -658,10 +642,10 @@ body.light .menu button.active .ic{background:rgba(255,255,255,0.2); color:#FFFF
   display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; font-size:16px; flex-shrink:0;
 }
 .icon-btn .dot{position:absolute; top:8px; right:8px; width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 2px var(--sidebar);}
-.user{display:flex; align-items:center; gap:10px; cursor:pointer; min-width:140px; min-height:42px; transition:opacity 0.2s ease;}
+.user{display:flex; align-items:center; gap:10px; cursor:pointer; min-width:0;}
 .avatar{width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,#f0a63a,#d85bb0); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:#1b1200; flex-shrink:0;}
-.user .uname{font-size:15.5px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px; min-height:19px; display:block;}
-.user .urole{font-size:12px; color:var(--text-faint); white-space:nowrap; min-height:15px; display:block;}
+.user .uname{font-size:15.5px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px;}
+.user .urole{font-size:12px; color:var(--text-faint); white-space:nowrap;}
 .topheader-row .btn-ghost{padding:10px 18px; font-size:13px; flex-shrink:0;}
 
 /* Suporte de Tema Claro para Cards de Resumo */
@@ -1127,38 +1111,38 @@ body.light tr.trow:hover td { background:#f1f5f9 !important; }
 .toast.show{display:flex;}
 .toast .d{width:8px; height:8px; border-radius:50%; background:var(--green); flex-shrink:0;}
 
-/* ==================== Popup de login bem-sucedido (Verde Esmeralda Executive) ==================== */
+/* ==================== Popup de login bem-sucedido (Executive 4K) ==================== */
 .login-success-overlay{
-  position:fixed; inset:0; background:rgba(7, 13, 26, 0.85); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
+  position:fixed; inset:0; background:rgba(4,7,17,.80); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px);
   display:none; align-items:center; justify-content:center; z-index:99999 !important; padding:20px; opacity:0;
   transition:opacity .3s ease;
 }
 .login-success-overlay.show{display:flex;}
 .login-success-overlay.in{opacity:1;}
 .login-success-box{
-  background:var(--card); border:1.5px solid var(--green); border-radius:22px;
+  background:#12151A; border:1.5px solid #C89B3C; border-radius:22px;
   padding:38px 32px; width:100%; max-width:360px; text-align:center;
-  box-shadow:0 30px 80px rgba(0,0,0,0.95), 0 0 45px rgba(16,185,129,0.30), inset 0 1px 1px rgba(255,255,255,0.2);
+  box-shadow:0 30px 80px rgba(0,0,0,0.95), 0 0 45px rgba(200,155,60,0.30), inset 0 1px 1px rgba(255,255,255,0.3);
   transform:translateY(16px) scale(.94); opacity:0; transition:transform .35s cubic-bezier(.16,1,.3,1), opacity .35s ease;
 }
 .login-success-overlay.in .login-success-box{transform:translateY(0) scale(1); opacity:1;}
 .login-success-check{
   width:68px; height:68px; margin:0 auto 20px; border-radius:50%;
-  background:linear-gradient(135deg, rgba(16,185,129,0.25), rgba(5,150,105,0.18));
-  border:1.5px solid var(--green);
-  box-shadow:0 0 25px rgba(16,185,129,0.45), inset 0 1px 1px rgba(255,255,255,0.4);
+  background:linear-gradient(135deg, rgba(229,169,60,0.28), rgba(200,155,60,0.22));
+  border:1.5px solid #C89B3C;
+  box-shadow:0 0 25px rgba(200,155,60,0.45), inset 0 1px 1px rgba(255,255,255,0.4);
   display:flex; align-items:center; justify-content:center;
 }
 .login-success-check svg{width:36px; height:36px;}
-.login-success-check circle{stroke:var(--green); stroke-width:2.5; opacity:.4;}
+.login-success-check circle{stroke:#C89B3C; stroke-width:2.5; opacity:.4;}
 .login-success-check path{
-  stroke:var(--green); stroke-width:4; stroke-linecap:round; stroke-linejoin:round;
+  stroke:#E5A93C; stroke-width:4; stroke-linecap:round; stroke-linejoin:round;
   stroke-dasharray:40; stroke-dashoffset:40; animation:loginCheckDraw .45s ease .15s forwards;
-  filter:drop-shadow(0 0 8px rgba(16,185,129,0.8));
+  filter:drop-shadow(0 0 6px rgba(229,169,60,0.8));
 }
 @keyframes loginCheckDraw{to{stroke-dashoffset:0;}}
-.login-success-box h3{font-size:18px; font-weight:800; color:#ffffff; margin-bottom:6px; letter-spacing:-0.01em;}
-.login-success-box p{color:var(--green); font-size:13.5px; font-weight:600;}
+.login-success-box h3{font-size:17.5px; font-weight:800; color:#ffffff; margin-bottom:6px; letter-spacing:-0.01em;}
+.login-success-box p{color:#E5A93C; font-size:13.5px; font-weight:600;}
 
 /* ==================== Popup de conta desativada ==================== */
 .account-disabled-icon{
@@ -1725,7 +1709,7 @@ body.light .scale-dropdown {
       <svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="24" fill="none"/><path fill="none" d="M14 27l7 7 17-17"/></svg>
     </div>
     <h3>Login efetuado com sucesso!</h3>
-    <p id="loginSuccessMsg">Bem-vindo(a) ao Nexus Financeiro Hub!</p>
+    <p id="loginSuccessMsg">Bem-vindo(a) de volta.</p>
   </div>
 </div>
 
@@ -1781,17 +1765,6 @@ async function syncUsersWithServer() {
     if (res.ok) {
       registeredUsers = await res.json();
       saveToStorage('nexus_users', registeredUsers);
-      if (currentUser && currentUser.email) {
-        const updatedMe = registeredUsers.find(u => (u.email||'').toLowerCase().trim() === currentUser.email.toLowerCase().trim());
-        if (updatedMe) {
-          const nameChanged = (currentUser.name !== updatedMe.name || currentUser.role !== updatedMe.role);
-          currentUser.name = updatedMe.name;
-          currentUser.role = updatedMe.role;
-          if (updatedMe.active !== undefined) currentUser.active = updatedMe.active;
-          saveToStorage('nexus_cached_user', currentUser);
-          if (nameChanged) updateHeaderUser();
-        }
-      }
     }
   } catch(e) {
     registeredUsers = loadFromStorage('nexus_users', [
@@ -1914,13 +1887,9 @@ document.getElementById('loginForm').onsubmit = async (e) => {
 function showLoginSuccessPopup(msg){
   const overlay = document.getElementById('loginSuccessOverlay');
   if(!overlay) return;
-  const msgEl = document.getElementById('loginSuccessMsg');
-  if(msgEl) {
-    if(msg && msg !== 'Login efetuado com sucesso!') {
-      msgEl.textContent = msg;
-    } else {
-      msgEl.textContent = 'Bem-vindo(a) ao Nexus Financeiro Hub!';
-    }
+  if(msg) {
+    const msgEl = document.getElementById('loginSuccessMsg');
+    if(msgEl) msgEl.textContent = msg;
   }
   overlay.style.display = 'flex';
   overlay.classList.add('show');
@@ -1932,7 +1901,7 @@ function showLoginSuccessPopup(msg){
       overlay.classList.remove('show');
       overlay.style.display = 'none';
     }, 350);
-  }, 2200);
+  }, 3500);
 }
 
 function showAccountDisabledPopup(msg){
@@ -2245,9 +2214,9 @@ function applyDataPayload(data) {
   autoMigrateTransactionsAndAccounts();
 }
 
-let lastDataLoadTime = 0;
+let isDataLoading = false;
 
-async function loadUserData(force = false) {
+async function loadUserData() {
   if (!currentUser) {
     resetUserDataState();
     isDataLoading = false;
@@ -2256,12 +2225,6 @@ async function loadUserData(force = false) {
   const cleanEmail = (currentUser.email || '').toLowerCase().trim();
   const userKey = 'nexus_data_' + cleanEmail;
   
-  const now = Date.now();
-  if (!force && (now - lastDataLoadTime < 15000)) {
-    return;
-  }
-  lastDataLoadTime = now;
-
   // 1. Reset state e carrega dados do cache local se existir
   let localData = loadFromStorage(userKey, null);
   if (localData) {
@@ -2296,12 +2259,12 @@ async function loadUserData(force = false) {
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && currentUser && !isViewingOtherUser) {
-      loadUserData(false);
+      loadUserData();
     }
   });
   window.addEventListener('focus', () => {
     if (currentUser && !isViewingOtherUser) {
-      loadUserData(false);
+      loadUserData();
     }
   });
 }
@@ -2681,26 +2644,23 @@ function getCardStats(account) {
   if (!account) return { spentPeriod: 0, spentTotal: 0, totalLimit: 0, availableLimit: 0, usagePct: 0, currentBalance: 0, initialBalance: 0, isCreditCard: false, txCount: 0, periodIn: 0, periodOut: 0 };
   
   const isCreditCard = isAccountCreditCard(account);
-  // Para Cartões de Crédito: associado EXCLUSIVAMENTE a despesas (saídas)!
-  const cardTx = isCreditCard 
-    ? transactions.filter(t => t.type === 'out' && isTxForAccount(t, account))
-    : transactions.filter(t => isTxForAccount(t, account));
+  const cardTx = transactions.filter(t => isTxForAccount(t, account));
 
   const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
-  const totalPagamentos = isCreditCard ? 0 : cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
   
   const periodCardTx = cardTx.filter(inPeriod);
   const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
-  const periodPagamentos = isCreditCard ? 0 : periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
 
   const initialBalance = parseInputValue(account.balance) || parseInputValue(account.limit) || parseInputValue(account.initialBalance) || 0;
 
   if (isCreditCard) {
-    // Para Cartões de Crédito: initialBalance representa o Limite Total Aprovado. Associado apenas a despesas!
+    // Para Cartões de Crédito: initialBalance representa o Limite Total Aprovado
     const totalLimit = Math.max(0, initialBalance);
-    const spentTotal = Math.max(0, totalDespesas);
-    const spentPeriod = Math.max(0, periodDespesas);
-    const availableLimit = Math.max(0, totalLimit - spentTotal);
+    const spentTotal = Math.max(0, totalDespesas - totalPagamentos);
+    const spentPeriod = Math.max(0, periodDespesas - periodPagamentos);
+    const availableLimit = totalLimit - spentTotal;
     const usagePct = totalLimit > 0 ? Math.min(100, Math.max(0, Math.round((spentTotal / totalLimit) * 100))) : (spentTotal > 0 ? 100 : 0);
     const currentBalance = availableLimit;
 
@@ -2714,11 +2674,11 @@ function getCardStats(account) {
       initialBalance,
       isCreditCard: true,
       txCount: cardTx.length,
-      periodIn: 0,
+      periodIn: periodPagamentos,
       periodOut: periodDespesas
     };
   } else {
-    // Para Contas Bancárias (Conta Corrente, Débito, Poupança, Investimentos)
+    // Para Contas Bancárias (Conta Corrente, Poupança, Investimentos, etc.)
     const spentTotal = totalDespesas;
     const spentPeriod = periodDespesas;
     const currentBalance = initialBalance + totalPagamentos - totalDespesas;
@@ -2870,51 +2830,19 @@ function refreshTxTable(){
   if(fTipo && fTipo.value) list = list.filter(t=>t.type===fTipo.value);
   if(fCat && fCat.value) list = list.filter(t=>t.cat===fCat.value);
   if(fStatus && fStatus.value) list = list.filter(t=>t.status===fStatus.value);
-  
-  let allTimeForAccCount = 0;
-  let selectedAccName = '';
   if(fConta && fConta.value) {
-    selectedAccName = fConta.value;
     const targetAcc = accounts.find(a => a.name === fConta.value);
     if (targetAcc) {
       list = list.filter(t => isTxForAccount(t, targetAcc));
-      allTimeForAccCount = transactions.filter(t => isTxForAccount(t, targetAcc)).length;
     } else {
       const qAcc = fConta.value.toLowerCase().trim();
       list = list.filter(t => (t.acc || '').toLowerCase().trim().includes(qAcc));
-      allTimeForAccCount = transactions.filter(t => (t.acc || '').toLowerCase().trim().includes(qAcc)).length;
     }
   }
 
   list.sort((a,b)=>b.date.localeCompare(a.date));
-
-  let htmlResult = '';
-  if (selectedAccName && currentPeriod.month !== 0 && allTimeForAccCount > list.length) {
-    htmlResult += '<div style="background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.25); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--text); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">' +
-      '<span>💡 Exibindo <strong>' + list.length + '</strong> de <strong>' + allTimeForAccCount + '</strong> lançamentos desta conta em <strong>' + periodLabel() + '</strong>.</span>' +
-      '<button type="button" id="btnShowAllDatesAccount" style="background:var(--blue); color:#fff; border:none; padding:5px 12px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer;">Ver todos os ' + allTimeForAccCount + ' lançamentos (todas as datas) →</button>' +
-    '</div>';
-  }
-  htmlResult += transactionsTable(list, true);
-
-  tableWrap.innerHTML = htmlResult;
+  tableWrap.innerHTML = transactionsTable(list, true);
   const statsRow = document.getElementById('txStatsRow'); if(statsRow) statsRow.innerHTML = txStatsCardsHTML(list);
-
-  const btnShowAll = document.getElementById('btnShowAllDatesAccount');
-  if (btnShowAll) {
-    btnShowAll.onclick = () => {
-      currentPeriod = { month: 0, year: currentPeriod.year || new Date().getFullYear() };
-      render();
-      setTimeout(() => {
-        const fc = document.getElementById('txFiltroConta');
-        if (fc) {
-          fc.value = selectedAccName;
-          refreshTxTable();
-        }
-      }, 50);
-    };
-  }
-
   document.querySelectorAll('[data-edit]').forEach(el => {
     el.onclick = (e) => {
       if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -2976,13 +2904,6 @@ function render(){
   else if(currentPage==='config') newHTML = pageConfig();
   else if(currentPage==='funcoes') newHTML = pageFuncoes();
 
-  if (el.dataset.renderedPage === currentPage && el.innerHTML === newHTML) {
-    updateHeaderUser();
-    updateActiveMenu();
-    return;
-  }
-
-  el.dataset.renderedPage = currentPage;
   el.innerHTML = newHTML;
   attachPageEvents();
   updateHeaderUser();
@@ -3069,24 +2990,14 @@ function updateViewModeBanner(){
 }
 
 function updateHeaderUser(){
-  if (!currentUser) {
-    const cachedUser = loadFromStorage('nexus_cached_user', null);
-    if (cachedUser) currentUser = cachedUser;
-  }
   if (!currentUser) return;
   const unameEl = document.getElementById('headerName');
   const avatarEl = document.getElementById('headerAvatar');
   const roleEl = document.getElementById('headerRole');
 
-  const finalName = currentUser.name || currentUser.email || 'Usuário';
-  if(unameEl && unameEl.textContent !== finalName) unameEl.textContent = finalName;
-  const finalRole = currentUser.role || 'Usuário';
-  if(roleEl && roleEl.textContent !== finalRole) roleEl.textContent = finalRole;
-  if(avatarEl) {
-    const initials = finalName.trim().split(/\s+/).map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
-    if(avatarEl.textContent !== initials) avatarEl.textContent = initials || 'U';
-  }
-  saveToStorage('nexus_cached_user', currentUser);
+  if(unameEl) unameEl.textContent = currentUser.name;
+  if(roleEl) roleEl.textContent = currentUser.role || 'Usuário';
+  if(avatarEl) avatarEl.textContent = currentUser.name.trim().split(/\s+/).map(n=>n[0]).slice(0,2).join('').toUpperCase();
 }
 
 function periodPickerHTML(){
@@ -3810,7 +3721,7 @@ function pageContas(){
           \`}
         </div>
         <button class="btn-ghost" data-viewcardtx="\${a.name}" style="padding:6px 12px; font-size:11.5px; margin-top:12px; width:100%; border-radius:8px; border:1px solid var(--card-border); background:rgba(255,255,255,0.03); color:var(--text-dim); display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
-          🔍 Ver todos os \${stats.txCount} lançamentos desta conta
+          🔍 Ver lançamentos desta conta (\${stats.txCount})
         </button>
       </div>\`;
     }).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
@@ -4622,7 +4533,6 @@ function drawDashboardCharts(){
       responsive:true,
       maintainAspectRatio:false,
       cutout:'75%',
-      animation: false,
       plugins:{
         legend:{display:false},
         tooltip:{
@@ -4640,7 +4550,7 @@ function drawDashboardCharts(){
   if(ctx2) charts.categorias = new Chart(ctx2, {
     type:'doughnut',
     data:{ labels:cats.map(c=>c.name), datasets:[{data: cats.length?cats.map(c=>c.val):[1], backgroundColor: cats.length?cats.map(c=>c.color):['#2a2f3a'], borderWidth:0}] },
-    options:{cutout:'62%', animation: false, plugins:{legend:{display:false}}}
+    options:{cutout:'62%', plugins:{legend:{display:false}}}
   });
 }
 
@@ -5878,9 +5788,6 @@ function attachPageEvents(){
           localStorage.removeItem(oldKey);
         }
         currentUser.name = newName;
-        saveToStorage('nexus_cached_user', currentUser);
-        saveToStorage('nexus_session', { email: currentUser.email });
-        updateHeaderUser();
         await saveUserData();
 
         document.getElementById('cfgPassword').value = '';
@@ -5968,7 +5875,6 @@ function attachPageEvents(){
   document.querySelectorAll('[data-viewcardtx]').forEach(btn => {
     btn.onclick = () => {
       const cardName = btn.getAttribute('data-viewcardtx');
-      currentPeriod = { month: 0, year: currentPeriod.year || new Date().getFullYear() };
       currentPage = 'transacoes';
       render();
       setTimeout(() => {
@@ -6226,12 +6132,8 @@ function applyDisplayScale(scaleVal) {
   var scaleNum = parseFloat(effectiveScale) / 100 || 1;
   document.documentElement.style.setProperty('--app-zoom', scaleNum);
 
-  var scaleNumStr = String(scaleNum);
-  if (document.documentElement.getAttribute('data-active-zoom') !== scaleNumStr) {
-    document.documentElement.setAttribute('data-active-zoom', scaleNumStr);
-    if ('zoom' in document.documentElement.style) {
-      document.documentElement.style.zoom = scaleNum;
-    }
+  if ('zoom' in document.documentElement.style) {
+    document.documentElement.style.zoom = scaleNum;
   }
 
   var lbl = document.getElementById('currentScaleLabel');
@@ -6309,23 +6211,19 @@ if (scaleMenuBtn && scaleDropdown) {
         currentUser = cachedUser;
         if (currentUser.role === 'Administrador') {
           document.documentElement.classList.add('is-admin');
+          const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+          const savedPage = localStorage.getItem('nexus_current_page');
+          const pageTarget = hashPage || savedPage;
+          if (pageTarget === 'logs') {
+            currentPage = 'logs';
+          } else {
+            currentPage = 'usuarios';
+          }
         } else {
           document.documentElement.classList.remove('is-admin');
         }
-        const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'usuarios', 'logs', 'config'];
-        const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
-        const savedPage = localStorage.getItem('nexus_current_page');
-        const pageTarget = (hashPage && validPages.includes(hashPage)) ? hashPage : (savedPage && validPages.includes(savedPage) ? savedPage : 'dashboard');
-        currentPage = pageTarget;
-
-        const cleanEmail = (currentUser.email || '').toLowerCase().trim();
-        const localData = loadFromStorage('nexus_data_' + cleanEmail, null);
-        if (localData) {
-          applyDataPayload(localData);
-        }
         if (typeof updateHeaderUser === 'function') updateHeaderUser();
         if (typeof updateAdminMenuVisibility === 'function') updateAdminMenuVisibility();
-        if (typeof render === 'function') render();
       }
     }
   } catch(e){}
@@ -6349,7 +6247,7 @@ if (scaleMenuBtn && scaleDropdown) {
     await syncUsersWithServer();
   } catch(e) {}
 
-  const serverUser = registeredUsers.find(u => (u.email || '').toLowerCase().trim() === (sessionEmail || '').toLowerCase().trim());
+  const serverUser = registeredUsers.find(u => u.email.toLowerCase() === (sessionEmail || '').toLowerCase());
   const realUser = serverUser || cachedUser || { email: sessionEmail, name: sessionEmail.split('@')[0], role: 'Usuário' };
 
   if (realUser && realUser.active === false) {
@@ -6392,11 +6290,16 @@ if (scaleMenuBtn && scaleDropdown) {
   isViewingOtherUser = false;
   localStorage.removeItem('nexus_viewing_user');
 
-  const validPages = ['dashboard', 'transacoes', 'cartoes', 'orcamentos', 'metas', 'relatorios', 'recorrentes', 'importar', 'anexos', 'alertas', 'funcoes', 'usuarios', 'logs', 'config'];
-  const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
-  const savedPage = localStorage.getItem('nexus_current_page');
-  const pageTarget = (hashPage && validPages.includes(hashPage)) ? hashPage : (savedPage && validPages.includes(savedPage) ? savedPage : 'dashboard');
-  currentPage = pageTarget;
+  if (currentUser.role === 'Administrador') {
+    const hashPage = window.location.hash ? window.location.hash.replace('#', '') : null;
+    const savedPage = localStorage.getItem('nexus_current_page');
+    const pageTarget = hashPage || savedPage || currentPage;
+    if (pageTarget === 'logs') {
+      currentPage = 'logs';
+    } else {
+      currentPage = 'usuarios';
+    }
+  }
 
   await loadUserData();
   if (typeof render === 'function') render();
