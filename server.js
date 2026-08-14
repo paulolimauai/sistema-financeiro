@@ -6299,8 +6299,15 @@ if (scaleMenuBtn && scaleDropdown) {
         const savedPage = localStorage.getItem('nexus_current_page');
         const pageTarget = (hashPage && validPages.includes(hashPage)) ? hashPage : (savedPage && validPages.includes(savedPage) ? savedPage : 'dashboard');
         currentPage = pageTarget;
+
+        const cleanEmail = (currentUser.email || '').toLowerCase().trim();
+        const localData = loadFromStorage('nexus_data_' + cleanEmail, null);
+        if (localData) {
+          applyDataPayload(localData);
+        }
         if (typeof updateHeaderUser === 'function') updateHeaderUser();
         if (typeof updateAdminMenuVisibility === 'function') updateAdminMenuVisibility();
+        if (typeof render === 'function') render();
       }
     }
   } catch(e){}
