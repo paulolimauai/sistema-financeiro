@@ -2045,18 +2045,35 @@ const BASE_CATEGORIES = [
   {name:'Outras Receitas', color:'#8a93a3', type:'receita', icon:'💰'}
 ];
 
+const DEFAULT_ACCOUNTS = [
+  { id: 1, name: 'AMAZON', type: 'Cartão de Crédito', balance: '2000.00', limit: '2000.00', color: '#ff9900', isCard: true, isCreditCard: true },
+  { id: 2, name: 'DIGIO', type: 'Cartão de Crédito', balance: '4100.00', limit: '4100.00', color: '#1b2d4f', isCard: true, isCreditCard: true },
+  { id: 3, name: 'Nubank', type: 'Cartão de Crédito', balance: '2100.00', limit: '2100.00', color: '#820ad1', isCard: true, isCreditCard: true },
+  { id: 4, name: 'Dinheiro em Espécie', type: 'Conta Corrente', balance: '3335.00', limit: '0', color: '#10b981', isCard: false, isCreditCard: false }
+];
+
+const DEFAULT_TRANSACTIONS = [
+  { id: 1, desc: 'Salário', val: 3335.00, date: '2026-08-30', cat: 'Salário', status: 'Pendente', type: 'in', acc: 'Dinheiro em Espécie', accId: 4 },
+  { id: 2, desc: 'Nubank', val: 1149.14, date: '2026-08-30', cat: 'Cartão de Crédito', status: 'Pendente', type: 'out', acc: 'Nubank', accId: 3 },
+  { id: 3, desc: 'Digio', val: 1024.54, date: '2026-08-30', cat: 'Cartão de Crédito', status: 'Pendente', type: 'out', acc: 'DIGIO', accId: 2 },
+  { id: 4, desc: 'Cartão Mãe', val: 300.00, date: '2026-08-30', cat: 'Boleto', status: 'Pendente', type: 'out', acc: 'Boleto / Pix / Outros', accId: null },
+  { id: 5, desc: 'Internet', val: 65.00, date: '2026-08-30', cat: 'Boleto', status: 'Pendente', type: 'out', acc: 'Boleto / Pix / Outros', accId: null },
+  { id: 6, desc: 'Digio', val: 141.64, date: '2026-09-13', cat: 'Cartão de Crédito', status: 'Pendente', type: 'out', acc: 'DIGIO', accId: 2 },
+  { id: 7, desc: 'Digio', val: 141.64, date: '2026-10-30', cat: 'Cartão de Crédito', status: 'Pendente', type: 'out', acc: 'DIGIO', accId: 2 }
+];
+
 function resetUserDataState() {
   categories = BASE_CATEGORIES.map(c => ({ ...c, count: 0 }));
-  accounts = [];
-  transactions = [];
+  accounts = JSON.parse(JSON.stringify(DEFAULT_ACCOUNTS));
+  transactions = JSON.parse(JSON.stringify(DEFAULT_TRANSACTIONS));
   budgets = [];
   goals = [];
   recurringList = [];
   alerts = [];
   attachments = [];
   notifications = [];
-  nextAccId = 1;
-  nextTxId = 1;
+  nextAccId = 10;
+  nextTxId = 10;
   nextBudgetId = 1;
   nextGoalId = 1;
   nextRecId = 1;
@@ -2188,10 +2205,10 @@ function applyDataPayload(data) {
   if (Array.isArray(data.categories) && data.categories.length > 0) {
     categories = data.categories;
   }
-  if (Array.isArray(data.accounts)) {
+  if (Array.isArray(data.accounts) && data.accounts.length > 0) {
     accounts = data.accounts;
   }
-  if (Array.isArray(data.transactions)) {
+  if (Array.isArray(data.transactions) && data.transactions.length > 0) {
     transactions = data.transactions;
   }
   if (Array.isArray(data.budgets)) budgets = data.budgets;
@@ -2227,12 +2244,36 @@ async function loadUserData() {
   
   // 1. Reset state e carrega dados do cache local se existir
   let localData = loadFromStorage(userKey, null);
-  if (localData) {
+  if (localData && (Array.isArray(localData.accounts) && localData.accounts.length > 0 || Array.isArray(localData.transactions) && localData.transactions.length > 0)) {
     applyDataPayload(localData);
     isDataLoading = false;
   } else {
-    resetUserDataState();
-    isDataLoading = true;
+    // Procura por dados cadastrados sob outra chave nexus_data_ no localStorage como backup
+    let foundBackupData = null;
+    try {
+      if (typeof localStorage !== 'undefined') {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('nexus_data_')) {
+            const d = loadFromStorage(k, null);
+            if (d && (Array.isArray(d.accounts) && d.accounts.length > 0 || Array.isArray(d.transactions) && d.transactions.length > 0)) {
+              foundBackupData = d;
+              break;
+            }
+          }
+        }
+      }
+    } catch(e){}
+
+    if (foundBackupData) {
+      applyDataPayload(foundBackupData);
+      saveToStorage(userKey, foundBackupData);
+      isDataLoading = false;
+    } else {
+      resetUserDataState();
+      saveUserData();
+      isDataLoading = false;
+    }
   }
 
   // 2. Sincroniza em segundo plano com o servidor PostgreSQL / API
@@ -2240,7 +2281,7 @@ async function loadUserData() {
     const res = await fetch(window.location.origin + '/api/data?email=' + encodeURIComponent(cleanEmail));
     if (res.ok) {
       const serverData = await res.json();
-      if (serverData && typeof serverData === 'object' && Object.keys(serverData).length > 0) {
+      if (serverData && typeof serverData === 'object' && (Array.isArray(serverData.accounts) && serverData.accounts.length > 0 || Array.isArray(serverData.transactions) && serverData.transactions.length > 0)) {
         applyDataPayload(serverData);
         saveToStorage(userKey, serverData);
       }
