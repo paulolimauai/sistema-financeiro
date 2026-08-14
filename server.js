@@ -2245,9 +2245,9 @@ function applyDataPayload(data) {
   autoMigrateTransactionsAndAccounts();
 }
 
-let isDataLoading = false;
+let lastDataLoadTime = 0;
 
-async function loadUserData() {
+async function loadUserData(force = false) {
   if (!currentUser) {
     resetUserDataState();
     isDataLoading = false;
@@ -2256,6 +2256,12 @@ async function loadUserData() {
   const cleanEmail = (currentUser.email || '').toLowerCase().trim();
   const userKey = 'nexus_data_' + cleanEmail;
   
+  const now = Date.now();
+  if (!force && (now - lastDataLoadTime < 15000)) {
+    return;
+  }
+  lastDataLoadTime = now;
+
   // 1. Reset state e carrega dados do cache local se existir
   let localData = loadFromStorage(userKey, null);
   if (localData) {
@@ -2290,12 +2296,12 @@ async function loadUserData() {
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible' && currentUser && !isViewingOtherUser) {
-      loadUserData();
+      loadUserData(false);
     }
   });
   window.addEventListener('focus', () => {
     if (currentUser && !isViewingOtherUser) {
-      loadUserData();
+      loadUserData(false);
     }
   });
 }
@@ -4616,6 +4622,7 @@ function drawDashboardCharts(){
       responsive:true,
       maintainAspectRatio:false,
       cutout:'75%',
+      animation: false,
       plugins:{
         legend:{display:false},
         tooltip:{
@@ -4633,7 +4640,7 @@ function drawDashboardCharts(){
   if(ctx2) charts.categorias = new Chart(ctx2, {
     type:'doughnut',
     data:{ labels:cats.map(c=>c.name), datasets:[{data: cats.length?cats.map(c=>c.val):[1], backgroundColor: cats.length?cats.map(c=>c.color):['#2a2f3a'], borderWidth:0}] },
-    options:{cutout:'62%', plugins:{legend:{display:false}}}
+    options:{cutout:'62%', animation: false, plugins:{legend:{display:false}}}
   });
 }
 
