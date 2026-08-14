@@ -237,6 +237,22 @@ const htmlContent = `<!DOCTYPE html>
       document.documentElement.style.zoom = scaleNum;
     }
 
+    (function initHeaderSync(){
+      try {
+        var cu = localStorage.getItem('nexus_cached_user');
+        if (cu) {
+          var uObj = JSON.parse(cu);
+          if (uObj && uObj.name) {
+            var hName = document.getElementById('headerName');
+            var hRole = document.getElementById('headerRole');
+            var hAv = document.getElementById('headerAvatar');
+            if (hName) hName.textContent = uObj.name;
+            if (hRole) hRole.textContent = uObj.role || 'Usuário';
+            if (hAv) hAv.textContent = uObj.name.trim().split(/\s+/).map(function(n){return n[0];}).filter(Boolean).slice(0,2).join('').toUpperCase();
+          }
+        }
+      } catch(e){}
+    })();
     document.addEventListener('DOMContentLoaded', function() {
       if (localStorage.getItem('nexus_theme') === 'light') {
         document.body.classList.add('light');
@@ -251,9 +267,9 @@ const htmlContent = `<!DOCTYPE html>
             var hName = document.getElementById('headerName');
             var hRole = document.getElementById('headerRole');
             var hAv = document.getElementById('headerAvatar');
-            if (hName) hName.textContent = uObj.name;
-            if (hRole) hRole.textContent = uObj.role || 'Usuário';
-            if (hAv) hAv.textContent = uObj.name.trim().split(/\s+/).map(function(n){return n[0];}).slice(0,2).join('').toUpperCase();
+            if (hName && !hName.textContent) hName.textContent = uObj.name;
+            if (hRole && !hRole.textContent) hRole.textContent = uObj.role || 'Usuário';
+            if (hAv && !hAv.textContent) hAv.textContent = uObj.name.trim().split(/\s+/).map(function(n){return n[0];}).filter(Boolean).slice(0,2).join('').toUpperCase();
           }
         }
       } catch(e){}
@@ -642,10 +658,10 @@ body.light .menu button.active .ic{background:rgba(255,255,255,0.2); color:#FFFF
   display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative; font-size:16px; flex-shrink:0;
 }
 .icon-btn .dot{position:absolute; top:8px; right:8px; width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 0 2px var(--sidebar);}
-.user{display:flex; align-items:center; gap:10px; cursor:pointer; min-width:0;}
+.user{display:flex; align-items:center; gap:10px; cursor:pointer; min-width:140px; min-height:42px; transition:opacity 0.2s ease;}
 .avatar{width:42px; height:42px; border-radius:50%; background:linear-gradient(135deg,#f0a63a,#d85bb0); display:flex; align-items:center; justify-content:center; font-weight:700; font-size:15px; color:#1b1200; flex-shrink:0;}
-.user .uname{font-size:15.5px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px;}
-.user .urole{font-size:12px; color:var(--text-faint); white-space:nowrap;}
+.user .uname{font-size:15.5px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:260px; min-height:19px; display:block;}
+.user .urole{font-size:12px; color:var(--text-faint); white-space:nowrap; min-height:15px; display:block;}
 .topheader-row .btn-ghost{padding:10px 18px; font-size:13px; flex-shrink:0;}
 
 /* Suporte de Tema Claro para Cards de Resumo */
@@ -1768,11 +1784,12 @@ async function syncUsersWithServer() {
       if (currentUser && currentUser.email) {
         const updatedMe = registeredUsers.find(u => (u.email||'').toLowerCase().trim() === currentUser.email.toLowerCase().trim());
         if (updatedMe) {
+          const nameChanged = (currentUser.name !== updatedMe.name || currentUser.role !== updatedMe.role);
           currentUser.name = updatedMe.name;
           currentUser.role = updatedMe.role;
           if (updatedMe.active !== undefined) currentUser.active = updatedMe.active;
           saveToStorage('nexus_cached_user', currentUser);
-          updateHeaderUser();
+          if (nameChanged) updateHeaderUser();
         }
       }
     }
@@ -3045,11 +3062,12 @@ function updateHeaderUser(){
   const roleEl = document.getElementById('headerRole');
 
   const finalName = currentUser.name || currentUser.email || 'Usuário';
-  if(unameEl) unameEl.textContent = finalName;
-  if(roleEl) roleEl.textContent = currentUser.role || 'Usuário';
+  if(unameEl && unameEl.textContent !== finalName) unameEl.textContent = finalName;
+  const finalRole = currentUser.role || 'Usuário';
+  if(roleEl && roleEl.textContent !== finalRole) roleEl.textContent = finalRole;
   if(avatarEl) {
     const initials = finalName.trim().split(/\s+/).map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase();
-    avatarEl.textContent = initials || 'U';
+    if(avatarEl.textContent !== initials) avatarEl.textContent = initials || 'U';
   }
   saveToStorage('nexus_cached_user', currentUser);
 }
