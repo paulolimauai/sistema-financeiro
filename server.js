@@ -2833,19 +2833,51 @@ function refreshTxTable(){
   if(fTipo && fTipo.value) list = list.filter(t=>t.type===fTipo.value);
   if(fCat && fCat.value) list = list.filter(t=>t.cat===fCat.value);
   if(fStatus && fStatus.value) list = list.filter(t=>t.status===fStatus.value);
+  
+  let allTimeForAccCount = 0;
+  let selectedAccName = '';
   if(fConta && fConta.value) {
+    selectedAccName = fConta.value;
     const targetAcc = accounts.find(a => a.name === fConta.value);
     if (targetAcc) {
       list = list.filter(t => isTxForAccount(t, targetAcc));
+      allTimeForAccCount = transactions.filter(t => isTxForAccount(t, targetAcc)).length;
     } else {
       const qAcc = fConta.value.toLowerCase().trim();
       list = list.filter(t => (t.acc || '').toLowerCase().trim().includes(qAcc));
+      allTimeForAccCount = transactions.filter(t => (t.acc || '').toLowerCase().trim().includes(qAcc)).length;
     }
   }
 
   list.sort((a,b)=>b.date.localeCompare(a.date));
-  tableWrap.innerHTML = transactionsTable(list, true);
+
+  let htmlResult = '';
+  if (selectedAccName && currentPeriod.month !== 0 && allTimeForAccCount > list.length) {
+    htmlResult += '<div style="background:rgba(59,130,246,0.1); border:1px solid rgba(59,130,246,0.25); border-radius:12px; padding:10px 14px; margin-bottom:14px; font-size:12.5px; color:var(--text); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">' +
+      '<span>💡 Exibindo <strong>' + list.length + '</strong> de <strong>' + allTimeForAccCount + '</strong> lançamentos desta conta em <strong>' + periodLabel() + '</strong>.</span>' +
+      '<button type="button" id="btnShowAllDatesAccount" style="background:var(--blue); color:#fff; border:none; padding:5px 12px; border-radius:8px; font-size:11.5px; font-weight:700; cursor:pointer;">Ver todos os ' + allTimeForAccCount + ' lançamentos (todas as datas) →</button>' +
+    '</div>';
+  }
+  htmlResult += transactionsTable(list, true);
+
+  tableWrap.innerHTML = htmlResult;
   const statsRow = document.getElementById('txStatsRow'); if(statsRow) statsRow.innerHTML = txStatsCardsHTML(list);
+
+  const btnShowAll = document.getElementById('btnShowAllDatesAccount');
+  if (btnShowAll) {
+    btnShowAll.onclick = () => {
+      currentPeriod = { month: 0, year: currentPeriod.year || new Date().getFullYear() };
+      render();
+      setTimeout(() => {
+        const fc = document.getElementById('txFiltroConta');
+        if (fc) {
+          fc.value = selectedAccName;
+          refreshTxTable();
+        }
+      }, 50);
+    };
+  }
+
   document.querySelectorAll('[data-edit]').forEach(el => {
     el.onclick = (e) => {
       if (e) { e.preventDefault(); e.stopPropagation(); }
@@ -3724,7 +3756,7 @@ function pageContas(){
           \`}
         </div>
         <button class="btn-ghost" data-viewcardtx="\${a.name}" style="padding:6px 12px; font-size:11.5px; margin-top:12px; width:100%; border-radius:8px; border:1px solid var(--card-border); background:rgba(255,255,255,0.03); color:var(--text-dim); display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
-          🔍 Ver lançamentos desta conta (\${stats.txCount})
+          🔍 Ver todos os \${stats.txCount} lançamentos desta conta
         </button>
       </div>\`;
     }).join('') : \`<div class="placeholder"><div class="big">🏦</div><h3>Nenhuma conta cadastrada</h3></div>\`}
@@ -5878,6 +5910,7 @@ function attachPageEvents(){
   document.querySelectorAll('[data-viewcardtx]').forEach(btn => {
     btn.onclick = () => {
       const cardName = btn.getAttribute('data-viewcardtx');
+      currentPeriod = { month: 0, year: currentPeriod.year || new Date().getFullYear() };
       currentPage = 'transacoes';
       render();
       setTimeout(() => {
