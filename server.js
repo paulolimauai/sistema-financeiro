@@ -2561,8 +2561,10 @@ function isTxForAccount(t, account) {
   const accNameLower = (account.name || '').toLowerCase().trim();
   const tAccLower = (t.acc || '').toLowerCase().trim();
   const tCardLower = (t.card || '').toLowerCase().trim();
+  const descLower = (t.desc || '').toLowerCase().trim();
+  const catLower = (t.cat || '').toLowerCase().trim();
 
-  // 1. Prioridade: Se accId for especificado e coincidir com o ID da conta
+  // 1. Prioridade Máxima: Se accId for especificado e coincidir com o ID da conta
   if (t.accId != null && account.id != null && String(t.accId) === String(account.id)) {
     return true;
   }
@@ -2570,11 +2572,11 @@ function isTxForAccount(t, account) {
   // 2. Correspondência exata do nome da conta ou do cartão
   if (accNameLower && (tAccLower === accNameLower || tCardLower === accNameLower)) return true;
 
-  // 3. Substring direta entre nomes
+  // 3. Substring direta entre nomes (ex: "Digio" em "Cartão Digio" ou "Digio Crédito")
   if (accNameLower && tAccLower && (tAccLower.includes(accNameLower) || accNameLower.includes(tAccLower))) return true;
   if (accNameLower && tCardLower && (tCardLower.includes(accNameLower) || accNameLower.includes(tCardLower))) return true;
 
-  // 4. Correspondência normalizada
+  // 4. Correspondência normalizada (removendo "cartão", "crédito", etc.)
   const normAccName = normalizeAccName(account.name);
   const normTAcc = normalizeAccName(t.acc);
   const normTCard = normalizeAccName(t.card);
@@ -2585,38 +2587,27 @@ function isTxForAccount(t, account) {
     if (normTCard && (normTCard.includes(normAccName) || normAccName.includes(normTCard))) return true;
   }
 
-  // 5. Se a transação estiver marcada como "Cartão de Crédito" ou "Cartão" sem accId
-  if (isAccountCreditCard(account)) {
-    const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
-    if (allCreditCards.length > 0) {
-      if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
-        const descLower = (t.desc || '').toLowerCase().trim();
-
-        // 5a. Se a descrição contiver o nome de algum cartão específico, vincula prioritariamente a ele
-        const specificMatch = allCreditCards.find(a => {
-          const aNameLower = (a.name || '').toLowerCase().trim();
-          const normName = normalizeAccName(a.name);
-          return (normName.length >= 3 && descLower.includes(normName)) || (aNameLower.length >= 3 && descLower.includes(aNameLower));
-        });
-        if (specificMatch) {
-          return String(specificMatch.id) === String(account.id);
-        }
-
-        // 5b. Se houver apenas 1 cartão cadastrado, vincula a ele
-        if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) return true;
-
-        // 5c. Fallback para o primeiro cartão caso nenhum outro cartão específico combine com desc
-        if (String(allCreditCards[0].id) === String(account.id)) return true;
-      }
-    }
+  // 5. Se a descrição ou categoria contiver o nome da conta (ex: "Digio" em descrição ou categoria)
+  if (normAccName.length >= 3 && (descLower.includes(normAccName) || catLower.includes(normAccName))) {
+    return true;
+  }
+  if (accNameLower.length >= 3 && (descLower.includes(accNameLower) || catLower.includes(accNameLower))) {
+    return true;
   }
 
-  // 6. Verificação de palavras-chave na descrição para transações sem conta especificada
-  if (!tAccLower || tAccLower === 'sem conta' || tAccLower === 'boleto / outros' || tAccLower === 'dinheiro') {
-    const descLower = (t.desc || '').toLowerCase().trim();
-    if (descLower) {
-      if (normAccName.length >= 3 && descLower.includes(normAccName)) return true;
-      if (accNameLower.length >= 3 && descLower.includes(accNameLower)) return true;
+  // 6. Transações com "Cartão de Crédito" genérico
+  if (isAccountCreditCard(account)) {
+    const allCreditCards = accounts.filter(a => isAccountCreditCard(a));
+    if (tAccLower === 'cartão de crédito' || tAccLower === 'cartao de credito' || tAccLower === 'cartão' || tAccLower === 'cartao') {
+      const specificMatch = allCreditCards.find(a => {
+        const aNameLower = (a.name || '').toLowerCase().trim();
+        const normName = normalizeAccName(a.name);
+        return (normName.length >= 3 && descLower.includes(normName)) || (aNameLower.length >= 3 && descLower.includes(aNameLower));
+      });
+      if (specificMatch) {
+        return String(specificMatch.id) === String(account.id);
+      }
+      if (allCreditCards.length === 1 && String(allCreditCards[0].id) === String(account.id)) return true;
     }
   }
 
@@ -2628,11 +2619,9 @@ function isPgtoFaturaOrEstorno(t) {
   const catLower = (t.cat || '').toLowerCase().trim();
   const descLower = (t.desc || '').toLowerCase().trim();
   
-  // Categorias ou descrições explícitas de pagamento de fatura, estorno ou reembolso
   if (catLower.includes('fatura') || catLower.includes('estorno') || catLower.includes('reembolso')) return true;
   if (descLower.includes('fatura') || descLower.includes('estorno') || descLower.includes('reembolso') || descLower.includes('pgto cartão') || descLower.includes('pgto cartao') || descLower.includes('pagamento de cartão') || descLower.includes('pagamento cartao')) return true;
   
-  // Categorias de renda/salário/investimento NUNCA são pagamento de fatura
   if (
     catLower.includes('salário') || catLower.includes('salario') || 
     catLower.includes('rendimento') || catLower.includes('investimento') || 
@@ -2644,12 +2633,11 @@ function isPgtoFaturaOrEstorno(t) {
     return false;
   }
   
-  // Se for categoria "Cartão de Crédito" e tipo "in", é estorno/pagamento
   if (catLower.includes('cartão') || catLower.includes('cartao') || catLower.includes('crédito') || catLower.includes('credito')) {
     return true;
   }
   
-  return false;
+  return true;
 }
 
 function getCardStats(account) {
@@ -2659,15 +2647,11 @@ function getCardStats(account) {
   const cardTx = transactions.filter(t => isTxForAccount(t, account));
 
   const totalDespesas = cardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
-  const totalPagamentos = isCreditCard
-    ? cardTx.filter(t => t.type === 'in' && isPgtoFaturaOrEstorno(t)).reduce((s, t) => s + parseInputValue(t.val), 0)
-    : cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const totalPagamentos = cardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
   
   const periodCardTx = cardTx.filter(inPeriod);
   const periodDespesas = periodCardTx.filter(t => t.type === 'out').reduce((s, t) => s + parseInputValue(t.val), 0);
-  const periodPagamentos = isCreditCard
-    ? periodCardTx.filter(t => t.type === 'in' && isPgtoFaturaOrEstorno(t)).reduce((s, t) => s + parseInputValue(t.val), 0)
-    : periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
+  const periodPagamentos = periodCardTx.filter(t => t.type === 'in').reduce((s, t) => s + parseInputValue(t.val), 0);
 
   const initialBalance = parseInputValue(account.balance) || parseInputValue(account.limit) || parseInputValue(account.initialBalance) || 0;
 
