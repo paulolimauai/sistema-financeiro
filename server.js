@@ -325,7 +325,10 @@ body.light, html.light body{
 html, body{overflow-x:hidden; width:100%;}
 body{
   font-family:'Plus Jakarta Sans','Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,Arial,sans-serif;
-  background:var(--bg); color:var(--text); min-height:100vh; transition:background .25s,color .25s;
+  background:var(--bg); color:var(--text); min-height:100vh;
+}
+body.theme-transitioning, body.theme-transitioning * {
+  transition: background .25s ease, color .25s ease, border-color .25s ease !important;
 }
 button, input, select{font-family:inherit; color:inherit;}
 code{background:var(--hover); padding:1px 6px; border-radius:5px; font-size:11.5px;}
@@ -6145,6 +6148,7 @@ document.getElementById('recTypeInBtn').onclick = ()=>setRecType('in');
 document.getElementById('recTypeOutBtn').onclick = ()=>setRecType('out');
 
 function toggleTheme(){
+  document.body.classList.add('theme-transitioning');
   const isCurrentlyLight = document.body.classList.contains('light') || document.documentElement.classList.contains('light');
   const nextIsLight = !isCurrentlyLight;
 
@@ -6157,6 +6161,7 @@ function toggleTheme(){
   const sunSvg = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M22 12h-2"/><path d="m4.93 19.07 1.41-1.41"/><path d="m17.66 6.34 1.41-1.41"/></svg>';
   if(btn) btn.innerHTML = nextIsLight ? sunSvg : moonSvg;
   if(currentPage==='dashboard') drawDashboardCharts();
+  setTimeout(() => document.body.classList.remove('theme-transitioning'), 300);
 }
 document.getElementById('miniThemeBtn').onclick = toggleTheme;
 
