@@ -2,22 +2,18 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "type": "npm",
-      "script": "start",
+      "label": "🚀 Subir para GitHub & Render (Auto Deploy)",
+      "type": "shell",
+      "command": "npm run deploy",
       "group": {
         "kind": "build",
         "isDefault": true
       },
-      "problemMatcher": [],
-      "label": "npm: start",
-      "detail": "Inicia o servidor Nexus Financeiro Hub"
-    },
-    {
-      "type": "shell",
-      "command": "node -c server.js",
-      "problemMatcher": [],
-      "label": "Validar Sintaxe do Servidor",
-      "group": "test"
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared"
+      },
+      "problemMatcher": []
     }
   ]
 }
